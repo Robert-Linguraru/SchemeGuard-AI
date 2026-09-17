@@ -25,7 +25,7 @@ public class TransactionExplanationService {
     public TransactionExplanationResponse explain(UUID transactionId) {
         QualificationResult result =
                 qualificationResultRepository
-                        .findLatestByTransactionId(transactionId)
+                        .findFirstByTransactionIdOrderByEvaluatedAtDescIdDesc(transactionId)
                         .orElseThrow(() -> new ResourceNotFoundException(
                                 "No qualification result found for transaction"
                         ));

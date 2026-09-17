@@ -6,8 +6,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface TransactionRepository extends JpaRepository<Transaction, UUID> {
@@ -17,16 +21,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
 
     @Query("select coalesce(sum(transaction.amount), 0) from Transaction transaction")
     BigDecimal sumAmount();
-}
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.repository.query.Param;
-import java.time.Instant;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
 
-public interface TransactionRepository extends JpaRepository<Transaction, UUID> {
     @Query(value = """
             SELECT * FROM transactions WHERE status = 'NEW' AND created_at <= :cutoff
             ORDER BY created_at, id LIMIT :batchSize FOR UPDATE SKIP LOCKED

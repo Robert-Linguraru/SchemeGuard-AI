@@ -1,12 +1,14 @@
 package org.schemeguard.backend.repository;
 
 import org.schemeguard.backend.entity.QualificationResult;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface QualificationResultRepository extends JpaRepository<QualificationResult, UUID> {
@@ -58,29 +60,16 @@ public interface QualificationResultRepository extends JpaRepository<Qualificati
 
     @Query("select count(transaction) from Transaction transaction where not exists (select result.id from QualificationResult result where result.transaction = transaction)")
     long countTransactionsWithoutResult();
-}
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.CrudRepository;
-import org.springframework.data.repository.query.Param;
 
-import java.util.Optional;
-import java.util.List;
-import java.util.UUID;
-
-public interface QualificationResultRepository extends CrudRepository<QualificationResult, UUID> {
-    @Query("""
-        select qr
-        from QualificationResult qr
-        join fetch qr.transaction t
-        left join fetch t.merchant
-        left join fetch t.scheme
-        left join fetch qr.rule r
-        left join fetch r.scheme
-        where t.id = :transactionId
-        order by qr.evaluatedAt desc
-    """)
-    Optional<QualificationResult> findLatestByTransactionId(
-            @Param("transactionId") UUID transactionId
+    @EntityGraph(attributePaths = {
+            "transaction",
+            "transaction.merchant",
+            "transaction.scheme",
+            "rule",
+            "rule.scheme"
+    })
+    Optional<QualificationResult> findFirstByTransactionIdOrderByEvaluatedAtDescIdDesc(
+            UUID transactionId
     );
 
     @Query("select qr from QualificationResult qr join fetch qr.transaction t order by qr.evaluatedAt desc")
