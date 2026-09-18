@@ -157,6 +157,14 @@ export function DashboardPage({
                             Dashboard
                         </button>
 
+                        <button
+                            type="button"
+                            className="dashboard-button"
+                            onClick={onOpenCardSchemes}
+                        >
+                            Card schemes
+                        </button>
+
                         <CsvTransactionUploadModal />
 
                         <button
