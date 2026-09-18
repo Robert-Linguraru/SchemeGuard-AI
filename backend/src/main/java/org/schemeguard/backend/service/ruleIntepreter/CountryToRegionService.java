@@ -5,20 +5,19 @@ import org.schemeguard.backend.repository.CountryRegionRepository;
 import org.springframework.stereotype.Service;
 
 @Service
-public class CountryToRegion {
+public class CountryToRegionService {
 
     private final CountryRegionRepository countryRegionRepository;
 
-    public CountryToRegion(CountryRegionRepository countryRegionRepository) {
+    public CountryToRegionService(CountryRegionRepository countryRegionRepository) {
         this.countryRegionRepository = countryRegionRepository;
     }
 
     public String getRegion(String country) {
-        return countryRegionRepository.getRegion(country)
+        if (country == null) return "OTHER";
+        return countryRegionRepository.getRegion(country.trim().toUpperCase(java.util.Locale.ROOT))
                 .map(CountryRegionNomenclator::getRegion)
                 .map(Enum::name)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "No region mapping found for country: " + country
-                ));
+                .orElse("OTHER");
     }
 }
