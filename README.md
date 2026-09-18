@@ -77,9 +77,7 @@ the following order:
 5. `upload_tables.sql` creates the upload tables.
 
 The backend uses `spring.jpa.hibernate.ddl-auto=validate`, so startup fails with a clear
-schema-validation error if these tables have not yet been created in Supabase. The
-`--remove-orphans` option removes the old local PostgreSQL container after this migration;
-it does not delete its `postgres_data` volume.
+schema-validation error if these tables have not yet been created in Supabase.
 
 ![DbDiagram](mermaid.png)
 

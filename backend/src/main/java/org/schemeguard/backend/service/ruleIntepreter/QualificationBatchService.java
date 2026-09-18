@@ -23,8 +23,10 @@ public class QualificationBatchService {
     private final RuleRepository rules;
     private final QualificationResultRepository results;
     private final FeeCalculationRepository fees;
+
     private final CountryToRegionService countries;
     private final FallbackRateService fallbackRates;
+
     private final ConditionEvaluator evaluator;
     private final ObjectMapper mapper;
 
