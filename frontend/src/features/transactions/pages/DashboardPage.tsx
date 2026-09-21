@@ -27,6 +27,7 @@ export function DashboardPage({
     onOpenAnalysisDashboard
 }: DashboardPageProps) {
     const { user } = useAuth();
+    const isAdmin = user?.role?.toUpperCase() === "ADMIN";
 
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -167,12 +168,14 @@ export function DashboardPage({
 
                         <CsvTransactionUploadModal />
 
-                        <button
-                            className="create-rule-button"
-                            onClick={onCreateRule}
-                        >
-                            View Rules
-                        </button>
+                        {isAdmin && (
+                            <button
+                                className="create-rule-button"
+                                onClick={onCreateRule}
+                            >
+                                View Rules
+                            </button>
+                        )}
                     </div>
                 </div>
 

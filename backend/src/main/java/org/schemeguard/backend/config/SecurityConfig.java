@@ -42,12 +42,13 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/auth/register",
                                 "/api/auth/login",
-                                "/api/rule/*",
                                 "/api/qualifications/evaluate",
                                 "/test",
                                 "/error"
                         )
                         .permitAll()
+                        .requestMatchers("/api/rule/**")
+                        .hasRole("ADMIN")
                         .anyRequest()
                         .authenticated()
                 )
