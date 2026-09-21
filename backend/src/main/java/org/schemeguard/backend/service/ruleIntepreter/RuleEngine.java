@@ -10,7 +10,7 @@ public class RuleEngine {
     private final QualificationBatchService batches;
     public record EvaluationSummary(long processed, long qualified, long fallback) {}
 
-    private final int batchSize = 100;
+    private final int batchSize = 1000;
 
     public EvaluationSummary evaluateUnevaluated() {
         Instant cutoff = Instant.now();
