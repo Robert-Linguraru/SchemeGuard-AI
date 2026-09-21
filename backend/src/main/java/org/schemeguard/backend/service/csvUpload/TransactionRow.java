@@ -4,10 +4,7 @@ import org.apache.commons.csv.CSVRecord;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
-import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.Locale;
-import java.util.Map;
 
 public record TransactionRow(
         String transactionId,
@@ -33,7 +30,7 @@ public record TransactionRow(
         boolean recurring,
         boolean refund,
         boolean cvvPresent,
-        Map<String, String> rawData
+        long rowNumber
 ) {
 
     public static TransactionRow from(CSVRecord record, long rowNumber) {
@@ -117,7 +114,7 @@ public record TransactionRow(
                 booleanValue(record, "recurring", rowNumber),
                 booleanValue(record, "refund", rowNumber),
                 optionalBoolean(record, "cvv_present", false, rowNumber),
-                Collections.unmodifiableMap(new LinkedHashMap<>(record.toMap()))
+                rowNumber
         );
     }
 
@@ -157,20 +154,9 @@ public record TransactionRow(
     }
 
     public String rawDataJson() {
-        StringBuilder json = new StringBuilder("{");
-        boolean first = true;
-        for (Map.Entry<String, String> entry : rawData.entrySet()) {
-            if (!first) {
-                json.append(',');
-            }
-            first = false;
-            json.append('"')
-                    .append(jsonEscape(entry.getKey()))
-                    .append("\":\"")
-                    .append(jsonEscape(entry.getValue()))
-                    .append('"');
-        }
-        return json.append('}').toString();
+        // The complete source row is retained in uploads.document. Keep only the
+        // value still required by the rule engine in the transaction table.
+        return "{\"merchant_data_complete\":" + merchantDataComplete + "}";
     }
 
     private static String required(CSVRecord record, String header, long rowNumber) {
@@ -276,33 +262,4 @@ public record TransactionRow(
         return new IllegalArgumentException("CSV row " + rowNumber + ": " + message);
     }
 
-    private static String jsonEscape(String value) {
-        if (value == null) {
-            return "";
-        }
-        StringBuilder escaped = new StringBuilder(value.length() + 8);
-        for (char character : value.toCharArray()) {
-            switch (character) {
-                case '"' -> escaped.append("\\\"");
-                case '\\' -> escaped.append("\\\\");
-                case '\b' -> escaped.append("\\b");
-                case '\f' -> escaped.append("\\f");
-                case '\n' -> escaped.append("\\n");
-                case '\r' -> escaped.append("\\r");
-                case '\t' -> escaped.append("\\t");
-                default -> {
-                    if (character < 0x20) {
-                        escaped.append(String.format(
-                                Locale.ROOT,
-                                "\\u%04x",
-                                (int) character
-                        ));
-                    } else {
-                        escaped.append(character);
-                    }
-                }
-            }
-        }
-        return escaped.toString();
-    }
 }

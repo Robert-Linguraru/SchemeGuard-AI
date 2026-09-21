@@ -65,3 +65,28 @@ CREATE INDEX IF NOT EXISTS idx_transactions_upload_id
 
 CREATE INDEX IF NOT EXISTS idx_upload_sessions_status
     ON upload_sessions(status);
+
+-- Unlogged staging rows are copied in batches and merged set-wise into the
+-- normalized transaction tables. Rows are deleted after every successful batch.
+CREATE UNLOGGED TABLE IF NOT EXISTS transaction_import_staging (
+    upload_id UUID NOT NULL REFERENCES uploads(id) ON DELETE CASCADE,
+    row_number BIGINT NOT NULL,
+    external_id VARCHAR(100) NOT NULL,
+    network VARCHAR(30) NOT NULL,
+    amount NUMERIC(19,4) NOT NULL,
+    currency_code VARCHAR(3) NOT NULL,
+    merchant_id UUID NOT NULL,
+    merchant_name VARCHAR(200) NOT NULL,
+    merchant_mcc VARCHAR(4) NOT NULL,
+    merchant_country VARCHAR(2) NOT NULL,
+    issuer_country VARCHAR(2) NOT NULL,
+    card_type VARCHAR(20) NOT NULL,
+    card_category VARCHAR(20) NOT NULL,
+    channel VARCHAR(20) NOT NULL,
+    authorized_at TIMESTAMPTZ NOT NULL,
+    cleared_at TIMESTAMPTZ,
+    three_ds_used BOOLEAN NOT NULL,
+    cvv_present BOOLEAN NOT NULL,
+    raw_data JSONB NOT NULL,
+    PRIMARY KEY (upload_id, row_number)
+);
