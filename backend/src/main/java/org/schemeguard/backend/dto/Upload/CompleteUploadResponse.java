@@ -6,6 +6,7 @@ import java.util.UUID;
 
 public record CompleteUploadResponse(
         UUID uploadId,
+        UUID uploadRecordId,
         UploadStatus status,
         int uploadedParts,
         int expectedTotalParts

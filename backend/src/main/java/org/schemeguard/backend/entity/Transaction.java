@@ -40,6 +40,10 @@ public class Transaction {
     @JoinColumn(name = "scheme_id", nullable = false)
     private CardScheme scheme;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "upload_id")
+    private Upload upload;
+
     @Column(nullable = false, precision = 19, scale = 4)
     private BigDecimal amount;
 

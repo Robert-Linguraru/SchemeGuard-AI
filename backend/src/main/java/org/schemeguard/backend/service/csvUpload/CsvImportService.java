@@ -9,6 +9,7 @@ import org.schemeguard.backend.entity.enums.UploadStatus;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.AsyncResult;
 import org.springframework.stereotype.Service;
+import org.schemeguard.backend.repository.UploadRepository;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -42,15 +43,18 @@ public class CsvImportService {
     private final UploadService uploadService;
     private final StorageService storageService;
     private final TransactionBatchWriter batchWriter;
+    private final UploadRepository uploadRepository;
 
     public CsvImportService(
             UploadService uploadService,
             StorageService storageService,
-            TransactionBatchWriter batchWriter
+            TransactionBatchWriter batchWriter,
+            UploadRepository uploadRepository
     ) {
         this.uploadService = uploadService;
         this.storageService = storageService;
         this.batchWriter = batchWriter;
+        this.uploadRepository = uploadRepository;
     }
 
     @Async("csvImportExecutor")
@@ -71,7 +75,13 @@ public class CsvImportService {
                 verifyWholeFileChecksum(session, parts);
             }
 
-            processedRows = importCsv(uploadId, parts);
+            org.schemeguard.backend.entity.Upload upload = uploadRepository
+                    .findBySession_Id(uploadId)
+                    .orElseThrow(() -> new IllegalStateException("Stored upload not found."));
+            upload.setDocument(readWholeDocument(parts));
+            uploadRepository.save(upload);
+
+            processedRows = importCsv(uploadId, upload.getId(), parts);
             uploadService.markCompleted(uploadId, processedRows);
             try {
                 storageService.deleteUpload(uploadId);
@@ -88,7 +98,11 @@ public class CsvImportService {
         return new AsyncResult<>(null);
     }
 
-    private long importCsv(UUID uploadId, List<UploadPart> parts) throws IOException {
+    private long importCsv(
+            UUID sessionId,
+            UUID uploadRecordId,
+            List<UploadPart> parts
+    ) throws IOException {
         CSVFormat format = CSVFormat.DEFAULT.builder()
                 .setHeader()
                 .setSkipHeaderRecord(true)
@@ -113,19 +127,25 @@ public class CsvImportService {
                 }
                 batch.add(TransactionRow.from(record, record.getRecordNumber() + 1));
                 if (batch.size() == BATCH_SIZE) {
-                    batchWriter.write(uploadId, batch);
+                    batchWriter.write(uploadRecordId, batch);
                     processedRows += batch.size();
-                    uploadService.updateProcessedRows(uploadId, processedRows);
+                    uploadService.updateProcessedRows(sessionId, processedRows);
                     batch.clear();
                 }
             }
             if (!batch.isEmpty()) {
-                batchWriter.write(uploadId, batch);
+                batchWriter.write(uploadRecordId, batch);
                 processedRows += batch.size();
-                uploadService.updateProcessedRows(uploadId, processedRows);
+                uploadService.updateProcessedRows(sessionId, processedRows);
             }
         }
         return processedRows;
+    }
+
+    private byte[] readWholeDocument(List<UploadPart> parts) throws IOException {
+        try (InputStream input = storageService.openConcatenatedStream(parts)) {
+            return input.readAllBytes();
+        }
     }
 
     private void verifyWholeFileChecksum(
