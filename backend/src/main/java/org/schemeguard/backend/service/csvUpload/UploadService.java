@@ -20,6 +20,8 @@ import org.schemeguard.backend.repository.UploadRepository;
 import org.schemeguard.backend.repository.UploadSessionRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -41,6 +43,7 @@ public class UploadService {
     private final StorageService storageService;
     private final PartRegistrationService partRegistrationService;
     private final ObjectProvider<CsvImportService> csvImportServiceProvider;
+    private final JdbcTemplate jdbcTemplate;
 
     public UploadService(
             UploadSessionRepository sessionRepository,
@@ -50,7 +53,8 @@ public class UploadService {
             UploadPolicy policy,
             StorageService storageService,
             PartRegistrationService partRegistrationService,
-            ObjectProvider<CsvImportService> csvImportServiceProvider
+            ObjectProvider<CsvImportService> csvImportServiceProvider,
+            JdbcTemplate jdbcTemplate
     ) {
         this.sessionRepository = sessionRepository;
         this.uploadRepository = uploadRepository;
@@ -60,6 +64,7 @@ public class UploadService {
         this.storageService = storageService;
         this.partRegistrationService = partRegistrationService;
         this.csvImportServiceProvider = csvImportServiceProvider;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     @Transactional
@@ -253,17 +258,33 @@ public class UploadService {
 
     @Transactional
     public void updateProcessedRows(UUID uploadId, long processedRows) {
-        sessionRepository.findById(uploadId).ifPresent(session -> {
-            session.setProcessedRows(processedRows);
-            sessionRepository.save(session);
-            updateProcessingJob(
-                    session.getProcessingJobId(),
-                    JobStatus.RUNNING,
-                    processedRows,
-                    0,
-                    null
-            );
-        });
+        jdbcTemplate.update(
+                """
+                        UPDATE upload_sessions
+                        SET processed_rows = ?, updated_at = now()
+                        WHERE id = ?
+                        """,
+                processedRows,
+                uploadId
+        );
+        jdbcTemplate.update(
+                """
+                        UPDATE processing_jobs
+                        SET status = 'RUNNING',
+                            processed_records = ?,
+                            total_records = ?,
+                            failed_records = 0,
+                            error_message = NULL
+                        WHERE id = (
+                            SELECT processing_job_id
+                            FROM upload_sessions
+                            WHERE id = ?
+                        )
+                        """,
+                Math.toIntExact(processedRows),
+                Math.toIntExact(processedRows),
+                uploadId
+        );
     }
 
     @Transactional
@@ -349,9 +370,10 @@ public class UploadService {
     }
 
     private UploadStatusResponse toStatusResponse(UploadSession session) {
+        StoredUploadMetadata upload = getStoredUploadMetadata(session.getId());
         return new UploadStatusResponse(
                 session.getId(),
-                getStoredUpload(session.getId()).getId(),
+                upload.id(),
                 session.getOriginalFileName(),
                 session.getStatus(),
                 session.getExpectedFileSizeBytes(),
@@ -360,18 +382,42 @@ public class UploadService {
                 session.getExpectedTotalParts(),
                 session.getProcessedRows(),
                 session.getErrorMessage(),
-                getStoredUpload(session.getId()).getUploadedAt()
+                upload.uploadedAt()
         );
     }
 
     private CompleteUploadResponse toCompleteResponse(UploadSession session) {
+        StoredUploadMetadata upload = getStoredUploadMetadata(session.getId());
         return new CompleteUploadResponse(
                 session.getId(),
-                getStoredUpload(session.getId()).getId(),
+                upload.id(),
                 session.getStatus(),
                 session.getUploadedParts(),
                 session.getExpectedTotalParts()
         );
+    }
+
+    private StoredUploadMetadata getStoredUploadMetadata(UUID sessionId) {
+        try {
+            return jdbcTemplate.queryForObject(
+                    """
+                            SELECT id, uploaded_at
+                            FROM uploads
+                            WHERE session_id = ?
+                            """,
+                    (resultSet, rowNumber) -> new StoredUploadMetadata(
+                            resultSet.getObject("id", UUID.class),
+                            resultSet.getTimestamp("uploaded_at").toInstant()
+                    ),
+                    sessionId
+            );
+        } catch (EmptyResultDataAccessException exception) {
+            throw new UploadException(
+                    HttpStatus.NOT_FOUND,
+                    "UPLOAD_DOCUMENT_NOT_FOUND",
+                    "Stored upload document not found."
+            );
+        }
     }
 
     public Upload getStoredUpload(UUID sessionId) {
@@ -387,5 +433,8 @@ public class UploadService {
         return hash == null || hash.isBlank()
                 ? null
                 : hash.toLowerCase(Locale.ROOT);
+    }
+
+    private record StoredUploadMetadata(UUID id, java.time.Instant uploadedAt) {
     }
 }

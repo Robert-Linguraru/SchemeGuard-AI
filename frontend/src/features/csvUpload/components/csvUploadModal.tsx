@@ -159,6 +159,8 @@ export default function CsvTransactionUploadModal({
   const uploadPercent = progress && progress.totalParts > 0
     ? Math.round((progress.completedParts / progress.totalParts) * 100)
     : 0;
+  const isProcessing = progress?.phase === "processing"
+    || progress?.phase === "completed";
 
   return (
     <>
@@ -280,12 +282,12 @@ export default function CsvTransactionUploadModal({
               <div className="transaction-upload-progress" aria-live="polite">
                 <div className="transaction-upload-progress-label">
                   <span>
-                    {progress.phase === "processing"
+                    {isProcessing
                       ? "Importing rows"
                       : "Uploading parts"}
                   </span>
                   <strong>
-                    {progress.phase === "processing"
+                    {isProcessing
                       ? `${progress.processedRows.toLocaleString()} rows`
                       : `${uploadPercent}%`}
                   </strong>
@@ -298,7 +300,9 @@ export default function CsvTransactionUploadModal({
                 </div>
                 <div className="transaction-upload-progress-summary">
                   <span>
-                    {progress.completedParts} / {progress.totalParts} parts completed
+                    {isProcessing
+                      ? `${progress.processedRows.toLocaleString()} rows processed`
+                      : `${progress.completedParts} / ${progress.totalParts} parts completed`}
                   </span>
                 </div>
               </div>

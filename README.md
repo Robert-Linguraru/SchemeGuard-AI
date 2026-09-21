@@ -78,7 +78,10 @@ the following order:
 2. `create_schema.sql` creates the main tables.
 3. `rule_interpreter.sql` creates fallback rates and evaluation indexes.
 4. `seed_reference_data.sql` inserts roles, card schemes, and 249 country mappings.
-5. `upload_tables.sql` creates the upload tables.
+5. `upload_tables.sql` creates the upload tables and the transaction-import staging table.
+
+If the database already exists, run `upload_tables.sql` again after deploying this
+optimization so that `transaction_import_staging` is created. The script is safe to rerun.
 
 The backend uses `spring.jpa.hibernate.ddl-auto=validate`, so startup fails with a clear
 schema-validation error if these tables have not yet been created in Supabase.
@@ -97,6 +100,7 @@ Backend defaults and upload limits are defined in [application.properties](backe
 | `CORS_ALLOWED_ORIGIN` | Allowed frontend origin; `http://localhost:5173` |
 | `APP_JWT_SECRET` | JWT signing secret of at least 32 characters; required |
 | `UPLOAD_STORAGE_DIRECTORY` | Temporary upload storage; `/tmp/schemeguard-transaction-uploads` |
+| `UPLOAD_PROGRESS_UPDATE_INTERVAL_MS` | Minimum interval for persisted import progress updates; `2000` |
 | `OLLAMA_URL` | Ollama base URL; Compose supplies `http://ollama:11434` |
 | `OLLAMA_MODEL` | Model pulled and used by the backend; `qwen3:4b` |
 | `OLLAMA_PORT` | Ollama port exposed on the host; `11434` |

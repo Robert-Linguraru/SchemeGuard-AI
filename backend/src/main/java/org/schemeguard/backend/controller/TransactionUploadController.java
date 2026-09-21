@@ -11,6 +11,7 @@ import org.schemeguard.backend.dto.Upload.UploadStatusResponse;
 import org.schemeguard.backend.service.csvUpload.UploadService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -69,8 +70,10 @@ public class TransactionUploadController {
     }
 
     @GetMapping("/{uploadId}")
-    public UploadStatusResponse getStatus(@PathVariable UUID uploadId) {
-        return uploadService.getStatus(uploadId);
+    public ResponseEntity<UploadStatusResponse> getStatus(@PathVariable UUID uploadId) {
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .body(uploadService.getStatus(uploadId));
     }
 
     @DeleteMapping("/{uploadId}")
