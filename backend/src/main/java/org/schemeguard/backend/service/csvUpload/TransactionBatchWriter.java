@@ -19,11 +19,12 @@ public class TransactionBatchWriter {
 
     private static final String UPSERT_TRANSACTION_SQL = """
             INSERT INTO transactions (
-                external_id, merchant_id, scheme_id, amount, currency_code,
+                upload_id, external_id, merchant_id, scheme_id, amount, currency_code,
                 card_type, card_category, channel, issuer_country, merchant_country,
                 authorized_at, cleared_at, three_ds_used, cvv_present, status, raw_data, active
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'NEW', ?::jsonb, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'NEW', ?::jsonb, ?)
             ON CONFLICT (external_id) DO UPDATE SET
+                upload_id = EXCLUDED.upload_id,
                 merchant_id = EXCLUDED.merchant_id,
                 scheme_id = EXCLUDED.scheme_id,
                 amount = EXCLUDED.amount,
@@ -83,6 +84,7 @@ public class TransactionBatchWriter {
             public void setValues(PreparedStatement statement, int index) throws SQLException {
                 TransactionRow row = rows.get(index);
                 int parameter = 1;
+                statement.setObject(parameter++, uploadId);
                 statement.setString(parameter++, row.transactionId());
                 statement.setObject(parameter++, merchantIds.get(row.merchantId()));
                 statement.setObject(parameter++, schemeIds.get(row.network()));

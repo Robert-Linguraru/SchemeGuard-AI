@@ -28,12 +28,40 @@ CREATE TABLE IF NOT EXISTS upload_parts (
         UNIQUE (upload_id, part_number)
 );
 
+CREATE TABLE IF NOT EXISTS uploads (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id),
+    session_id UUID NOT NULL REFERENCES upload_sessions(id) ON DELETE CASCADE,
+    uploaded_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    document BYTEA NOT NULL
+);
+
+ALTER TABLE transactions
+    ADD COLUMN IF NOT EXISTS upload_id UUID
+        REFERENCES uploads(id) ON DELETE RESTRICT;
+
+ALTER TABLE transactions
+    ALTER COLUMN upload_id DROP NOT NULL;
+
 ALTER TABLE upload_sessions
     ADD COLUMN IF NOT EXISTS processing_job_id UUID
         REFERENCES processing_jobs(id) ON DELETE SET NULL;
 
+
 CREATE INDEX IF NOT EXISTS idx_upload_parts_upload_id
     ON upload_parts(upload_id);
+
+CREATE INDEX IF NOT EXISTS idx_uploads_user_id
+    ON uploads(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_uploads_session_id
+    ON uploads(session_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_uploads_session_id
+    ON uploads(session_id);
+
+CREATE INDEX IF NOT EXISTS idx_transactions_upload_id
+    ON transactions(upload_id);
 
 CREATE INDEX IF NOT EXISTS idx_upload_sessions_status
     ON upload_sessions(status);

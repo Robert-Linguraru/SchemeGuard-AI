@@ -6,14 +6,17 @@ import org.schemeguard.backend.dto.Upload.CreateUploadResponse;
 import org.schemeguard.backend.dto.Upload.PartUploadResponse;
 import org.schemeguard.backend.dto.Upload.UploadStatusResponse;
 import org.schemeguard.backend.entity.ProcessingJob;
+import org.schemeguard.backend.entity.Upload;
 import org.schemeguard.backend.entity.UploadPart;
 import org.schemeguard.backend.entity.UploadSession;
+import org.schemeguard.backend.entity.User;
 import org.schemeguard.backend.entity.enums.JobStatus;
 import org.schemeguard.backend.entity.enums.JobType;
 import org.schemeguard.backend.entity.enums.UploadStatus;
 import org.schemeguard.backend.exception.UploadException;
 import org.schemeguard.backend.repository.ProcessingJobRepository;
 import org.schemeguard.backend.repository.UploadPartRepository;
+import org.schemeguard.backend.repository.UploadRepository;
 import org.schemeguard.backend.repository.UploadSessionRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.beans.factory.ObjectProvider;
@@ -31,6 +34,7 @@ import java.util.UUID;
 public class UploadService {
 
     private final UploadSessionRepository sessionRepository;
+    private final UploadRepository uploadRepository;
     private final UploadPartRepository partRepository;
     private final ProcessingJobRepository processingJobRepository;
     private final UploadPolicy policy;
@@ -40,6 +44,7 @@ public class UploadService {
 
     public UploadService(
             UploadSessionRepository sessionRepository,
+            UploadRepository uploadRepository,
             UploadPartRepository partRepository,
             ProcessingJobRepository processingJobRepository,
             UploadPolicy policy,
@@ -48,6 +53,7 @@ public class UploadService {
             ObjectProvider<CsvImportService> csvImportServiceProvider
     ) {
         this.sessionRepository = sessionRepository;
+        this.uploadRepository = uploadRepository;
         this.partRepository = partRepository;
         this.processingJobRepository = processingJobRepository;
         this.policy = policy;
@@ -57,7 +63,7 @@ public class UploadService {
     }
 
     @Transactional
-    public CreateUploadResponse createUpload(CreateUploadRequest request) {
+    public CreateUploadResponse createUpload(CreateUploadRequest request, User user) {
         policy.validateCreateRequest(request.fileName(), request.fileSizeBytes());
         int totalParts = policy.calculateTotalParts(request.fileSizeBytes());
         UUID uploadId = UUID.randomUUID();
@@ -73,11 +79,13 @@ public class UploadService {
                 newProcessingJob(request.fileName())
         );
         session.setProcessingJobId(processingJob.getId());
-        sessionRepository.save(session);
+        session = sessionRepository.save(session);
+        Upload upload = uploadRepository.save(new Upload(user, session, new byte[0]));
         storageService.createUploadDirectory(uploadId);
 
         return new CreateUploadResponse(
                 uploadId,
+                upload.getId(),
                 policy.getChunkSizeBytes(),
                 totalParts,
                 policy.getMaxParallelUploads()
@@ -343,6 +351,7 @@ public class UploadService {
     private UploadStatusResponse toStatusResponse(UploadSession session) {
         return new UploadStatusResponse(
                 session.getId(),
+                getStoredUpload(session.getId()).getId(),
                 session.getOriginalFileName(),
                 session.getStatus(),
                 session.getExpectedFileSizeBytes(),
@@ -350,17 +359,28 @@ public class UploadService {
                 session.getUploadedParts(),
                 session.getExpectedTotalParts(),
                 session.getProcessedRows(),
-                session.getErrorMessage()
+                session.getErrorMessage(),
+                getStoredUpload(session.getId()).getUploadedAt()
         );
     }
 
     private CompleteUploadResponse toCompleteResponse(UploadSession session) {
         return new CompleteUploadResponse(
                 session.getId(),
+                getStoredUpload(session.getId()).getId(),
                 session.getStatus(),
                 session.getUploadedParts(),
                 session.getExpectedTotalParts()
         );
+    }
+
+    public Upload getStoredUpload(UUID sessionId) {
+        return uploadRepository.findBySession_Id(sessionId)
+                .orElseThrow(() -> new UploadException(
+                        HttpStatus.NOT_FOUND,
+                        "UPLOAD_DOCUMENT_NOT_FOUND",
+                        "Stored upload document not found."
+                ));
     }
 
     private String normalizeHash(String hash) {

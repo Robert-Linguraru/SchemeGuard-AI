@@ -99,6 +99,7 @@ public class TransactionService {
     ) {
         return new TransactionResponse(
                 transaction.getId(),
+                transaction.getUpload() == null ? null : transaction.getUpload().getId(),
                 transaction.getExternalId(),
                 transaction.getMerchant().getName(),
                 transaction.getScheme().getCode(),

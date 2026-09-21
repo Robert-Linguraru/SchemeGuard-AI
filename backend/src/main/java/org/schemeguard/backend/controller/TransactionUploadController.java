@@ -2,6 +2,7 @@ package org.schemeguard.backend.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import org.schemeguard.backend.entity.User;
 import org.schemeguard.backend.dto.Upload.CompleteUploadResponse;
 import org.schemeguard.backend.dto.Upload.CreateUploadRequest;
 import org.schemeguard.backend.dto.Upload.CreateUploadResponse;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
 import java.io.IOException;
 import java.util.UUID;
@@ -36,10 +38,11 @@ public class TransactionUploadController {
 
     @PostMapping
     public ResponseEntity<CreateUploadResponse> createUpload(
-            @Valid @RequestBody CreateUploadRequest request
+            @Valid @RequestBody CreateUploadRequest request,
+            @AuthenticationPrincipal User user
     ) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(uploadService.createUpload(request));
+                .body(uploadService.createUpload(request, user));
     }
 
     @PutMapping(

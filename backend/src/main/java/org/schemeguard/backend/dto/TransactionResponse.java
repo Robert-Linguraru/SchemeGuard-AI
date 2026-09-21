@@ -6,6 +6,7 @@ import java.util.UUID;
 
 public record TransactionResponse(
         UUID id,
+        UUID uploadId,
         String externalId,
         String merchantName,
         String schemeCode,
