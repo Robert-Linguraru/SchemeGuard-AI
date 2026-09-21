@@ -7,6 +7,10 @@ SchemeGuardAI manages card-scheme rules, qualifies imported transactions, and ca
 docker compose up ollama-model
 ```
 
+```bash
+py -m generate_csv --rows [n_rows] --output [file_name.csv]
+```
+
 ## Main features
 
 - **Accounts:** registration, login, and profile updates.
