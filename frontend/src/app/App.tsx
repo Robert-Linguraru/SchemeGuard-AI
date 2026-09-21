@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "./AuthProvider";
 import { AuthPage } from "../features/auth/pages/AuthPage";
 import { RuleUploadPage } from "../features/rules/pages/RuleUploadPage";
@@ -11,12 +11,22 @@ import { CardSchemesPage } from "../features/cardSchemes/pages/CardSchemesPage";
 import { LoadingState } from "../shared/components/LoadingState";
 
 function AuthenticatedApp() {
+    const { user } = useAuth();
     const [view, setView] = useState<
         "dashboard" | "analysis-dashboard" | "rules" | "upload" | "details" | "profile" | "card-schemes"
     >("dashboard");
 
     const [selectedRuleId, setSelectedRuleId] =
         useState<string | null>(null);
+
+    const isAdmin = user?.role?.toUpperCase() === "ADMIN";
+
+    useEffect(() => {
+        if (!isAdmin && (view === "rules" || view === "upload" || view === "details")) {
+            setView("dashboard");
+            setSelectedRuleId(null);
+        }
+    }, [isAdmin, view]);
 
     if (view === "upload") {
         return (
