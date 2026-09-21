@@ -79,7 +79,7 @@ public class UploadService {
                 newProcessingJob(request.fileName())
         );
         session.setProcessingJobId(processingJob.getId());
-        sessionRepository.save(session);
+        session = sessionRepository.save(session);
         Upload upload = uploadRepository.save(new Upload(user, session, new byte[0]));
         storageService.createUploadDirectory(uploadId);
 
