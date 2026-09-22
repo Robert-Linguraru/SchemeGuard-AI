@@ -3,6 +3,7 @@ package org.schemeguard.backend.service.ruleIntepreter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import java.time.Instant;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -12,11 +13,11 @@ public class RuleEngine {
 
     private final int batchSize = 1000;
 
-    public EvaluationSummary evaluateUnevaluated() {
+    public EvaluationSummary evaluateUnevaluated(UUID fileId) {
         Instant cutoff = Instant.now();
         long processed = 0, qualified = 0, fallback = 0;
         while (true) {
-            var batch = batches.evaluateBatch(cutoff, batchSize);
+            var batch = batches.evaluateBatch(cutoff, batchSize, fileId);
             processed += batch.processed();
             qualified += batch.qualified();
             fallback += batch.fallback();
