@@ -6,6 +6,7 @@ import org.schemeguard.backend.dto.TransactionStatisticsResponse;
 import org.schemeguard.backend.entity.QualificationResult;
 import org.schemeguard.backend.entity.Transaction;
 import org.schemeguard.backend.repository.QualificationResultRepository;
+import org.schemeguard.backend.repository.FeeCalculationRepository;
 import org.schemeguard.backend.repository.TransactionRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -28,13 +29,16 @@ public class TransactionService {
 
     private final TransactionRepository transactionRepository;
     private final QualificationResultRepository qualificationResultRepository;
+    private final FeeCalculationRepository feeCalculationRepository;
 
     public TransactionService(
             TransactionRepository transactionRepository,
-            QualificationResultRepository qualificationResultRepository
+            QualificationResultRepository qualificationResultRepository,
+            FeeCalculationRepository feeCalculationRepository
     ) {
         this.transactionRepository = transactionRepository;
         this.qualificationResultRepository = qualificationResultRepository;
+        this.feeCalculationRepository = feeCalculationRepository;
     }
 
     @Transactional(readOnly = true)
@@ -117,7 +121,12 @@ public class TransactionService {
                 qualification == null ? null : qualification.getQualificationCategory(),
                 qualification == null ? null : qualification.getExplanation(),
                 qualification == null ? null : qualification.getEvaluatedAt(),
-                transaction.getCreatedAt()
+                transaction.getCreatedAt(),
+                qualification == null
+                        ? null
+                        : feeCalculationRepository.findByQualificationResultId(qualification.getId())
+                        .map(fee -> fee.getInterchangeFee())
+                        .orElse(null)
         );
     }
 }

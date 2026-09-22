@@ -22,6 +22,7 @@ public record TransactionResponse(
         String qualificationCategory,
         String qualificationExplanation,
         Instant evaluatedAt,
-        Instant createdAt
+        Instant createdAt,
+        BigDecimal estimatedFee
 ) {
 }

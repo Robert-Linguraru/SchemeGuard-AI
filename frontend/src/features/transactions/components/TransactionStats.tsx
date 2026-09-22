@@ -9,7 +9,7 @@ export function TransactionStats({ transactions }: TransactionStatsProps) {
     const qualified = transactions.filter((transaction) => transaction.qualificationStatus === "QUALIFIED").length;
     const totalFees = transactions.reduce((total, transaction) => total + Number(transaction.estimatedFee || 0), 0);
     const stats = [
-        ["Total transactions", transactions.length, "Mock records available"],
+        ["Total transactions", transactions.length, "Database records available"],
         ["Processed", processed, "Successfully processed"],
         ["Qualified", qualified, "Passed qualification"],
         ["Estimated fees", `${totalFees.toFixed(2)} EUR`, "Combined estimated amount"]

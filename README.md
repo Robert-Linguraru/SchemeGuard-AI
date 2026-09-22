@@ -145,7 +145,7 @@ SPRING_DATASOURCE_PASSWORD=your-supabase-database-password
 
 | Endpoint | Purpose |
 | --- | --- |
-| `GET /api/transactions/mock` | Retrieve mock dashboard transactions |
+| `GET /api/transactions` | Retrieve paginated transactions and their latest qualification results |
 | `POST /api/uploads` | Create an upload session |
 | `PUT /api/uploads/{id}/parts/{partNumber}` | Upload a binary file chunk |
 | `POST /api/uploads/{id}/complete` | Queue the CSV import |
@@ -157,7 +157,7 @@ SPRING_DATASOURCE_PASSWORD=your-supabase-database-password
 | --- | --- |
 | `POST /predict` (ML service) | Placeholder prediction endpoint |
 | `POST /api/qualifications/evaluate` | Compute qualifications and fees |
-| `GET /api/transactions/{id}/explanation` | Generate a Romanian explanation through Ollama |
+| `POST /api/assistant/recommendations` | Generate Romanian improvement recommendations from qualification conditions through Ollama |
 
 Protected backend requests use `Authorization: Bearer <token>`. Current access rules are defined in [SecurityConfig.java](backend/src/main/java/org/schemeguard/backend/config/SecurityConfig.java).
 
