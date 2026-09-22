@@ -13,6 +13,8 @@ public interface UploadSummaryProjection {
 
     String getImportStatus();
 
+    boolean getWasEvaluated();
+
     long getTransactionCount();
 
     long getNewTransactionCount();

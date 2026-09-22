@@ -13,6 +13,8 @@ interface UploadsPageProps {
     onOpenCardSchemes: () => void;
     onOpenRules: () => void;
     onEditProfile: () => void;
+    onOpenUpload: (uploadId: string) => void;
+    selectedUploadId?: string | null;
 }
 
 const formatUploadedAt = (uploadedAt: string) => {
@@ -23,7 +25,7 @@ const formatUploadedAt = (uploadedAt: string) => {
 const statusClassName = (status: string) =>
     status === "COMPLETED" ? "entity-list-status active" : "entity-list-status inactive";
 
-const columns: EntityListColumn<UploadSummary>[] = [
+const createColumns = (onOpenUpload: (uploadId: string) => void): EntityListColumn<UploadSummary>[] => [
     {
         key: "fileName",
         label: "File name",
@@ -57,6 +59,42 @@ const columns: EntityListColumn<UploadSummary>[] = [
         key: "transactionCount",
         label: "Transactions",
         sortable: true
+    },
+    {
+        key: "actions",
+        label: "Actions",
+        render: (upload) => (
+            <div className="entity-list-actions">
+                <button
+                    type="button"
+                    className="entity-list-action-button"
+                    onClick={() => onOpenUpload(upload.id)}
+                >
+                    Open
+                </button>
+                <button
+                    type="button"
+                    className="entity-list-action-button"
+                    disabled
+                    title="Download will be available in a later release"
+                >
+                    Download unavailable
+                </button>
+                {upload.importStatus === "COMPLETED" && !upload.wasEvaluated && (
+                    <button
+                        type="button"
+                        className="entity-list-action-button"
+                        disabled
+                        title="Evaluation will be available in a later release"
+                    >
+                        Evaluate (Coming soon)
+                    </button>
+                )}
+                {upload.importStatus === "COMPLETED" && upload.wasEvaluated && (
+                    <span className="entity-list-status active">Evaluated</span>
+                )}
+            </div>
+        )
     }
 ];
 
@@ -65,11 +103,14 @@ export function UploadsPage({
     onOpenAnalysisDashboard,
     onOpenCardSchemes,
     onOpenRules,
-    onEditProfile
+    onEditProfile,
+    onOpenUpload,
+    selectedUploadId
 }: UploadsPageProps) {
     const { user } = useAuth();
     const [reloadKey, setReloadKey] = useState(0);
     const isAdmin = user?.role?.toUpperCase() === "ADMIN";
+    const columns = createColumns(onOpenUpload);
 
     const fetchUploads = useCallback(
         (query: EntityListQuery, signal?: AbortSignal) => getUploads(query, signal),
@@ -77,7 +118,7 @@ export function UploadsPage({
     );
 
     return (
-        <main className="dashboard uploads-page">
+        <main className="dashboard uploads-page" data-selected-upload-id={selectedUploadId ?? undefined}>
             <div className="brand-decoration" aria-hidden="true">
                 <span className="orb orb-blue orb-one"></span>
                 <span className="orb orb-coral orb-two"></span>

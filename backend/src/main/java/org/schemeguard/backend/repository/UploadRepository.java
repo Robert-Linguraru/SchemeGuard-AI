@@ -19,23 +19,36 @@ public interface UploadRepository extends JpaRepository<Upload, UUID> {
            s.original_file_name AS fileName,
            u.uploaded_at AS uploadedAt,
            s.status AS importStatus,
+               u.was_evaluated AS wasEvaluated,
                    COUNT(t.id) AS transactionCount,
-                   SUM(CASE WHEN t.status = 'NEW' THEN 1 ELSE 0 END) AS newTransactionCount
+                   COALESCE(SUM(CASE WHEN t.status = 'NEW' THEN 1 ELSE 0 END), 0) AS newTransactionCount
         FROM uploads u
         JOIN upload_sessions s ON s.id = u.session_id
         LEFT JOIN transactions t ON t.upload_id = u.id
-        WHERE u.user_id = :userId
-        GROUP BY u.id, s.original_file_name, u.uploaded_at, s.status
+                WHERE u.user_id = :userId
+                    AND (
+                            :search IS NULL
+                            OR BTRIM(:search) = ''
+                            OR LOWER(s.original_file_name) LIKE LOWER(CONCAT('%', BTRIM(:search), '%'))
+                    )
+        GROUP BY u.id, s.original_file_name, u.uploaded_at, s.status, u.was_evaluated
         ORDER BY u.uploaded_at DESC, u.id DESC
         """,
         countQuery = """
             SELECT COUNT(u.id)
-            FROM uploads u
-            WHERE u.user_id = :userId
+                        FROM uploads u
+                        JOIN upload_sessions s ON s.id = u.session_id
+                        WHERE u.user_id = :userId
+                            AND (
+                                    :search IS NULL
+                                    OR BTRIM(:search) = ''
+                                    OR LOWER(s.original_file_name) LIKE LOWER(CONCAT('%', BTRIM(:search), '%'))
+                            )
             """,
         nativeQuery = true)
     Page<UploadSummaryProjection> findSummariesByUserId(
         @Param("userId") UUID userId,
+            @Param("search") String search,
         Pageable pageable
     );
 

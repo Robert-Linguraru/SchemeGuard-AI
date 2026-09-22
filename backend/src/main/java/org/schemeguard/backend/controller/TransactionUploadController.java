@@ -52,9 +52,10 @@ public class TransactionUploadController {
     public UploadPageResponse listUploads(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String search,
             @AuthenticationPrincipal User user
     ) {
-        return uploadService.findUploads(user, page, size);
+        return uploadService.findUploads(user, page, size, search);
     }
 
     @PutMapping(

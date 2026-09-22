@@ -19,6 +19,8 @@ function AuthenticatedApp() {
 
     const [selectedRuleId, setSelectedRuleId] =
         useState<string | null>(null);
+    const [selectedUploadId, setSelectedUploadId] =
+        useState<string | null>(null);
 
     const isAdmin = user?.role?.toUpperCase() === "ADMIN";
 
@@ -37,6 +39,8 @@ function AuthenticatedApp() {
                 onOpenCardSchemes={() => setView("card-schemes")}
                 onOpenRules={() => setView("rules")}
                 onEditProfile={() => setView("profile")}
+                onOpenUpload={(uploadId) => setSelectedUploadId(uploadId)}
+                selectedUploadId={selectedUploadId}
             />
         );
     }

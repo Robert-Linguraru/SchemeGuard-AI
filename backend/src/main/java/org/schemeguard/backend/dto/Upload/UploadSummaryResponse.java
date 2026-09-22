@@ -8,6 +8,7 @@ public record UploadSummaryResponse(
         String fileName,
         Instant uploadedAt,
         String importStatus,
+        boolean wasEvaluated,
         String evaluationStatus,
         long transactionCount
 ) {
