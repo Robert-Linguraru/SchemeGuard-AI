@@ -8,13 +8,14 @@ import { DashboardPage } from "../features/transactions/pages/DashboardPage";
 import { AnalysisDashboardPage } from "../features/transactions/pages/AnalysisDashboardPage";
 import { ProfilePage } from "../features/auth/pages/ProfilePage";
 import { CardSchemesPage } from "../features/cardSchemes/pages/CardSchemesPage";
+import { UploadsPage } from "../features/uploads/pages/UploadsPage";
 import { LoadingState } from "../shared/components/LoadingState";
 
 function AuthenticatedApp() {
     const { user } = useAuth();
     const [view, setView] = useState<
-        "dashboard" | "analysis-dashboard" | "rules" | "upload" | "details" | "profile" | "card-schemes"
-    >("dashboard");
+        "uploads" | "dashboard" | "analysis-dashboard" | "rules" | "upload" | "details" | "profile" | "card-schemes"
+    >("uploads");
 
     const [selectedRuleId, setSelectedRuleId] =
         useState<string | null>(null);
@@ -27,6 +28,18 @@ function AuthenticatedApp() {
             setSelectedRuleId(null);
         }
     }, [isAdmin, view]);
+
+    if (view === "uploads") {
+        return (
+            <UploadsPage
+                onOpenDashboard={() => setView("dashboard")}
+                onOpenAnalysisDashboard={() => setView("analysis-dashboard")}
+                onOpenCardSchemes={() => setView("card-schemes")}
+                onOpenRules={() => setView("rules")}
+                onEditProfile={() => setView("profile")}
+            />
+        );
+    }
 
     if (view === "upload") {
         return (

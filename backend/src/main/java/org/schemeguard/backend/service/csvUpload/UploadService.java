@@ -4,7 +4,9 @@ import org.schemeguard.backend.dto.Upload.CompleteUploadResponse;
 import org.schemeguard.backend.dto.Upload.CreateUploadRequest;
 import org.schemeguard.backend.dto.Upload.CreateUploadResponse;
 import org.schemeguard.backend.dto.Upload.PartUploadResponse;
+import org.schemeguard.backend.dto.Upload.UploadPageResponse;
 import org.schemeguard.backend.dto.Upload.UploadStatusResponse;
+import org.schemeguard.backend.dto.Upload.UploadSummaryResponse;
 import org.schemeguard.backend.entity.ProcessingJob;
 import org.schemeguard.backend.entity.Upload;
 import org.schemeguard.backend.entity.UploadPart;
@@ -17,7 +19,11 @@ import org.schemeguard.backend.exception.UploadException;
 import org.schemeguard.backend.repository.ProcessingJobRepository;
 import org.schemeguard.backend.repository.UploadPartRepository;
 import org.schemeguard.backend.repository.UploadRepository;
+import org.schemeguard.backend.repository.UploadSummaryProjection;
 import org.schemeguard.backend.repository.UploadSessionRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -34,6 +40,9 @@ import java.util.UUID;
 
 @Service
 public class UploadService {
+
+        private static final int DEFAULT_PAGE_SIZE = 20;
+        private static final int MAX_PAGE_SIZE = 100;
 
     private final UploadSessionRepository sessionRepository;
     private final UploadRepository uploadRepository;
@@ -194,6 +203,29 @@ public class UploadService {
     @Transactional(readOnly = true)
     public UploadStatusResponse getStatus(UUID uploadId) {
         return toStatusResponse(getSession(uploadId));
+    }
+
+    @Transactional(readOnly = true)
+    public UploadPageResponse findUploads(User user, int requestedPage, int requestedSize) {
+        int page = Math.max(requestedPage, 0);
+        int size = requestedSize <= 0
+                ? DEFAULT_PAGE_SIZE
+                : Math.min(requestedSize, MAX_PAGE_SIZE);
+        Pageable pageable = PageRequest.of(page, size);
+        Page<UploadSummaryProjection> resultPage = uploadRepository
+                .findSummariesByUserId(user.getId(), pageable);
+
+        List<UploadSummaryResponse> content = resultPage.getContent().stream()
+                .map(this::toSummaryResponse)
+                .toList();
+
+        return new UploadPageResponse(
+                content,
+                page,
+                size,
+                resultPage.getTotalElements(),
+                resultPage.getTotalPages()
+        );
     }
 
     @Transactional
@@ -385,6 +417,20 @@ public class UploadService {
                 upload.uploadedAt()
         );
     }
+
+        private UploadSummaryResponse toSummaryResponse(UploadSummaryProjection projection) {
+                return new UploadSummaryResponse(
+                                projection.getId(),
+                                projection.getFileName(),
+                                projection.getUploadedAt(),
+                                projection.getImportStatus(),
+                                projection.getTransactionCount() > 0
+                                        && projection.getNewTransactionCount() == 0
+                                        ? "EVALUATED"
+                                        : "NOT_EVALUATED",
+                                projection.getTransactionCount()
+                );
+        }
 
     private CompleteUploadResponse toCompleteResponse(UploadSession session) {
         StoredUploadMetadata upload = getStoredUploadMetadata(session.getId());

@@ -7,6 +7,7 @@ import org.schemeguard.backend.dto.Upload.CompleteUploadResponse;
 import org.schemeguard.backend.dto.Upload.CreateUploadRequest;
 import org.schemeguard.backend.dto.Upload.CreateUploadResponse;
 import org.schemeguard.backend.dto.Upload.PartUploadResponse;
+import org.schemeguard.backend.dto.Upload.UploadPageResponse;
 import org.schemeguard.backend.dto.Upload.UploadStatusResponse;
 import org.schemeguard.backend.service.csvUpload.UploadService;
 import org.springframework.http.HttpStatus;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -44,6 +46,15 @@ public class TransactionUploadController {
     ) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(uploadService.createUpload(request, user));
+    }
+
+    @GetMapping
+    public UploadPageResponse listUploads(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @AuthenticationPrincipal User user
+    ) {
+        return uploadService.findUploads(user, page, size);
     }
 
     @PutMapping(
