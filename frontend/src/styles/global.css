@@ -96,6 +96,7 @@ form button:disabled {
     padding: 35px;
     text-align: center;
     color: #65738b;
+    white-space: pre-line;
 }
 
 .error-box {
