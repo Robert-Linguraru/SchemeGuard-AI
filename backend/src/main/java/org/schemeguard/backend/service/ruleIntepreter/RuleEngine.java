@@ -1,6 +1,7 @@
 package org.schemeguard.backend.service.ruleIntepreter;
 
 import lombok.RequiredArgsConstructor;
+import org.schemeguard.backend.repository.UploadRepository;
 import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.util.UUID;
@@ -9,6 +10,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class RuleEngine {
     private final QualificationBatchService batches;
+    private final UploadRepository uploads;
     public record EvaluationSummary(long processed, long qualified, long fallback) {}
 
     private final int batchSize = 1000;
@@ -21,7 +23,10 @@ public class RuleEngine {
             processed += batch.processed();
             qualified += batch.qualified();
             fallback += batch.fallback();
-            if (batch.processed() == 0) return new EvaluationSummary(processed, qualified, fallback);
+            if (batch.processed() == 0) {
+                uploads.markEvaluatedIfComplete(fileId);
+                return new EvaluationSummary(processed, qualified, fallback);
+            }
         }
     }
 }
