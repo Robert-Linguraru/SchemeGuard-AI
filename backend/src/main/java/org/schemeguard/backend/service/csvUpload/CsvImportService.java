@@ -3,33 +3,31 @@ package org.schemeguard.backend.service.csvUpload;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
+import org.schemeguard.backend.config.UploadProperties;
 import org.schemeguard.backend.entity.UploadPart;
 import org.schemeguard.backend.entity.UploadSession;
 import org.schemeguard.backend.entity.enums.UploadStatus;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.AsyncResult;
 import org.springframework.stereotype.Service;
+import org.schemeguard.backend.repository.UploadRepository;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.security.DigestInputStream;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class CsvImportService {
 
-    private static final int BATCH_SIZE = 1_000;
     private static final Set<String> REQUIRED_HEADERS = Set.of(
             "transaction_id", "network", "amount", "currency", "merchant_country",
             "merchant_id", "merchant_name", "mcc", "card_country", "card_type",
@@ -42,15 +40,24 @@ public class CsvImportService {
     private final UploadService uploadService;
     private final StorageService storageService;
     private final TransactionBatchWriter batchWriter;
+    private final UploadDocumentWriter documentWriter;
+    private final UploadRepository uploadRepository;
+    private final UploadProperties uploadProperties;
 
     public CsvImportService(
             UploadService uploadService,
             StorageService storageService,
-            TransactionBatchWriter batchWriter
+            TransactionBatchWriter batchWriter,
+            UploadDocumentWriter documentWriter,
+            UploadRepository uploadRepository,
+            UploadProperties uploadProperties
     ) {
         this.uploadService = uploadService;
         this.storageService = storageService;
         this.batchWriter = batchWriter;
+        this.documentWriter = documentWriter;
+        this.uploadRepository = uploadRepository;
+        this.uploadProperties = uploadProperties;
     }
 
     @Async("csvImportExecutor")
@@ -67,11 +74,17 @@ public class CsvImportService {
             }
 
             List<UploadPart> parts = uploadService.getParts(uploadId);
-            if (session.getExpectedFileSha256() != null) {
-                verifyWholeFileChecksum(session, parts);
-            }
+            UUID uploadRecordId = uploadRepository
+                    .findUploadIdBySessionId(uploadId)
+                    .orElseThrow(() -> new IllegalStateException("Stored upload not found."));
+            documentWriter.write(
+                    uploadRecordId,
+                    parts,
+                    session.getExpectedFileSizeBytes(),
+                    session.getExpectedFileSha256()
+            );
 
-            processedRows = importCsv(uploadId, parts);
+            processedRows = importCsv(uploadId, uploadRecordId, parts);
             uploadService.markCompleted(uploadId, processedRows);
             try {
                 storageService.deleteUpload(uploadId);
@@ -88,7 +101,11 @@ public class CsvImportService {
         return new AsyncResult<>(null);
     }
 
-    private long importCsv(UUID uploadId, List<UploadPart> parts) throws IOException {
+    private long importCsv(
+            UUID sessionId,
+            UUID uploadRecordId,
+            List<UploadPart> parts
+    ) throws IOException {
         CSVFormat format = CSVFormat.DEFAULT.builder()
                 .setHeader()
                 .setSkipHeaderRecord(true)
@@ -97,7 +114,13 @@ public class CsvImportService {
                 .get();
 
         long processedRows = 0;
-        List<TransactionRow> batch = new ArrayList<>(BATCH_SIZE);
+        int batchSize = uploadProperties.getImportBatchSize();
+        long progressUpdateIntervalNanos = TimeUnit.MILLISECONDS.toNanos(
+                Math.max(1, uploadProperties.getProgressUpdateIntervalMs())
+        );
+        List<TransactionRow> batch = new ArrayList<>(batchSize);
+        long lastProgressUpdateRows = 0;
+        long lastProgressUpdateNanos = System.nanoTime();
         try (InputStream input = storageService.openConcatenatedStream(parts);
              BufferedReader reader = new BufferedReader(
                      new InputStreamReader(input, StandardCharsets.UTF_8)
@@ -112,39 +135,26 @@ public class CsvImportService {
                     );
                 }
                 batch.add(TransactionRow.from(record, record.getRecordNumber() + 1));
-                if (batch.size() == BATCH_SIZE) {
-                    batchWriter.write(uploadId, batch);
+                if (batch.size() == batchSize) {
+                    batchWriter.write(uploadRecordId, batch);
                     processedRows += batch.size();
-                    uploadService.updateProcessedRows(uploadId, processedRows);
+                    if (System.nanoTime() - lastProgressUpdateNanos >= progressUpdateIntervalNanos) {
+                        uploadService.updateProcessedRows(sessionId, processedRows);
+                        lastProgressUpdateRows = processedRows;
+                        lastProgressUpdateNanos = System.nanoTime();
+                    }
                     batch.clear();
                 }
             }
             if (!batch.isEmpty()) {
-                batchWriter.write(uploadId, batch);
+                batchWriter.write(uploadRecordId, batch);
                 processedRows += batch.size();
-                uploadService.updateProcessedRows(uploadId, processedRows);
+            }
+            if (processedRows != lastProgressUpdateRows) {
+                uploadService.updateProcessedRows(sessionId, processedRows);
             }
         }
         return processedRows;
-    }
-
-    private void verifyWholeFileChecksum(
-            UploadSession session,
-            List<UploadPart> parts
-    ) throws IOException {
-        MessageDigest digest = sha256Digest();
-        try (InputStream input = new DigestInputStream(
-                storageService.openConcatenatedStream(parts),
-                digest
-        )) {
-            input.transferTo(java.io.OutputStream.nullOutputStream());
-        }
-        String actual = HexFormat.of().formatHex(digest.digest());
-        if (!actual.equalsIgnoreCase(session.getExpectedFileSha256())) {
-            throw new IllegalArgumentException(
-                    "The complete file checksum does not match the declared checksum"
-            );
-        }
     }
 
     private void validateHeaders(List<String> headers) {
@@ -158,14 +168,6 @@ public class CsvImportService {
             throw new IllegalArgumentException(
                     "CSV is missing required columns: " + missing
             );
-        }
-    }
-
-    private static MessageDigest sha256Digest() {
-        try {
-            return MessageDigest.getInstance("SHA-256");
-        } catch (NoSuchAlgorithmException exception) {
-            throw new IllegalStateException("SHA-256 is required", exception);
         }
     }
 

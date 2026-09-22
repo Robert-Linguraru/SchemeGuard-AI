@@ -2,6 +2,7 @@ package org.schemeguard.backend.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import org.schemeguard.backend.entity.User;
 import org.schemeguard.backend.dto.Upload.CompleteUploadResponse;
 import org.schemeguard.backend.dto.Upload.CreateUploadRequest;
 import org.schemeguard.backend.dto.Upload.CreateUploadResponse;
@@ -10,6 +11,7 @@ import org.schemeguard.backend.dto.Upload.UploadStatusResponse;
 import org.schemeguard.backend.service.csvUpload.UploadService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
 import java.io.IOException;
 import java.util.UUID;
@@ -36,10 +39,11 @@ public class TransactionUploadController {
 
     @PostMapping
     public ResponseEntity<CreateUploadResponse> createUpload(
-            @Valid @RequestBody CreateUploadRequest request
+            @Valid @RequestBody CreateUploadRequest request,
+            @AuthenticationPrincipal User user
     ) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(uploadService.createUpload(request));
+                .body(uploadService.createUpload(request, user));
     }
 
     @PutMapping(
@@ -66,8 +70,10 @@ public class TransactionUploadController {
     }
 
     @GetMapping("/{uploadId}")
-    public UploadStatusResponse getStatus(@PathVariable UUID uploadId) {
-        return uploadService.getStatus(uploadId);
+    public ResponseEntity<UploadStatusResponse> getStatus(@PathVariable UUID uploadId) {
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .body(uploadService.getStatus(uploadId));
     }
 
     @DeleteMapping("/{uploadId}")

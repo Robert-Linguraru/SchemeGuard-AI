@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "./AuthProvider";
 import { AuthPage } from "../features/auth/pages/AuthPage";
 import { RuleUploadPage } from "../features/rules/pages/RuleUploadPage";
@@ -13,12 +13,21 @@ import type { Transaction } from "../shared/types/transaction";
 import { LoadingState } from "../shared/components/LoadingState";
 
 function AuthenticatedApp() {
+    const { user } = useAuth();
     const [view, setView] = useState<"dashboard" | "analysis-dashboard" | "rules" | "upload" | "details" | "profile" | "card-schemes">("dashboard");
     const [selectedRuleId, setSelectedRuleId] = useState<string | null>(null);
     const [assistantTransactions, setAssistantTransactions] = useState<Transaction[]>([]);
     const [isAssistantOpen, setIsAssistantOpen] = useState(false);
-    let content;
+    const isAdmin = user?.role?.toUpperCase() === "ADMIN";
 
+    useEffect(() => {
+        if (!isAdmin && (view === "rules" || view === "upload" || view === "details")) {
+            setView("dashboard");
+            setSelectedRuleId(null);
+        }
+    }, [isAdmin, view]);
+
+    let content;
     if (view === "upload") content = <RuleUploadPage onBack={() => setView("rules")} onEditProfile={() => setView("profile")} />;
     else if (view === "profile") content = <ProfilePage onBack={() => setView("dashboard")} onEditProfile={() => setView("profile")} />;
     else if (view === "analysis-dashboard") content = <AnalysisDashboardPage onBack={() => setView("dashboard")} onEditProfile={() => setView("profile")} />;

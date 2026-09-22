@@ -6,14 +6,16 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class UploadProperties {
 
     private String storageDirectory = "/tmp/schemeguard-transaction-uploads";
-    private long chunkSizeBytes = 8L * 1024 * 1024;
-    private long maxFileSizeBytes = 5L * 1024 * 1024 * 1024;
-    private int maxParts = 10_000;
+    private long chunkSizeBytes = 16L * 1024 * 1024;
+    private long maxFileSizeBytes = 512L * 1024 * 1024;
+    private int maxParts = 64;
     private int maxParallelUploads = 4;
     private int maxParallelImports = 2;
     private int apiRequestsPerMinute = 120;
     private int chunkUploadsPerMinute = 240;
     private int sessionTtlHours = 24;
+    private int importBatchSize = 5_000;
+    private long progressUpdateIntervalMs = 2_000;
 
     public String getStorageDirectory() {
         return storageDirectory;
@@ -85,5 +87,21 @@ public class UploadProperties {
 
     public void setSessionTtlHours(int sessionTtlHours) {
         this.sessionTtlHours = sessionTtlHours;
+    }
+
+    public int getImportBatchSize() {
+        return importBatchSize;
+    }
+
+    public void setImportBatchSize(int importBatchSize) {
+        this.importBatchSize = importBatchSize;
+    }
+
+    public long getProgressUpdateIntervalMs() {
+        return progressUpdateIntervalMs;
+    }
+
+    public void setProgressUpdateIntervalMs(long progressUpdateIntervalMs) {
+        this.progressUpdateIntervalMs = progressUpdateIntervalMs;
     }
 }

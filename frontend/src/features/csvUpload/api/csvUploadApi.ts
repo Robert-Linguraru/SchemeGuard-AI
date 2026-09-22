@@ -6,6 +6,7 @@ import type {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/api";
 const MAX_RETRIES = 3;
+const IMPORT_STATUS_POLL_INTERVAL_MS = 2_000;
 
 export class UploadImportError extends Error {
   constructor(message: string, public readonly processedRows: number) {
@@ -110,10 +111,17 @@ async function getStatus(
   uploadId: string,
   signal: AbortSignal,
 ): Promise<UploadStatusResponse> {
-  const response = await fetch(`${API_BASE_URL}/uploads/${uploadId}`, {
-    headers: authorizationHeaders(),
-    signal,
-  });
+  const response = await fetch(
+    `${API_BASE_URL}/uploads/${uploadId}?_=${Date.now()}`,
+    {
+      cache: "no-store",
+      headers: {
+        ...authorizationHeaders(),
+        "Cache-Control": "no-cache",
+      },
+      signal,
+    },
+  );
   if (!response.ok) {
     throw await parseError(response);
   }
@@ -197,7 +205,7 @@ export async function uploadCsv(
         processedRows: status.processedRows,
         status: status.status,
       });
-      await sleep(1_000, signal);
+      await sleep(IMPORT_STATUS_POLL_INTERVAL_MS, signal);
       status = await getStatus(session.uploadId, signal);
     }
 
