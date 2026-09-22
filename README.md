@@ -83,6 +83,13 @@ the following order:
 If the database already exists, run `upload_tables.sql` again after deploying this
 optimization so that `transaction_import_staging` is created. The script is safe to rerun.
 
+CSV rows are copied to the unlogged staging table while the file is validated. They are
+merged into the transaction tables only after the complete file succeeds, so a malformed
+file or a cancellation cannot leave a partial transaction import.
+
+External transaction IDs are not treated as unique. The same identifier may appear multiple
+times in one upload or across different banking systems.
+
 The backend uses `spring.jpa.hibernate.ddl-auto=validate`, so startup fails with a clear
 schema-validation error if these tables have not yet been created in Supabase.
 

@@ -29,7 +29,7 @@ public class Transaction {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "external_id", nullable = false, unique = true, length = 100)
+    @Column(name = "external_id", nullable = false, length = 100)
     private String externalId;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

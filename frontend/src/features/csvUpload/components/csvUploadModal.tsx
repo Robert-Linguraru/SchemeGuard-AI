@@ -1,19 +1,54 @@
 import { useEffect, useRef, useState } from "react";
+import {
+  Button,
+  Card,
+  Flex,
+  Modal,
+  notification as antdNotification,
+  Progress,
+  Space,
+  Spin,
+  Tag,
+  Typography,
+  Upload,
+} from "antd";
+import type { UploadFile, UploadProps } from "antd";
+import {
+  CloudUploadOutlined,
+  DeleteOutlined,
+  FileTextOutlined,
+  InboxOutlined,
+  LoadingOutlined,
+  StopOutlined,
+} from "@ant-design/icons";
 import { UploadImportError, uploadCsv } from "../api/csvUploadApi";
 import type {
   UploadProgress,
   UploadStatusResponse,
 } from "../../../types/csvUploadType";
 
+const { Dragger } = Upload;
+
 type TransactionUploadModalProps = {
   onCompleted?: (result: UploadStatusResponse) => void;
 };
 
-type Notification = {
+type UploadNotification = {
   kind: "success" | "warning" | "error";
   title: string;
   message: string;
 };
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024 * 1024) {
+    return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  }
+  return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+}
+
+function fileIdentity(file: File): string {
+  return [file.name, file.size, file.lastModified, file.type].join(":");
+}
 
 export default function CsvTransactionUploadModal({
   onCompleted,
@@ -21,56 +56,41 @@ export default function CsvTransactionUploadModal({
   const [isOpen, setIsOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [progress, setProgress] = useState<UploadProgress | null>(null);
-  const [message, setMessage] = useState("");
   const [isUploading, setIsUploading] = useState(false);
-  const [notification, setNotification] = useState<Notification | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [lastUploadedFileIdentity, setLastUploadedFileIdentity] = useState<string | null>(null);
+  const [filePickerKey, setFilePickerKey] = useState(0);
+  const [notificationApi, notificationContextHolder] = antdNotification.useNotification();
   const abortController = useRef<AbortController | null>(null);
   const resetTimer = useRef<number | null>(null);
-  const notificationTimer = useRef<number | null>(null);
 
   const clearTimers = () => {
     if (resetTimer.current !== null) {
       window.clearTimeout(resetTimer.current);
       resetTimer.current = null;
     }
-    if (notificationTimer.current !== null) {
-      window.clearTimeout(notificationTimer.current);
-      notificationTimer.current = null;
-    }
   };
 
   const resetForm = () => {
     setFile(null);
     setProgress(null);
-    setMessage("");
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
   };
 
-  const showNotification = (nextNotification: Notification) => {
-    if (notificationTimer.current !== null) {
-      window.clearTimeout(notificationTimer.current);
-    }
-    setNotification(nextNotification);
-    notificationTimer.current = window.setTimeout(() => {
-      setNotification(null);
-      notificationTimer.current = null;
-    }, nextNotification.kind === "success" ? 10_000 : 8_000);
+  const showNotification = (nextNotification: UploadNotification) => {
+    notificationApi.destroy();
+    notificationApi[nextNotification.kind]({
+      placement: "topRight",
+      message: nextNotification.title,
+      description: nextNotification.message,
+      duration: nextNotification.kind === "success" ? 10 : 8,
+    });
   };
 
   useEffect(() => () => clearTimers(), []);
 
   const openModal = () => {
     clearTimers();
-    setNotification(null);
-    setMessage("");
-    setProgress(null);
-    setFile(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
+    resetForm();
+    setFilePickerKey((currentKey) => currentKey + 1);
     setIsOpen(true);
   };
 
@@ -83,31 +103,73 @@ export default function CsvTransactionUploadModal({
     resetForm();
   };
 
+  const selectFile: UploadProps["beforeUpload"] = (candidate) => {
+    if (!candidate.name.toLowerCase().endsWith(".csv")) {
+      showNotification({
+        kind: "error",
+        title: "Invalid file",
+        message: "Only .csv files are accepted.",
+      });
+      return Upload.LIST_IGNORE;
+    }
+
+    setFile(candidate);
+    setProgress(null);
+    if (fileIdentity(candidate) === lastUploadedFileIdentity) {
+      showNotification({
+        kind: "warning",
+        title: "File already imported",
+        message: "Change the file before starting another import.",
+      });
+    } else {
+      notificationApi.destroy();
+    }
+    return false;
+  };
+
+  const removeFile = () => {
+    if (isUploading) {
+      return false;
+    }
+    setFile(null);
+    setProgress(null);
+    setFilePickerKey((currentKey) => currentKey + 1);
+    return true;
+  };
+
+  const isFileAlreadyUploaded = file !== null
+    && fileIdentity(file) === lastUploadedFileIdentity;
+
   const startUpload = async () => {
     if (!file) {
-      const errorMessage = "Choose a CSV file first.";
-      setMessage(errorMessage);
-      showNotification({ kind: "error", title: "File required", message: errorMessage });
-      return;
-    }
-    if (!file.name.toLowerCase().endsWith(".csv")) {
-      const errorMessage = "Only .csv files are accepted.";
-      setMessage(errorMessage);
-      showNotification({ kind: "error", title: "Invalid file", message: errorMessage });
+      showNotification({
+        kind: "error",
+        title: "File required",
+        message: "Choose a CSV file first.",
+      });
       return;
     }
 
+    if (isFileAlreadyUploaded) {
+      showNotification({
+        kind: "warning",
+        title: "File already imported",
+        message: "Change the file before starting another import.",
+      });
+      return;
+    }
+
+    const uploadedFileIdentity = fileIdentity(file);
     const controller = new AbortController();
     abortController.current = controller;
     setIsUploading(true);
-    setMessage("");
     setProgress(null);
-    setNotification(null);
+    notificationApi.destroy();
 
     try {
       const result = await uploadCsv(file, setProgress, controller.signal);
+      setLastUploadedFileIdentity(uploadedFileIdentity);
       const importedMessage = `Imported ${result.processedRows.toLocaleString()} transactions.`;
-      setMessage(importedMessage);
       showNotification({
         kind: "success",
         title: "Import completed",
@@ -121,12 +183,10 @@ export default function CsvTransactionUploadModal({
       }, 10_000);
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
-        const cancelledMessage = "Upload cancelled.";
-        setMessage(cancelledMessage);
         showNotification({
           kind: "warning",
           title: "Upload cancelled",
-          message: cancelledMessage,
+          message: "The upload was cancelled.",
         });
       } else {
         const processedRows = error instanceof UploadImportError
@@ -136,14 +196,12 @@ export default function CsvTransactionUploadModal({
           ? error.message
           : "Upload failed.";
         const partial = processedRows > 0;
-        const displayedMessage = partial
-          ? `Imported ${processedRows.toLocaleString()} transactions, but some rows failed. ${errorMessage}`
-          : errorMessage;
-        setMessage(displayedMessage);
         showNotification({
           kind: partial ? "warning" : "error",
           title: partial ? "Import partially completed" : "Import failed",
-          message: displayedMessage,
+          message: partial
+            ? `Imported ${processedRows.toLocaleString()} transactions, but some rows failed. ${errorMessage}`
+            : errorMessage,
         });
       }
     } finally {
@@ -156,166 +214,182 @@ export default function CsvTransactionUploadModal({
     abortController.current?.abort();
   };
 
+  const selectedFileList: UploadFile[] = file
+    ? [{
+        uid: `${file.name}-${file.lastModified}`,
+        name: file.name,
+        size: file.size,
+        status: "done",
+        type: file.type,
+      }]
+    : [];
   const uploadPercent = progress && progress.totalParts > 0
     ? Math.round((progress.completedParts / progress.totalParts) * 100)
     : 0;
-  const isProcessing = progress?.phase === "processing"
-    || progress?.phase === "completed";
+  const isProcessing = progress?.phase === "processing";
+  const isCompleted = progress?.phase === "completed";
+  const progressStatus = isCompleted
+    ? "success"
+    : "active";
 
   return (
     <>
-      <button
-        type="button"
-        className="transaction-upload-open-button"
+      {notificationContextHolder}
+
+      <Button
+        type="primary"
+        size="large"
+        icon={<CloudUploadOutlined />}
         onClick={openModal}
       >
         Upload CSV
-      </button>
+      </Button>
 
-      {notification && (
-        <aside
-          className={`transaction-upload-toast transaction-upload-toast-${notification.kind}`}
-          role="alert"
-        >
-          <div>
-            <strong>{notification.title}</strong>
-            <p>{notification.message}</p>
-          </div>
-          <button
-            type="button"
-            className="transaction-upload-toast-close"
-            onClick={() => {
-              if (notificationTimer.current !== null) {
-                window.clearTimeout(notificationTimer.current);
-                notificationTimer.current = null;
-              }
-              setNotification(null);
-            }}
-            aria-label="Dismiss notification"
-          >
-            x
-          </button>
-        </aside>
-      )}
-
-      {isOpen && (
-        <div
-          className="transaction-upload-backdrop"
-          role="presentation"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
-              closeModal();
-            }
-          }}
-        >
-          <section
-            className="transaction-upload-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="transaction-upload-title"
-          >
-            <div className="transaction-upload-modal-header">
-              <div>
-                <h2 id="transaction-upload-title">Upload transactions</h2>
-              </div>
-              <button
-                type="button"
-                className="transaction-upload-close-button"
-                onClick={closeModal}
-                disabled={isUploading}
-                aria-label="Close upload dialog"
-              >
-                ×
-              </button>
+      <Modal
+        open={isOpen}
+        centered
+        width={640}
+        title={(
+          <Space align="start" size={12}>
+            <CloudUploadOutlined style={{ color: "#68b3e7", fontSize: 24 }} />
+            <div>
+              <Typography.Title level={4} style={{ margin: 0 }}>
+                Import transactions
+              </Typography.Title>
+              <Typography.Text type="secondary">
+                Upload a CSV file and monitor the import in real time.
+              </Typography.Text>
             </div>
-
-
-            <form
-              className="transaction-upload-form"
-              onSubmit={(event) => {
-                event.preventDefault();
-                void startUpload();
-              }}
-            >
-              <label className="transaction-upload-picker">
-                <span>Select a CSV file</span>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".csv,text/csv"
-                  disabled={isUploading}
-                  onChange={(event) => {
-                    setFile(event.target.files?.[0] ?? null);
-                    setMessage("");
-                    setProgress(null);
-                    setNotification(null);
-                  }}
-                />
-              </label>
-
-              {file && (
-                <p className="transaction-upload-file-name">
-                  {file.name} · {(file.size / 1024 / 1024).toFixed(2)} MB
-                </p>
-              )}
-
-              <div className="transaction-upload-actions">
-                <button
-                  type="submit"
-                  disabled={!file || isUploading}
+          </Space>
+        )}
+        onCancel={closeModal}
+        closable={!isUploading}
+        maskClosable={!isUploading}
+        keyboard={!isUploading}
+        footer={(
+          <Flex justify="space-between" align="center" gap={12}>
+            <Typography.Text type="secondary">
+              {isUploading
+                ? "Please keep this window open."
+                : isFileAlreadyUploaded
+                  ? "Choose a different file to continue."
+                  : "CSV files only"}
+            </Typography.Text>
+            <Space>
+              <Button onClick={closeModal} disabled={isUploading}>
+                Close
+              </Button>
+              {isUploading ? (
+                <Button danger icon={<StopOutlined />} onClick={cancelUpload}>
+                  Cancel upload
+                </Button>
+              ) : (
+                <Button
+                  type="primary"
+                  icon={<CloudUploadOutlined />}
+                  onClick={() => void startUpload()}
+                  disabled={!file || isFileAlreadyUploaded}
                 >
-                  {isUploading ? "Uploading…" : "Start import"}
-                </button>
-                {isUploading && (
-                  <button
-                    type="button"
-                    className="transaction-upload-secondary-button"
-                    onClick={cancelUpload}
-                  >
-                    Cancel
-                  </button>
-                )}
-              </div>
-            </form>
+                  Start import
+                </Button>
+              )}
+            </Space>
+          </Flex>
+        )}
+      >
+        <Space direction="vertical" size={18} style={{ width: "100%" }}>
+          <Dragger
+            key={filePickerKey}
+            accept=".csv,text/csv"
+            multiple={false}
+            maxCount={1}
+            disabled={isUploading}
+            beforeUpload={selectFile}
+            onRemove={removeFile}
+            fileList={selectedFileList}
+            showUploadList={false}
+          >
+            <p className="ant-upload-drag-icon">
+              <InboxOutlined />
+            </p>
+            <Typography.Title level={5} style={{ marginBottom: 8 }}>
+              Drop your CSV here or click to browse
+            </Typography.Title>
+            <Typography.Text type="secondary">
+              The original file is stored securely for later download.
+            </Typography.Text>
+          </Dragger>
 
-            {progress && (
-              <div className="transaction-upload-progress" aria-live="polite">
-                <div className="transaction-upload-progress-label">
-                  <span>
-                    {isProcessing
-                      ? "Importing rows"
-                      : "Uploading parts"}
-                  </span>
-                  <strong>
-                    {isProcessing
+          {file && (
+            <Card size="small">
+              <Flex align="center" gap={12}>
+                <FileTextOutlined style={{ color: "#68b3e7", fontSize: 22 }} />
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <Typography.Text strong ellipsis={{ tooltip: file.name }}>
+                    {file.name}
+                  </Typography.Text>
+                  <br />
+                  <Typography.Text type="secondary">
+                    {formatFileSize(file.size)}
+                  </Typography.Text>
+                </div>
+                <Button
+                  type="text"
+                  danger
+                  icon={<DeleteOutlined />}
+                  onClick={removeFile}
+                  disabled={isUploading}
+                  aria-label="Remove selected file"
+                />
+              </Flex>
+            </Card>
+          )}
+
+          {progress && (
+            <Card size="small">
+              <Space direction="vertical" size={10} style={{ width: "100%" }}>
+                <Flex justify="space-between" align="center" gap={12}>
+                  <Space size={8}>
+                    {isProcessing && (
+                      <Spin
+                        size="small"
+                        indicator={<LoadingOutlined spin />}
+                      />
+                    )}
+                    <Typography.Text strong>
+                      {isCompleted
+                        ? "Import completed"
+                        : isProcessing
+                          ? "Importing rows"
+                          : "Uploading file"}
+                    </Typography.Text>
+                  </Space>
+                  <Typography.Text strong>
+                    {isProcessing || isCompleted
                       ? `${progress.processedRows.toLocaleString()} rows`
                       : `${uploadPercent}%`}
-                  </strong>
-                </div>
-                <div className="transaction-upload-progress-track">
-                  <div
-                    className="transaction-upload-progress-value"
-                    style={{ width: `${uploadPercent}%` }}
-                  />
-                </div>
-                <div className="transaction-upload-progress-summary">
-                  <span>
-                    {isProcessing
+                  </Typography.Text>
+                </Flex>
+                <Progress
+                  percent={isProcessing || isCompleted ? 100 : uploadPercent}
+                  status={progressStatus}
+                  showInfo={false}
+                />
+                <Flex justify="space-between" align="center" gap={12}>
+                  <Typography.Text type="secondary">
+                    {isProcessing || isCompleted
                       ? `${progress.processedRows.toLocaleString()} rows processed`
-                      : `${progress.completedParts} / ${progress.totalParts} parts completed`}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {message && (
-              <p className="transaction-upload-message" role="status">
-                {message}
-              </p>
-            )}
-          </section>
-        </div>
-      )}
+                      : `${progress.completedParts} / ${progress.totalParts} parts uploaded`}
+                  </Typography.Text>
+                  <Tag color={isCompleted ? "success" : isProcessing ? "processing" : "blue"}>
+                    {progress.status ?? "UPLOADING"}
+                  </Tag>
+                </Flex>
+              </Space>
+            </Card>
+          )}
+        </Space>
+      </Modal>
     </>
   );
 }
