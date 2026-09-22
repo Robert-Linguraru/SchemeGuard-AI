@@ -119,9 +119,6 @@ public record TransactionRow(
     }
 
     public String targetCardType(long rowNumber) {
-        if (commercialCard) {
-            return "COMMERCIAL";
-        }
         String normalized = cardType.toLowerCase(Locale.ROOT);
         if (normalized.contains("debit")) {
             return "DEBIT";
@@ -129,11 +126,16 @@ public record TransactionRow(
         if (normalized.contains("credit")) {
             return "CREDIT";
         }
-        throw invalid(rowNumber, "card_type must describe a debit or credit card");
+        if (normalized.contains("commercial")) {
+            return "COMMERCIAL";
+        }
+        throw invalid(rowNumber, "card_type must describe a debit, credit, or commercial card");
     }
 
     public String targetCardCategory() {
-        return commercialCard ? "BUSINESS" : "CONSUMER";
+        return commercialCard || cardType.toLowerCase(Locale.ROOT).contains("commercial")
+                ? "BUSINESS"
+                : "CONSUMER";
     }
 
     public String targetChannel(long rowNumber) {

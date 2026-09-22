@@ -46,7 +46,7 @@ CREATE TABLE card_schemes (
 
 CREATE TABLE transactions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    external_id VARCHAR(100) NOT NULL UNIQUE,
+    external_id VARCHAR(100) NOT NULL,
     merchant_id UUID NOT NULL REFERENCES merchants(id),
     scheme_id UUID NOT NULL REFERENCES card_schemes(id),
     amount NUMERIC(19,4) NOT NULL CHECK (amount > 0),

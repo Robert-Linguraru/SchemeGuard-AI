@@ -63,6 +63,7 @@ public class CsvImportService {
     @Async("csvImportExecutor")
     public Future<Void> importAsync(UUID uploadId) {
         long processedRows = 0;
+        UUID uploadRecordId = null;
         try {
             UploadSession session = uploadService.getSession(uploadId);
             if (session.getStatus() != UploadStatus.QUEUED) {
@@ -74,7 +75,7 @@ public class CsvImportService {
             }
 
             List<UploadPart> parts = uploadService.getParts(uploadId);
-            UUID uploadRecordId = uploadRepository
+            uploadRecordId = uploadRepository
                     .findUploadIdBySessionId(uploadId)
                     .orElseThrow(() -> new IllegalStateException("Stored upload not found."));
             documentWriter.write(
@@ -85,18 +86,33 @@ public class CsvImportService {
             );
 
             processedRows = importCsv(uploadId, uploadRecordId, parts);
-            uploadService.markCompleted(uploadId, processedRows);
+            uploadService.commitImportedTransactions(
+                    uploadId,
+                    uploadRecordId,
+                    processedRows
+            );
             try {
                 storageService.deleteUpload(uploadId);
             } catch (RuntimeException ignored) {
                 // Import is complete even if temporary-file cleanup needs a retry.
             }
+        } catch (UploadCancelledException ignored) {
+            // Cancellation is a normal terminal state. The staging rows are
+            // removed in finally without changing the status to FAILED.
         } catch (Exception exception) {
             uploadService.markFailed(
                     uploadId,
                     rootMessage(exception),
                     processedRows
             );
+        } finally {
+            if (uploadRecordId != null) {
+                try {
+                    batchWriter.clearStagedRows(uploadRecordId);
+                } catch (RuntimeException ignored) {
+                    // The scheduled cleanup can remove orphaned staging rows.
+                }
+            }
         }
         return new AsyncResult<>(null);
     }
@@ -127,6 +143,10 @@ public class CsvImportService {
              );
              CSVParser parser = format.parse(reader)) {
             validateHeaders(parser.getHeaderNames());
+            batchWriter.clearStagedRows(uploadRecordId);
+            if (uploadService.isCancellationRequested(sessionId)) {
+                throw new UploadCancelledException();
+            }
             for (CSVRecord record : parser) {
                 if (!record.isConsistent()) {
                     throw new IllegalArgumentException(
@@ -136,9 +156,12 @@ public class CsvImportService {
                 }
                 batch.add(TransactionRow.from(record, record.getRecordNumber() + 1));
                 if (batch.size() == batchSize) {
-                    batchWriter.write(uploadRecordId, batch);
+                    batchWriter.stage(uploadRecordId, batch);
                     processedRows += batch.size();
                     if (System.nanoTime() - lastProgressUpdateNanos >= progressUpdateIntervalNanos) {
+                        if (uploadService.isCancellationRequested(sessionId)) {
+                            throw new UploadCancelledException();
+                        }
                         uploadService.updateProcessedRows(sessionId, processedRows);
                         lastProgressUpdateRows = processedRows;
                         lastProgressUpdateNanos = System.nanoTime();
@@ -147,8 +170,11 @@ public class CsvImportService {
                 }
             }
             if (!batch.isEmpty()) {
-                batchWriter.write(uploadRecordId, batch);
+                batchWriter.stage(uploadRecordId, batch);
                 processedRows += batch.size();
+            }
+            if (uploadService.isCancellationRequested(sessionId)) {
+                throw new UploadCancelledException();
             }
             if (processedRows != lastProgressUpdateRows) {
                 uploadService.updateProcessedRows(sessionId, processedRows);

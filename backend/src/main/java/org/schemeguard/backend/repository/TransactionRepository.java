@@ -11,7 +11,6 @@ import org.springframework.data.repository.query.Param;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 public interface TransactionRepository extends JpaRepository<Transaction, UUID> {
@@ -28,7 +27,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
             """, nativeQuery = true)
     List<Transaction> lockUnevaluated(@Param("cutoff") Instant cutoff, @Param("batchSize") int batchSize);
 
-    Optional<Transaction> findByExternalId(String externalId);
+    List<Transaction> findAllByUpload_IdAndExternalId(UUID uploadId, String externalId);
 
     @Query("select t from Transaction t join fetch t.merchant join fetch t.scheme")
     List<Transaction> findAllWithMerchantAndScheme();
