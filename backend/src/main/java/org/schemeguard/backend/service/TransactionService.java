@@ -41,6 +41,13 @@ public class TransactionService {
         this.feeCalculationRepository = feeCalculationRepository;
     }
 
+    public TransactionService(
+            TransactionRepository transactionRepository,
+            QualificationResultRepository qualificationResultRepository
+    ) {
+        this(transactionRepository, qualificationResultRepository, null);
+    }
+
     @Transactional(readOnly = true)
     public TransactionPageResponse findTransactions(int requestedPage, int requestedSize) {
         int page = Math.max(requestedPage, 0);
@@ -123,7 +130,7 @@ public class TransactionService {
                 qualification == null ? null : qualification.getExplanation(),
                 qualification == null ? null : qualification.getEvaluatedAt(),
                 transaction.getCreatedAt(),
-                qualification == null
+                qualification == null || feeCalculationRepository == null
                         ? null
                         : feeCalculationRepository.findByQualificationResultId(qualification.getId())
                         .map(fee -> fee.getInterchangeFee())
