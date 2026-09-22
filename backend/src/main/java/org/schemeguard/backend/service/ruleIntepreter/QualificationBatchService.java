@@ -13,6 +13,7 @@ import tools.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.*;
 
@@ -23,28 +24,65 @@ public class QualificationBatchService {
     private final RuleRepository rules;
     private final QualificationResultRepository results;
     private final FeeCalculationRepository fees;
+
     private final CountryToRegionService countries;
     private final FallbackRateService fallbackRates;
+
     private final ConditionEvaluator evaluator;
     private final ObjectMapper mapper;
 
     public record BatchResult(int processed, int qualified, int fallback) {}
 
+    private record RuleLookupKey(UUID schemeId, String region, LocalDate date) {}
+    private record FallbackLookupKey(UUID schemeId, String region) {}
+    private record EvaluationDecision(
+            Transaction transaction,
+            String region,
+            Rule selectedRule,
+            BigDecimal rate,
+            List<Map<String, Object>> passedConditions,
+            List<Map<String, Object>> failedConditions
+    ) {
+        private boolean qualified() {
+            return selectedRule != null;
+        }
+    }
+
+    private record BatchCache(
+            Map<String, String> regions,
+            Map<RuleLookupKey, List<Rule>> rules,
+            Map<FallbackLookupKey, BigDecimal> fallbackRates
+    ) {
+        private BatchCache() {
+            this(new HashMap<>(), new HashMap<>(), new HashMap<>());
+        }
+    }
+
     @Transactional
     public BatchResult evaluateBatch(Instant cutoff, int batchSize) {
         var batch = transactions.lockUnevaluated(cutoff, batchSize);
+        var cache = new BatchCache();
+        var decisions = new ArrayList<EvaluationDecision>(batch.size());
         int qualified = 0;
+
         for (Transaction transaction : batch) {
-            if (evaluate(transaction)) qualified++;
+            var decision = evaluate(transaction, cache);
+            decisions.add(decision);
+            if (decision.qualified()) qualified++;
         }
+
+        decisions.forEach(this::persist);
         return new BatchResult(batch.size(), qualified, batch.size() - qualified);
     }
 
-    private boolean evaluate(Transaction transaction) {
-        String region = countries.getRegion(transaction.getMerchantCountry());
-        var candidates = rules.filterApplicableRules(transaction.getScheme().getId(),
-                                                        region,
-                                                        transaction.getAuthorizedAt().atZone(ZoneOffset.UTC).toLocalDate());
+    private EvaluationDecision evaluate(Transaction transaction, BatchCache cache) {
+        String country = normalizeCountry(transaction.getMerchantCountry());
+        String region = cache.regions().computeIfAbsent(country, countries::getRegion);
+        UUID schemeId = transaction.getScheme().getId();
+        LocalDate date = transaction.getAuthorizedAt().atZone(ZoneOffset.UTC).toLocalDate();
+        var ruleKey = new RuleLookupKey(schemeId, region, date);
+        var candidates = cache.rules().computeIfAbsent(ruleKey,
+                key -> rules.filterApplicableRules(key.schemeId(), key.region(), key.date()));
         List<Map<String, Object>> passed = new ArrayList<>();
         List<Map<String, Object>> failed = new ArrayList<>();
         Rule selected = null;
@@ -62,17 +100,30 @@ public class QualificationBatchService {
                 break;
             }
         }
-        BigDecimal rate = selected == null ? fallbackRates.getRate(transaction.getScheme().getId(), region) : selected.getInterchangeRate();
+        BigDecimal rate = selected == null
+                ? cache.fallbackRates().computeIfAbsent(
+                        new FallbackLookupKey(schemeId, region),
+                        key -> fallbackRates.getRate(key.schemeId(), key.region()))
+                : selected.getInterchangeRate();
+
+        return new EvaluationDecision(transaction, region, selected, rate, passed, failed);
+    }
+
+    private void persist(EvaluationDecision decision) {
+        Transaction transaction = decision.transaction();
+        Rule selected = decision.selectedRule();
+        BigDecimal rate = decision.rate();
+
         QualificationResult result = new QualificationResult();
         result.setTransaction(transaction);
         result.setRule(selected);
         result.setRuleVersion(selected == null ? null : selected.getVersion());
         result.setQualificationStatus(selected == null ? QualificationStatus.NOT_QUALIFIED : QualificationStatus.QUALIFIED);
         result.setQualificationCategory(selected == null ? "FALLBACK" : selected.getQualificationCategory());
-        result.setPassedConditions(mapper.valueToTree(passed));
-        result.setFailedConditions(mapper.valueToTree(failed));
+        result.setPassedConditions(mapper.valueToTree(decision.passedConditions()));
+        result.setFailedConditions(mapper.valueToTree(decision.failedConditions()));
         result.setExplanation(selected == null
-                ? "No applicable rule satisfied every condition in merchant region " + region + "; fallback rate " + rate + " applied."
+                ? "No applicable rule satisfied every condition in merchant region " + decision.region() + "; fallback rate " + rate + " applied."
                 : "Rule " + selected.getRuleCode() + " version " + selected.getVersion()
                     + " satisfied every condition; selected by priority, creation time, then rate.");
         results.save(result);
@@ -84,7 +135,10 @@ public class QualificationBatchService {
         fee.setTotalFee(fee.getInterchangeFee());
         fees.save(fee);
         transaction.setStatus(TransactionStatus.PROCESSED);
-        return selected != null;
+    }
+
+    private String normalizeCountry(String country) {
+        return country == null ? null : country.trim().toUpperCase(Locale.ROOT);
     }
 
     private void appendTrace(List<Map<String, Object>> target, Rule rule, List<Map<String, Object>> conditions) {

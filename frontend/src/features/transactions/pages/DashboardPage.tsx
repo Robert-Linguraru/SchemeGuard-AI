@@ -19,6 +19,7 @@ interface DashboardPageProps {
 
 export function DashboardPage({ onCreateRule, onEditProfile, onOpenCardSchemes, onOpenAnalysisDashboard, onOpenAssistant }: DashboardPageProps) {
     const { user } = useAuth();
+    const isAdmin = user?.role?.toUpperCase() === "ADMIN";
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -48,7 +49,7 @@ export function DashboardPage({ onCreateRule, onEditProfile, onOpenCardSchemes, 
             <section className="content">
                 <div className="page-heading">
                     <div><p className="eyebrow">PAYMENTS WORKSPACE</p><h2>Transaction overview</h2><p>Monitor interchange qualification and fees.</p></div>
-                    <div className="page-heading-actions"><button type="button" className="dashboard-button" onClick={onOpenAnalysisDashboard}>Dashboard</button><button type="button" className="assistant-nav-button" onClick={() => onOpenAssistant(transactions)}>AI recommendations</button><button type="button" className="dashboard-button" onClick={onOpenCardSchemes}>Card schemes</button><CsvTransactionUploadModal /><button className="create-rule-button" onClick={onCreateRule}>View Rules</button></div>
+                    <div className="page-heading-actions"><button type="button" className="dashboard-button" onClick={onOpenAnalysisDashboard}>Dashboard</button><button type="button" className="assistant-nav-button" onClick={() => onOpenAssistant(transactions)}>AI recommendations</button><button type="button" className="dashboard-button" onClick={onOpenCardSchemes}>Card schemes</button><CsvTransactionUploadModal />{isAdmin && <button className="create-rule-button" onClick={onCreateRule}>View Rules</button>}</div>
                 </div>
                 <TransactionStats transactions={transactions} />
                 <section className="transactions-card">

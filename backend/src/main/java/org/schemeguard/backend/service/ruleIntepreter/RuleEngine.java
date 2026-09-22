@@ -10,11 +10,13 @@ public class RuleEngine {
     private final QualificationBatchService batches;
     public record EvaluationSummary(long processed, long qualified, long fallback) {}
 
+    private final int batchSize = 1000;
+
     public EvaluationSummary evaluateUnevaluated() {
         Instant cutoff = Instant.now();
         long processed = 0, qualified = 0, fallback = 0;
         while (true) {
-            var batch = batches.evaluateBatch(cutoff, 100);
+            var batch = batches.evaluateBatch(cutoff, batchSize);
             processed += batch.processed();
             qualified += batch.qualified();
             fallback += batch.fallback();
