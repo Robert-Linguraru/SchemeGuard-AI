@@ -19,6 +19,7 @@ interface DashboardPageProps {
     onEditProfile: () => void;
     onOpenAnalysisDashboard: () => void;
     onOpenAssistant: (transactions: Transaction[]) => void;
+    isAssistantOpen: boolean;
     selectedUploadId?: string | null;
     selectedUploadFileName?: string | null;
     selectedUploadImportStatus?: string | null;
@@ -33,6 +34,7 @@ export function DashboardPage({
     onOpenCardSchemes,
     onOpenAnalysisDashboard,
     onOpenAssistant,
+    isAssistantOpen,
     selectedUploadId,
     selectedUploadFileName,
     selectedUploadImportStatus,
@@ -192,14 +194,6 @@ export function DashboardPage({
                             Dashboard
                         </button>
 
-                        <button
-                            type="button"
-                            className="assistant-nav-button"
-                            onClick={() => onOpenAssistant(transactions)}
-                        >
-                            AI recommendations
-                        </button>
-
                         {selectedUploadId && canEvaluate && (
                             <button
                                 type="button"
@@ -279,6 +273,17 @@ export function DashboardPage({
 
                 </section>
             </section>
+            {!isAssistantOpen && (
+                <button
+                    type="button"
+                    className="assistant-floating-button"
+                    onClick={() => onOpenAssistant(transactions)}
+                    aria-label="Open AI recommendations"
+                    title="AI recommendations"
+                >
+                    AI
+                </button>
+            )}
         </main>
     );
 }

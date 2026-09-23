@@ -128,6 +128,7 @@ function AuthenticatedApp() {
                     setAssistantTransactions(transactions);
                     setIsAssistantOpen(true);
                 }}
+                isAssistantOpen={isAssistantOpen}
                 selectedUploadId={selectedUploadId}
                 selectedUploadFileName={selectedUploadFileName}
                 selectedUploadImportStatus={selectedUploadImportStatus}
