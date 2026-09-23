@@ -7,6 +7,7 @@ import type {
     EntityListAction,
     EntityListColumn,
     EntityListFetcher,
+    EntityListResponse,
     EntityListQuery
 } from "../../types/list";
 
@@ -27,6 +28,7 @@ interface EntityListProps<T> {
     searchPlaceholder?: string;
     emptyMessage?: string;
     toolbar?: (context: EntityListToolbarContext) => ReactNode;
+    onResponse?: (response: EntityListResponse<T>) => void;
 }
 
 const getSortState = (sort: string) => {
@@ -48,7 +50,8 @@ export function EntityList<T>({
     reloadKey = 0,
     searchPlaceholder = "Search...",
     emptyMessage = "No records found.",
-    toolbar
+    toolbar,
+    onResponse
 }: EntityListProps<T>) {
     const {
         query,
@@ -67,6 +70,12 @@ export function EntityList<T>({
     useEffect(() => {
         setSearchValue(query.search);
     }, [query.search]);
+
+    useEffect(() => {
+        if (response) {
+            onResponse?.(response);
+        }
+    }, [onResponse, response]);
 
     useEffect(() => {
         const timeout = window.setTimeout(() => {

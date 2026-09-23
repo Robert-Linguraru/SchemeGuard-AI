@@ -1,37 +1,52 @@
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useAuth } from "../../../app/AuthProvider";
 import { AccountMenu } from "../../../shared/components/AccountMenu";
-import { ErrorMessage } from "../../../shared/components/ErrorMessage";
 import { LoadingState } from "../../../shared/components/LoadingState";
 import type { Transaction } from "../../../shared/types/transaction";
-import { getMockTransactions } from "../api/transactionsApi";
+import { getUploadTransactions } from "../../uploads/api/uploadsApi";
+import { evaluateUpload } from "../../uploads/api/uploadsApi";
 import {
     getTransactionExplanation,
     type TransactionExplanation
 } from "../api/transactionExplanationApi";
 import { TransactionStats } from "../components/TransactionStats";
-import { TransactionTable } from "../components/TransactionTable";
 import CsvTransactionUploadModal from "../../csvUpload/components/csvUploadModal";
+import { EntityList } from "../../../shared/components/EntityList/EntityList";
+import type {
+    EntityListColumn,
+    EntityListQuery,
+    EntityListResponse
+} from "../../../shared/types/list";
 
 interface DashboardPageProps {
     onCreateRule: () => void;
     onOpenCardSchemes: () => void;
     onEditProfile: () => void;
     onOpenAnalysisDashboard: () => void;
+    selectedUploadId?: string | null;
+    selectedUploadFileName?: string | null;
+    selectedUploadImportStatus?: string | null;
+    selectedUploadWasEvaluated?: boolean;
+    onUploadEvaluated: (wasEvaluated: boolean) => void;
+    onBackToUploads: () => void;
 }
 
 export function DashboardPage({
     onCreateRule,
     onEditProfile,
     onOpenCardSchemes,
-    onOpenAnalysisDashboard
+    onOpenAnalysisDashboard,
+    selectedUploadId,
+    selectedUploadFileName,
+    selectedUploadImportStatus,
+    selectedUploadWasEvaluated = false,
+    onUploadEvaluated,
+    onBackToUploads
 }: DashboardPageProps) {
     const { user } = useAuth();
     const isAdmin = user?.role?.toUpperCase() === "ADMIN";
-
     const [transactions, setTransactions] = useState<Transaction[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const [totalTransactions, setTotalTransactions] = useState(0);
 
     const [explanation, setExplanation] =
         useState<TransactionExplanation | null>(null);
@@ -40,47 +55,113 @@ export function DashboardPage({
         useState<string | null>(null);
 
     const [isExplaining, setIsExplaining] = useState(false);
+    const [isEvaluating, setIsEvaluating] = useState(false);
+    const [evaluationMessage, setEvaluationMessage] = useState<string | null>(null);
+    const [evaluationError, setEvaluationError] = useState<string | null>(null);
+    const [transactionReloadKey, setTransactionReloadKey] = useState(0);
 
-    useEffect(() => {
-        const controller = new AbortController();
-        let isMounted = true;
+    const canEvaluate = selectedUploadImportStatus === "COMPLETED"
+        && !selectedUploadWasEvaluated;
 
-        setIsLoading(true);
-        setError(null);
+    const runEvaluation = async () => {
+        if (!selectedUploadId || !canEvaluate || isEvaluating) {
+            return;
+        }
 
-        getMockTransactions(controller.signal)
-            .then((loadedTransactions) => {
-                if (isMounted) {
-                    setTransactions(loadedTransactions);
-                }
-            })
-            .catch((requestError: unknown) => {
-                if (
-                    requestError instanceof DOMException &&
-                    requestError.name === "AbortError"
-                ) {
-                    return;
-                }
+        setIsEvaluating(true);
+        setEvaluationMessage(null);
+        setEvaluationError(null);
+        try {
+            const result = await evaluateUpload(selectedUploadId);
+            setEvaluationMessage(result.message);
+            onUploadEvaluated(result.wasEvaluated);
+            setTransactionReloadKey((key) => key + 1);
+        } catch (requestError: unknown) {
+            setEvaluationError(
+                requestError instanceof Error
+                    ? requestError.message
+                    : "Could not evaluate this upload"
+            );
+        } finally {
+            setIsEvaluating(false);
+        }
+    };
 
-                if (isMounted) {
-                    setError(
-                        requestError instanceof Error
-                            ? requestError.message
-                            : "Could not load transactions"
-                    );
-                }
-            })
-            .finally(() => {
-                if (isMounted) {
-                    setIsLoading(false);
-                }
-            });
+    const fetchTransactions = useCallback(
+        (query: EntityListQuery, signal?: AbortSignal) => {
+            if (!selectedUploadId) {
+                return Promise.resolve({
+                    items: [],
+                    page: 0,
+                    size: query.size,
+                    totalElements: 0,
+                    totalPages: 0
+                });
+            }
 
-        return () => {
-            isMounted = false;
-            controller.abort();
-        };
-    }, [user]);
+            return getUploadTransactions(
+                selectedUploadId,
+                query.page,
+                query.size,
+                signal
+            );
+        },
+        [selectedUploadId]
+    );
+
+    const handleTransactionResponse = useCallback(
+        (response: EntityListResponse<Transaction>) => {
+            setTransactions(response.items);
+            setTotalTransactions(response.totalElements);
+        },
+        []
+    );
+
+    const transactionColumns: EntityListColumn<Transaction>[] = [
+        {
+            key: "externalId",
+            label: "Transaction"
+        },
+        {
+            key: "merchantName",
+            label: "Merchant"
+        },
+        {
+            key: "scheme",
+            label: "Scheme"
+        },
+        {
+            key: "amount",
+            label: "Amount",
+            render: (transaction) => `${transaction.amount ?? "0"} ${transaction.currencyCode}`
+        },
+        {
+            key: "status",
+            label: "Status"
+        },
+        {
+            key: "qualificationStatus",
+            label: "Qualification"
+        },
+        {
+            key: "estimatedFee",
+            label: "Fee",
+            render: (transaction) => `${transaction.estimatedFee ?? "0"} ${transaction.currencyCode}`
+        },
+        {
+            key: "explanation",
+            label: "AI explanation",
+            render: (transaction) => (
+                <button
+                    type="button"
+                    className="explain-button"
+                    onClick={() => void explainTransaction(transaction)}
+                >
+                    Explain result
+                </button>
+            )
+        }
+    ];
 
     const explainTransaction = async (
         transaction: Transaction
@@ -158,6 +239,17 @@ export function DashboardPage({
                             Dashboard
                         </button>
 
+                        {selectedUploadId && canEvaluate && (
+                            <button
+                                type="button"
+                                className="dashboard-button"
+                                onClick={() => void runEvaluation()}
+                                disabled={isEvaluating}
+                            >
+                                {isEvaluating ? "Evaluating..." : "Evaluate"}
+                            </button>
+                        )}
+
                         <button
                             type="button"
                             className="dashboard-button"
@@ -167,6 +259,14 @@ export function DashboardPage({
                         </button>
 
                         <CsvTransactionUploadModal />
+
+                        <button
+                            type="button"
+                            className="dashboard-button"
+                            onClick={onBackToUploads}
+                        >
+                            Back to uploads
+                        </button>
 
                         {isAdmin && (
                             <button
@@ -179,54 +279,42 @@ export function DashboardPage({
                     </div>
                 </div>
 
-                <TransactionStats
-                    transactions={transactions}
-                />
+                {selectedUploadId && (
+                    <TransactionStats
+                        transactions={transactions}
+                        totalTransactions={totalTransactions}
+                    />
+                )}
 
                 <section className="transactions-card">
-                    <div className="section-header">
-                        <div>
-                            <p className="eyebrow">
-                                TRANSACTIONS
-                            </p>
-
-                            <h2>Mock transaction list</h2>
+                    {selectedUploadId ? (
+                        <EntityList
+                            title={selectedUploadFileName ?? "Transaction list"}
+                            description="Transactions imported from this CSV upload."
+                            columns={transactionColumns}
+                            fetchData={fetchTransactions}
+                            onResponse={handleTransactionResponse}
+                            reloadKey={transactionReloadKey}
+                            initialQuery={{ size: 50, sort: "createdAt,desc" }}
+                            emptyMessage="No transactions available in this CSV upload."
+                        />
+                    ) : (
+                        <div className="empty-state">
+                            <p>Select a CSV upload to view its transactions.</p>
                         </div>
-
-                        <span className="record-count">
-                            {transactions.length} records
-                        </span>
-                    </div>
-
-                    {isLoading && (
-                        <LoadingState
-                            message="Loading transactions..."
-                        />
                     )}
 
-                    {error && (
-                        <ErrorMessage
-                            title="Unable to load transactions"
-                            message={error}
-                        />
+                    {evaluationMessage && (
+                        <div className="success-box" role="status">
+                            {evaluationMessage}
+                        </div>
                     )}
 
-                    {!isLoading &&
-                        !error &&
-                        transactions.length === 0 && (
-                            <LoadingState
-                                message="No transactions available."
-                            />
-                        )}
-
-                    {!isLoading &&
-                        !error &&
-                        transactions.length > 0 && (
-                            <TransactionTable
-                                transactions={transactions}
-                                onExplain={explainTransaction}
-                            />
-                        )}
+                    {evaluationError && (
+                        <div className="error-box" role="alert">
+                            {evaluationError}
+                        </div>
+                    )}
 
                     {isExplaining && (
                         <LoadingState

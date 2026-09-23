@@ -1,6 +1,7 @@
 package org.schemeguard.backend.repository;
 
 import org.schemeguard.backend.entity.Transaction;
+import org.schemeguard.backend.entity.enums.TransactionStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -18,6 +19,12 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
     @EntityGraph(attributePaths = {"merchant", "scheme"})
     Page<Transaction> findAllByOrderByCreatedAtDescIdDesc(Pageable pageable);
 
+    @EntityGraph(attributePaths = {"merchant", "scheme"})
+    Page<Transaction> findAllByUpload_IdOrderByCreatedAtDescIdDesc(
+            UUID uploadId,
+            Pageable pageable
+    );
+
     @Query("select coalesce(sum(transaction.amount), 0) from Transaction transaction")
     BigDecimal sumAmount();
 
@@ -30,6 +37,8 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
                                       @Param("fileId") UUID fileId);
 
     List<Transaction> findAllByUpload_IdAndExternalId(UUID uploadId, String externalId);
+
+        long countByUpload_IdAndStatus(UUID uploadId, TransactionStatus status);
 
     @Query("select t from Transaction t join fetch t.merchant join fetch t.scheme")
     List<Transaction> findAllWithMerchantAndScheme();

@@ -16,8 +16,10 @@ import org.schemeguard.backend.dto.TransactionResponse;
 import org.schemeguard.backend.dto.TransactionStatisticsResponse;
 import org.schemeguard.backend.repository.QualificationResultRepository;
 import org.schemeguard.backend.repository.TransactionRepository;
+import org.schemeguard.backend.repository.UploadRepository;
 import org.schemeguard.backend.service.TransactionService;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
@@ -29,6 +31,8 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -37,13 +41,15 @@ class TransactionServiceTests {
 
     private final TransactionRepository transactionRepository = mock(TransactionRepository.class);
     private final QualificationResultRepository qualificationResultRepository = mock(QualificationResultRepository.class);
+        private final UploadRepository uploadRepository = mock(UploadRepository.class);
     private TransactionService transactionService;
 
     @BeforeEach
     void setUp() {
         transactionService = new TransactionService(
                 transactionRepository,
-                qualificationResultRepository
+                qualificationResultRepository,
+                uploadRepository
         );
         when(qualificationResultRepository.findForTransactions(any()))
                 .thenReturn(List.of());
@@ -74,6 +80,97 @@ class TransactionServiceTests {
         assertEquals(5, response.totalElements());
         assertEquals(3, response.totalPages());
         assertEquals("TX-1", response.content().getFirst().externalId());
+    }
+
+    @Test
+    void ownerCanRetrieveOnlyTheirUploadsTransactions() {
+        UUID uploadId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        Transaction transaction = transaction("TX-1");
+        when(uploadRepository.existsByIdAndUser_Id(uploadId, userId)).thenReturn(true);
+        when(transactionRepository.findAllByUpload_IdOrderByCreatedAtDescIdDesc(
+                eq(uploadId), any(Pageable.class)
+        )).thenReturn(new PageImpl<>(List.of(transaction)));
+
+        TransactionPageResponse response = transactionService.findTransactionsForUpload(
+                uploadId,
+                userId,
+                0,
+                50
+        );
+
+        assertEquals(List.of(transaction.getId()), response.content().stream()
+                .map(TransactionResponse::id)
+                .toList());
+        verify(transactionRepository).findAllByUpload_IdOrderByCreatedAtDescIdDesc(
+                eq(uploadId), any(Pageable.class)
+        );
+    }
+
+    @Test
+    void foreignOrMissingUploadIsNotRevealed() {
+        UUID uploadId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        when(uploadRepository.existsByIdAndUser_Id(uploadId, userId)).thenReturn(false);
+
+        org.schemeguard.backend.exception.UploadException exception = org.junit.jupiter.api.Assertions.assertThrows(
+                org.schemeguard.backend.exception.UploadException.class,
+                () -> transactionService.findTransactionsForUpload(uploadId, userId, 0, 50)
+        );
+
+        assertEquals("UPLOAD_NOT_FOUND", exception.getCode());
+        verify(transactionRepository, never())
+                .findAllByUpload_IdOrderByCreatedAtDescIdDesc(any(), any(Pageable.class));
+    }
+
+    @Test
+    void uploadTransactionsSupportEmptyPagesAndPaginationNormalization() {
+        UUID uploadId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        when(uploadRepository.existsByIdAndUser_Id(uploadId, userId)).thenReturn(true);
+        when(transactionRepository.findAllByUpload_IdOrderByCreatedAtDescIdDesc(
+                eq(uploadId), any(Pageable.class)
+        )).thenReturn(new PageImpl<>(List.of()));
+
+        TransactionPageResponse response = transactionService.findTransactionsForUpload(
+                uploadId,
+                userId,
+                -2,
+                -1
+        );
+
+        assertEquals(List.of(), response.content());
+        assertEquals(0, response.page());
+        assertEquals(50, response.size());
+        assertEquals(0, response.totalElements());
+    }
+
+    @Test
+    void uploadTransactionsPreserveLargeDatabaseTotalsAndRequestedPage() {
+        UUID uploadId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        Transaction transaction = transaction("TX-100000");
+        when(uploadRepository.existsByIdAndUser_Id(uploadId, userId)).thenReturn(true);
+        when(transactionRepository.findAllByUpload_IdOrderByCreatedAtDescIdDesc(
+                eq(uploadId), any(Pageable.class)
+        )).thenReturn(new PageImpl<>(
+                List.of(transaction),
+                PageRequest.of(999, 100),
+                100_000
+        ));
+
+        TransactionPageResponse response = transactionService.findTransactionsForUpload(
+                uploadId,
+                userId,
+                999,
+                100
+        );
+
+        assertEquals(1, response.content().size());
+        assertEquals(999, response.page());
+        assertEquals(100, response.size());
+        assertEquals(100_000, response.totalElements());
+        assertEquals(1_000, response.totalPages());
     }
 
     @Test

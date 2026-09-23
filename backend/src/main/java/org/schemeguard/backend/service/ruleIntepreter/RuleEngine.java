@@ -11,7 +11,13 @@ import java.util.UUID;
 public class RuleEngine {
     private final QualificationBatchService batches;
     private final UploadRepository uploads;
-    public record EvaluationSummary(long processed, long qualified, long fallback) {}
+        public record EvaluationSummary(
+            long processed,
+            long qualified,
+            long fallback,
+            boolean wasEvaluated,
+            String message
+        ) {}
 
     private final int batchSize = 1000;
 
@@ -24,8 +30,16 @@ public class RuleEngine {
             qualified += batch.qualified();
             fallback += batch.fallback();
             if (batch.processed() == 0) {
-                uploads.markEvaluatedIfComplete(fileId);
-                return new EvaluationSummary(processed, qualified, fallback);
+                boolean wasEvaluated = uploads.markEvaluatedIfComplete(fileId) > 0;
+                return new EvaluationSummary(
+                    processed,
+                    qualified,
+                    fallback,
+                    wasEvaluated,
+                    processed == 0
+                        ? "There are no new transactions waiting for evaluation."
+                        : "Evaluation completed."
+                );
             }
         }
     }
