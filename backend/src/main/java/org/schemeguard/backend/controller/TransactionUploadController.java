@@ -9,6 +9,10 @@ import org.schemeguard.backend.dto.Upload.CreateUploadResponse;
 import org.schemeguard.backend.dto.Upload.PartUploadResponse;
 import org.schemeguard.backend.dto.Upload.UploadPageResponse;
 import org.schemeguard.backend.dto.Upload.UploadStatusResponse;
+import org.schemeguard.backend.dto.TransactionPageResponse;
+import org.schemeguard.backend.service.TransactionService;
+import org.schemeguard.backend.service.ruleIntepreter.RuleEngine;
+import org.schemeguard.backend.service.ruleIntepreter.UploadEvaluationService;
 import org.schemeguard.backend.service.csvUpload.UploadService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -34,9 +38,17 @@ import java.util.UUID;
 public class TransactionUploadController {
 
     private final UploadService uploadService;
+    private final TransactionService transactionService;
+        private final UploadEvaluationService uploadEvaluationService;
 
-    public TransactionUploadController(UploadService uploadService) {
+    public TransactionUploadController(
+            UploadService uploadService,
+            TransactionService transactionService,
+            UploadEvaluationService uploadEvaluationService
+    ) {
         this.uploadService = uploadService;
+        this.transactionService = transactionService;
+        this.uploadEvaluationService = uploadEvaluationService;
     }
 
     @PostMapping
@@ -52,10 +64,34 @@ public class TransactionUploadController {
     public UploadPageResponse listUploads(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String search,
             @AuthenticationPrincipal User user
     ) {
-        return uploadService.findUploads(user, page, size);
+        return uploadService.findUploads(user, page, size, search);
     }
+
+    @GetMapping("/{uploadId}/transactions")
+    public TransactionPageResponse listUploadTransactions(
+            @PathVariable UUID uploadId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size,
+            @AuthenticationPrincipal User user
+    ) {
+        return transactionService.findTransactionsForUpload(
+                uploadId,
+                user.getId(),
+                page,
+                size
+        );
+    }
+
+        @PostMapping("/{uploadId}/evaluate")
+        public RuleEngine.EvaluationSummary evaluateUpload(
+                        @PathVariable UUID uploadId,
+                        @AuthenticationPrincipal User user
+        ) {
+                return uploadEvaluationService.evaluate(user, uploadId);
+        }
 
     @PutMapping(
             value = "/{uploadId}/parts/{partNumber}",

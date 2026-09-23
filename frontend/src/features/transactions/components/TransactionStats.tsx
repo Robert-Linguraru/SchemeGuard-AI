@@ -2,17 +2,18 @@ import type { Transaction } from "../../../shared/types/transaction";
 
 interface TransactionStatsProps {
     transactions: Transaction[];
+    totalTransactions: number;
 }
 
-export function TransactionStats({ transactions }: TransactionStatsProps) {
+export function TransactionStats({ transactions, totalTransactions }: TransactionStatsProps) {
     const processed = transactions.filter((transaction) => transaction.status === "PROCESSED").length;
     const qualified = transactions.filter((transaction) => transaction.qualificationStatus === "QUALIFIED").length;
     const totalFees = transactions.reduce((total, transaction) => total + Number(transaction.estimatedFee || 0), 0);
     const stats = [
-        ["Total transactions", transactions.length, "Database records available"],
-        ["Processed", processed, "Successfully processed"],
-        ["Qualified", qualified, "Passed qualification"],
-        ["Estimated fees", `${totalFees.toFixed(2)} EUR`, "Combined estimated amount"]
+        ["Total transactions", totalTransactions, "Complete CSV total"],
+        ["Processed", processed, "On this page"],
+        ["Qualified", qualified, "On this page"],
+        ["Estimated fees", `${totalFees.toFixed(2)} EUR`, "On this page"]
     ];
 
     return (

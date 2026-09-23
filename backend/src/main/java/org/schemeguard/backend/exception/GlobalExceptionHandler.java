@@ -80,4 +80,22 @@ public class GlobalExceptionHandler {
                         null
                 ));
     }
+
+
+
+    @ExceptionHandler(UploadException.class)
+    public ResponseEntity<ApiError> handleUploadException(
+            UploadException exception
+    ) {
+        return ResponseEntity
+                .status(exception.getStatus())
+                .body(new ApiError(
+                        exception.getStatus().value(),
+                        exception.getMessage(),
+                        OffsetDateTime.now(),
+                        exception.getCode(),
+                        null
+                ));
+    }
 }
+

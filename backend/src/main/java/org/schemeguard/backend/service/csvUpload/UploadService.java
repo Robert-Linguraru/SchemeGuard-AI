@@ -209,14 +209,19 @@ public class UploadService {
     }
 
     @Transactional(readOnly = true)
-    public UploadPageResponse findUploads(User user, int requestedPage, int requestedSize) {
+    public UploadPageResponse findUploads(
+            User user,
+            int requestedPage,
+            int requestedSize,
+            String search
+    ) {
         int page = Math.max(requestedPage, 0);
         int size = requestedSize <= 0
                 ? DEFAULT_PAGE_SIZE
                 : Math.min(requestedSize, MAX_PAGE_SIZE);
         Pageable pageable = PageRequest.of(page, size);
         Page<UploadSummaryProjection> resultPage = uploadRepository
-                .findSummariesByUserId(user.getId(), pageable);
+                .findSummariesByUserId(user.getId(), search, pageable);
 
         List<UploadSummaryResponse> content = resultPage.getContent().stream()
                 .map(this::toSummaryResponse)
@@ -457,18 +462,19 @@ public class UploadService {
         );
     }
 
-        private UploadSummaryResponse toSummaryResponse(UploadSummaryProjection projection) {
-                return new UploadSummaryResponse(
-                                projection.getId(),
-                                projection.getFileName(),
-                                projection.getUploadedAt(),
-                                projection.getImportStatus(),
-                                projection.getTransactionCount() > 0
-                                        && projection.getNewTransactionCount() == 0
-                                        ? "EVALUATED"
-                                        : "NOT_EVALUATED",
-                                projection.getTransactionCount()
-                );
+    private UploadSummaryResponse toSummaryResponse(UploadSummaryProjection projection) {
+        return new UploadSummaryResponse(
+                projection.getId(),
+                projection.getFileName(),
+                projection.getUploadedAt(),
+                projection.getImportStatus(),
+                projection.getWasEvaluated(),
+                projection.getTransactionCount() > 0
+                        && projection.getNewTransactionCount() == 0
+                        ? "EVALUATED"
+                        : "NOT_EVALUATED",
+                projection.getTransactionCount()
+        );
         }
 
     private CompleteUploadResponse toCompleteResponse(UploadSession session) {

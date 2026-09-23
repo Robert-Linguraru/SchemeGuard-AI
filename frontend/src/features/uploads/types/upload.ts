@@ -11,7 +11,8 @@ export type UploadImportStatus =
     | (string & {});
 
 export type UploadEvaluationStatus =
-    | "NOT_STARTED"
+    | "NOT_EVALUATED"
+    | "EVALUATED"
     | "QUEUED"
     | "PROCESSING"
     | "COMPLETED"
@@ -23,6 +24,7 @@ export interface UploadSummary {
     fileName: string;
     uploadedAt: string;
     importStatus: UploadImportStatus;
+    wasEvaluated: boolean;
     evaluationStatus: UploadEvaluationStatus;
     transactionCount: number;
 }
