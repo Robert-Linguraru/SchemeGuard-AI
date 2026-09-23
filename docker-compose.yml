@@ -9,7 +9,7 @@ services:
       APP_JWT_SECRET: ${APP_JWT_SECRET:?Set APP_JWT_SECRET in .env}
       ML_SERVICE_URL: http://ml:8000
       OLLAMA_URL: http://ollama:11434
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:4b}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:1.7b}
     ports:
       - "8080:8080"
     depends_on:
@@ -58,7 +58,7 @@ services:
         ollama pull "$${OLLAMA_MODEL}"
     environment:
       OLLAMA_HOST: http://ollama:11434
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:4b}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:1.7b}
     depends_on:
       ollama:
         condition: service_healthy

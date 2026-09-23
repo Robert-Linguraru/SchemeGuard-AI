@@ -8,6 +8,8 @@ import { DashboardPage } from "../features/transactions/pages/DashboardPage";
 import { AnalysisDashboardPage } from "../features/transactions/pages/AnalysisDashboardPage";
 import { ProfilePage } from "../features/auth/pages/ProfilePage";
 import { CardSchemesPage } from "../features/cardSchemes/pages/CardSchemesPage";
+import { RecommendationAssistant } from "../features/transactions/components/RecommendationAssistant";
+import type { Transaction } from "../shared/types/transaction";
 import { UploadsPage } from "../features/uploads/pages/UploadsPage";
 import { LoadingState } from "../shared/components/LoadingState";
 
@@ -27,6 +29,8 @@ function AuthenticatedApp() {
         useState<string | null>(null);
     const [selectedUploadWasEvaluated, setSelectedUploadWasEvaluated] =
         useState(false);
+    const [assistantTransactions, setAssistantTransactions] = useState<Transaction[]>([]);
+    const [isAssistantOpen, setIsAssistantOpen] = useState(false);
 
     const isAdmin = user?.role?.toUpperCase() === "ADMIN";
 
@@ -114,11 +118,16 @@ function AuthenticatedApp() {
     }
 
     return (
+        <>
             <DashboardPage
                 onCreateRule={() => setView("rules")}
                 onOpenCardSchemes={() => setView("card-schemes")}
                 onEditProfile={() => setView("profile")}
                 onOpenAnalysisDashboard={() => setView("analysis-dashboard")}
+                onOpenAssistant={(transactions) => {
+                    setAssistantTransactions(transactions);
+                    setIsAssistantOpen(true);
+                }}
                 selectedUploadId={selectedUploadId}
                 selectedUploadFileName={selectedUploadFileName}
                 selectedUploadImportStatus={selectedUploadImportStatus}
@@ -132,6 +141,12 @@ function AuthenticatedApp() {
                     setView("uploads");
                 }}
             />
+            <RecommendationAssistant
+                transactions={assistantTransactions}
+                isOpen={isAssistantOpen}
+                onClose={() => setIsAssistantOpen(false)}
+            />
+        </>
     );
 }
 
