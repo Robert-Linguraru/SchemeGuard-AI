@@ -5,8 +5,10 @@ import org.schemeguard.backend.dto.TransactionResponse;
 import org.schemeguard.backend.dto.TransactionStatisticsResponse;
 import org.schemeguard.backend.entity.QualificationResult;
 import org.schemeguard.backend.entity.Transaction;
+import org.schemeguard.backend.exception.UploadException;
 import org.schemeguard.backend.repository.QualificationResultRepository;
 import org.schemeguard.backend.repository.TransactionRepository;
+import org.schemeguard.backend.repository.UploadRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -28,28 +30,58 @@ public class TransactionService {
 
     private final TransactionRepository transactionRepository;
     private final QualificationResultRepository qualificationResultRepository;
+        private final UploadRepository uploadRepository;
 
     public TransactionService(
             TransactionRepository transactionRepository,
-            QualificationResultRepository qualificationResultRepository
+            QualificationResultRepository qualificationResultRepository,
+            UploadRepository uploadRepository
     ) {
         this.transactionRepository = transactionRepository;
         this.qualificationResultRepository = qualificationResultRepository;
+        this.uploadRepository = uploadRepository;
     }
 
     @Transactional(readOnly = true)
     public TransactionPageResponse findTransactions(int requestedPage, int requestedSize) {
-        int page = Math.max(requestedPage, 0);
-        int size = requestedSize <= 0
-                ? DEFAULT_PAGE_SIZE
-                : Math.min(requestedSize, MAX_PAGE_SIZE);
-        Pageable pageable = PageRequest.of(
-                page,
-                size,
-                Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id"))
-        );
+        Pageable pageable = transactionPageable(requestedPage, requestedSize);
+        int page = pageable.getPageNumber();
+        int size = pageable.getPageSize();
         Page<Transaction> resultPage = transactionRepository
                 .findAllByOrderByCreatedAtDescIdDesc(pageable);
+
+        return toPageResponse(resultPage, page, size);
+    }
+
+    @Transactional(readOnly = true)
+    public TransactionPageResponse findTransactionsForUpload(
+            UUID uploadId,
+            UUID userId,
+            int requestedPage,
+            int requestedSize
+    ) {
+        if (!uploadRepository.existsByIdAndUser_Id(uploadId, userId)) {
+            throw new UploadException(
+                    org.springframework.http.HttpStatus.NOT_FOUND,
+                    "UPLOAD_NOT_FOUND",
+                    "Upload not found."
+            );
+        }
+
+        Pageable pageable = transactionPageable(requestedPage, requestedSize);
+        int page = pageable.getPageNumber();
+        int size = pageable.getPageSize();
+        Page<Transaction> resultPage = transactionRepository
+                .findAllByUpload_IdOrderByCreatedAtDescIdDesc(uploadId, pageable);
+
+        return toPageResponse(resultPage, page, size);
+    }
+
+    private TransactionPageResponse toPageResponse(
+            Page<Transaction> resultPage,
+            int page,
+            int size
+    ) {
 
         List<UUID> transactionIds = resultPage.getContent().stream()
                 .map(Transaction::getId)
@@ -65,6 +97,18 @@ public class TransactionService {
                 size,
                 resultPage.getTotalElements(),
                 resultPage.getTotalPages()
+        );
+    }
+
+    private Pageable transactionPageable(int requestedPage, int requestedSize) {
+        int page = Math.max(requestedPage, 0);
+        int size = requestedSize <= 0
+                ? DEFAULT_PAGE_SIZE
+                : Math.min(requestedSize, MAX_PAGE_SIZE);
+        return PageRequest.of(
+                page,
+                size,
+                Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id"))
         );
     }
 
@@ -118,6 +162,7 @@ public class TransactionService {
                 qualification == null ? null : qualification.getQualificationCategory(),
                 qualification == null ? null : qualification.getExplanation(),
                 qualification == null ? null : qualification.getEvaluatedAt(),
+                transaction.getAuthorizedAt(),
                 transaction.getCreatedAt()
         );
     }

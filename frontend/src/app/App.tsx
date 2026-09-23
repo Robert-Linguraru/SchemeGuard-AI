@@ -21,6 +21,12 @@ function AuthenticatedApp() {
         useState<string | null>(null);
     const [selectedUploadId, setSelectedUploadId] =
         useState<string | null>(null);
+    const [selectedUploadFileName, setSelectedUploadFileName] =
+        useState<string | null>(null);
+    const [selectedUploadImportStatus, setSelectedUploadImportStatus] =
+        useState<string | null>(null);
+    const [selectedUploadWasEvaluated, setSelectedUploadWasEvaluated] =
+        useState(false);
 
     const isAdmin = user?.role?.toUpperCase() === "ADMIN";
 
@@ -39,7 +45,13 @@ function AuthenticatedApp() {
                 onOpenCardSchemes={() => setView("card-schemes")}
                 onOpenRules={() => setView("rules")}
                 onEditProfile={() => setView("profile")}
-                onOpenUpload={(uploadId) => setSelectedUploadId(uploadId)}
+                onOpenUpload={(uploadId, fileName, importStatus, wasEvaluated) => {
+                    setSelectedUploadId(uploadId);
+                    setSelectedUploadFileName(fileName);
+                    setSelectedUploadImportStatus(importStatus);
+                    setSelectedUploadWasEvaluated(wasEvaluated);
+                    setView("dashboard");
+                }}
                 selectedUploadId={selectedUploadId}
             />
         );
@@ -107,6 +119,18 @@ function AuthenticatedApp() {
                 onOpenCardSchemes={() => setView("card-schemes")}
                 onEditProfile={() => setView("profile")}
                 onOpenAnalysisDashboard={() => setView("analysis-dashboard")}
+                selectedUploadId={selectedUploadId}
+                selectedUploadFileName={selectedUploadFileName}
+                selectedUploadImportStatus={selectedUploadImportStatus}
+                selectedUploadWasEvaluated={selectedUploadWasEvaluated}
+                onUploadEvaluated={(wasEvaluated) => setSelectedUploadWasEvaluated(wasEvaluated)}
+                onBackToUploads={() => {
+                    setSelectedUploadId(null);
+                    setSelectedUploadFileName(null);
+                    setSelectedUploadImportStatus(null);
+                    setSelectedUploadWasEvaluated(false);
+                    setView("uploads");
+                }}
             />
     );
 }

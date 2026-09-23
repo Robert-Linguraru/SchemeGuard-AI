@@ -9,6 +9,14 @@ import type {
     UploadTransactionPage
 } from "../types/upload";
 
+export interface EvaluationSummary {
+    processed: number;
+    qualified: number;
+    fallback: number;
+    wasEvaluated: boolean;
+    message: string;
+}
+
 interface BackendPage<T> {
     content?: T[];
     items?: T[];
@@ -59,13 +67,61 @@ export const getUploadTransactions = (
     size = 50,
     signal?: AbortSignal
 ): Promise<UploadTransactionPage> =>
-    request<BackendPage<UploadTransactionPage["items"][number]>>(
+    request<BackendPage<BackendTransaction>>(
         `/api/uploads/${encodeURIComponent(uploadId)}/transactions?page=${page}&size=${size}`,
         { method: "GET", signal }
-    ).then(toEntityListResponse);
+    ).then((response) => {
+        const page = toEntityListResponse(response);
+        return {
+            ...page,
+            items: page.items.map(toTransaction)
+        };
+    });
 
-export const evaluateUpload = (uploadId: string): Promise<void> =>
-    request<void>(
+interface BackendTransaction {
+    id: string;
+    uploadId: string | null;
+    externalId: string;
+    merchantName: string;
+    schemeCode: string;
+    schemeName: string;
+    amount: number | string | null;
+    currency: string;
+    cardType: string | null;
+    cardCategory: string | null;
+    channel: string | null;
+    issuerCountry: string | null;
+    merchantCountry: string | null;
+    transactionStatus: string | null;
+    qualificationStatus: string | null;
+    qualificationCategory: string | null;
+    qualificationExplanation: string | null;
+    evaluatedAt: string | null;
+    authorizedAt: string | null;
+    createdAt: string | null;
+}
+
+const toTransaction = (transaction: BackendTransaction) => ({
+    id: transaction.id,
+    externalId: transaction.externalId,
+    merchantName: transaction.merchantName,
+    scheme: transaction.schemeCode || transaction.schemeName,
+    amount: transaction.amount,
+    currencyCode: transaction.currency,
+    cardType: transaction.cardType,
+    cardCategory: transaction.cardCategory,
+    channel: transaction.channel,
+    issuerCountry: transaction.issuerCountry,
+    merchantCountry: transaction.merchantCountry,
+    status: transaction.transactionStatus ?? "UNKNOWN",
+    qualificationStatus: transaction.qualificationStatus ?? "NOT_EVALUATED",
+    estimatedFee: null,
+    explanation: transaction.qualificationExplanation,
+    authorizedAt: transaction.authorizedAt ?? transaction.createdAt
+});
+
+export const evaluateUpload = (uploadId: string): Promise<EvaluationSummary> =>
+    request<EvaluationSummary>(
         `/api/uploads/${encodeURIComponent(uploadId)}/evaluate`,
         { method: "POST" }
     );

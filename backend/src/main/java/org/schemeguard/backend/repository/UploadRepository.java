@@ -54,6 +54,8 @@ public interface UploadRepository extends JpaRepository<Upload, UUID> {
 
     Optional<Upload> findBySession_Id(UUID sessionId);
 
+    boolean existsByIdAndUser_Id(UUID uploadId, UUID userId);
+
     @Query("select u.id from Upload u where u.session.id = :sessionId")
     Optional<UUID> findUploadIdBySessionId(@Param("sessionId") UUID sessionId);
 

@@ -23,6 +23,7 @@ public record TransactionResponse(
         String qualificationCategory,
         String qualificationExplanation,
         Instant evaluatedAt,
+        Instant authorizedAt,
         Instant createdAt
 ) {
 }
