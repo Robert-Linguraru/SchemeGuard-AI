@@ -33,12 +33,12 @@ export interface UploadTransactionPage extends EntityListResponse<Transaction> {
 
 export interface UploadStatistics {
     totalTransactions: number;
-    evaluatedTransactions: number;
+    processedTransactions: number;
+    pendingTransactions: number;
     qualifiedTransactions: number;
     partiallyQualifiedTransactions: number;
     notQualifiedTransactions: number;
-    totalAmount: number | string;
-    totalFees: number | string;
-    averageTransactionAmount: number | string;
-    qualificationRate: number | string;
+    totalAmount: number;
+    totalFees: number;
+    qualificationRate: number;
 }

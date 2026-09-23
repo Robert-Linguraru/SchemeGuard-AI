@@ -1,4 +1,4 @@
-import { request } from "../../../shared/api/httpClient";
+import { request, requestBlob } from "../../../shared/api/httpClient";
 import type {
     EntityListQuery,
     EntityListResponse
@@ -137,9 +137,11 @@ export const getUploadStatistics = (
 
 export const downloadUpload = (
     uploadId: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    onResponse?: (response: Response) => void
 ): Promise<Blob> =>
-    request<Blob>(
+    requestBlob(
         `/api/uploads/${encodeURIComponent(uploadId)}/download`,
-        { method: "GET", signal }
+        { method: "GET", signal },
+        { onResponse }
     );

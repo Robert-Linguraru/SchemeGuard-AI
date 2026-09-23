@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { isAbortError } from "../api/httpClient";
 import type {
     EntityListFetcher,
     EntityListQuery,
@@ -46,7 +47,7 @@ export function useEntityList<T>({
                 }
             })
             .catch((requestError: unknown) => {
-                if (requestError instanceof DOMException && requestError.name === "AbortError") {
+                if (isAbortError(requestError)) {
                     return;
                 }
                 if (isMounted) {
