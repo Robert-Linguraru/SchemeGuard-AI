@@ -8,6 +8,7 @@ export type UploadStatus =
 
 export type CreateUploadResponse = {
   uploadId: string;
+  uploadRecordId: string;
   chunkSizeBytes: number;
   totalParts: number;
   maxParallelUploads: number;
@@ -15,6 +16,7 @@ export type CreateUploadResponse = {
 
 export type UploadStatusResponse = {
   uploadId: string;
+  uploadRecordId: string;
   fileName: string;
   status: UploadStatus;
   expectedFileSizeBytes: number;
@@ -23,6 +25,7 @@ export type UploadStatusResponse = {
   expectedTotalParts: number;
   processedRows: number;
   errorMessage: string | null;
+  uploadedAt: string;
 };
 
 export type UploadProgress = {

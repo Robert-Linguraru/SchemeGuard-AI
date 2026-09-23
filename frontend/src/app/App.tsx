@@ -10,11 +10,14 @@ import { ProfilePage } from "../features/auth/pages/ProfilePage";
 import { CardSchemesPage } from "../features/cardSchemes/pages/CardSchemesPage";
 import { RecommendationAssistant } from "../features/transactions/components/RecommendationAssistant";
 import type { Transaction } from "../shared/types/transaction";
+import { UploadsPage } from "../features/uploads/pages/UploadsPage";
 import { LoadingState } from "../shared/components/LoadingState";
 
 function AuthenticatedApp() {
     const { user } = useAuth();
-    const [view, setView] = useState<"dashboard" | "analysis-dashboard" | "rules" | "upload" | "details" | "profile" | "card-schemes">("dashboard");
+    const [view, setView] = useState<
+        "uploads" | "dashboard" | "analysis-dashboard" | "rules" | "upload" | "details" | "profile" | "card-schemes"
+    >("uploads");
     const [selectedRuleId, setSelectedRuleId] = useState<string | null>(null);
     const [assistantTransactions, setAssistantTransactions] = useState<Transaction[]>([]);
     const [isAssistantOpen, setIsAssistantOpen] = useState(false);
@@ -28,7 +31,8 @@ function AuthenticatedApp() {
     }, [isAdmin, view]);
 
     let content;
-    if (view === "upload") content = <RuleUploadPage onBack={() => setView("rules")} onEditProfile={() => setView("profile")} />;
+    if (view === "uploads") content = <UploadsPage onOpenDashboard={() => setView("dashboard")} onOpenAnalysisDashboard={() => setView("analysis-dashboard")} onOpenCardSchemes={() => setView("card-schemes")} onOpenRules={() => setView("rules")} onEditProfile={() => setView("profile")} />;
+    else if (view === "upload") content = <RuleUploadPage onBack={() => setView("rules")} onEditProfile={() => setView("profile")} />;
     else if (view === "profile") content = <ProfilePage onBack={() => setView("dashboard")} onEditProfile={() => setView("profile")} />;
     else if (view === "analysis-dashboard") content = <AnalysisDashboardPage onBack={() => setView("dashboard")} onEditProfile={() => setView("profile")} />;
     else if (view === "card-schemes") content = <CardSchemesPage onBack={() => setView("dashboard")} onEditProfile={() => setView("profile")} />;
