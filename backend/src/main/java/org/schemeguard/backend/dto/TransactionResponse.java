@@ -24,6 +24,7 @@ public record TransactionResponse(
         String qualificationExplanation,
         Instant evaluatedAt,
         Instant authorizedAt,
-        Instant createdAt
+        Instant createdAt,
+        BigDecimal estimatedFee
 ) {
 }
