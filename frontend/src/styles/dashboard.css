@@ -49,11 +49,6 @@
 	column-gap: 8px;
 }
 
-.dashboard:not(.rules-page) .page-heading-actions .role-badge,
-.dashboard:not(.rules-page) .page-heading > .heading-actions .role-badge {
-	display: none;
-}
-
 .dashboard:not(.rules-page) .page-heading > .heading-actions {
 	display: contents;
 }
@@ -270,7 +265,6 @@
 	letter-spacing: 1.5px;
 }
 
-.role-badge,
 .record-count {
 	padding: 8px 12px;
 	border-radius: 999px;

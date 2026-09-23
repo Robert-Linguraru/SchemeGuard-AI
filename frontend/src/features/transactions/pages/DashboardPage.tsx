@@ -1,12 +1,11 @@
 import { useCallback, useState } from "react";
 import { useAuth } from "../../../app/AuthProvider";
 import { AccountMenu } from "../../../shared/components/AccountMenu";
-import type { Transaction } from "../../../shared/types/transaction";
 import { getUploadTransactions } from "../../uploads/api/uploadsApi";
 import { evaluateUpload } from "../../uploads/api/uploadsApi";
 import { TransactionStats } from "../components/TransactionStats";
-import CsvTransactionUploadModal from "../../csvUpload/components/csvUploadModal";
 import { EntityList } from "../../../shared/components/EntityList/EntityList";
+import type { Transaction } from "../../../shared/types/transaction";
 import type {
     EntityListColumn,
     EntityListQuery,
@@ -18,7 +17,6 @@ interface DashboardPageProps {
     onOpenCardSchemes: () => void;
     onEditProfile: () => void;
     onOpenAnalysisDashboard: () => void;
-    onOpenAssistant: (transactions: Transaction[]) => void;
     selectedUploadId?: string | null;
     selectedUploadFileName?: string | null;
     selectedUploadImportStatus?: string | null;
@@ -32,7 +30,6 @@ export function DashboardPage({
     onEditProfile,
     onOpenCardSchemes,
     onOpenAnalysisDashboard,
-    onOpenAssistant,
     selectedUploadId,
     selectedUploadFileName,
     selectedUploadImportStatus,
@@ -159,10 +156,6 @@ export function DashboardPage({
                 </div>
 
                 <div className="dashboard-account-actions">
-                    <span className="role-badge">
-                        {user?.status} · MERCHANT
-                    </span>
-
                     <AccountMenu
                         onEditProfile={onEditProfile}
                     />
@@ -176,7 +169,7 @@ export function DashboardPage({
                             PAYMENTS WORKSPACE
                         </p>
 
-                        <h2>Transaction overview</h2>
+                        <h2>Upload transactions</h2>
 
                         <p>
                             Monitor interchange qualification and fees.
@@ -189,15 +182,7 @@ export function DashboardPage({
                             className="dashboard-button"
                             onClick={onOpenAnalysisDashboard}
                         >
-                            Dashboard
-                        </button>
-
-                        <button
-                            type="button"
-                            className="assistant-nav-button"
-                            onClick={() => onOpenAssistant(transactions)}
-                        >
-                            AI recommendations
+                            Analytics
                         </button>
 
                         {selectedUploadId && canEvaluate && (
@@ -219,14 +204,12 @@ export function DashboardPage({
                             Card schemes
                         </button>
 
-                        <CsvTransactionUploadModal />
-
                         <button
                             type="button"
                             className="dashboard-button"
                             onClick={onBackToUploads}
                         >
-                            Back to uploads
+                            CSV uploads
                         </button>
 
                         {isAdmin && (

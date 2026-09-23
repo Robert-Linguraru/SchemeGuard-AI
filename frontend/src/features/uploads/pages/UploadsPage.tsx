@@ -9,7 +9,6 @@ import { EntityList } from "../../../shared/components/EntityList/EntityList";
 import type { EntityListColumn, EntityListQuery } from "../../../shared/types/list";
 
 interface UploadsPageProps {
-    onOpenDashboard: () => void;
     onOpenAnalysisDashboard: () => void;
     onOpenCardSchemes: () => void;
     onOpenRules: () => void;
@@ -114,7 +113,6 @@ const createColumns = (
 ];
 
 export function UploadsPage({
-    onOpenDashboard,
     onOpenAnalysisDashboard,
     onOpenCardSchemes,
     onOpenRules,
@@ -165,7 +163,6 @@ export function UploadsPage({
                 </div>
 
                 <div className="dashboard-account-actions">
-                    <span className="role-badge">{user?.status} · MERCHANT</span>
                     <AccountMenu onEditProfile={onEditProfile} />
                 </div>
             </header>
@@ -179,9 +176,6 @@ export function UploadsPage({
                     </div>
 
                     <div className="page-heading-actions">
-                        <button type="button" className="dashboard-button" onClick={onOpenDashboard}>
-                            Transactions
-                        </button>
                         <button type="button" className="dashboard-button" onClick={onOpenAnalysisDashboard}>
                             Analytics
                         </button>
