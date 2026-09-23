@@ -13,7 +13,7 @@ interface ChatMessage {
     content: string;
 }
 
-const welcomeMessage = "Alege o tranzacție evaluată, apoi întreabă-mă ce poți îmbunătăți pentru un comision mai mic. Voi folosi doar condițiile passed/failed din calificare.";
+const welcomeMessage = "Select an evaluated transaction, then ask me what could be improved to reduce the fee.";
 
 export function RecommendationAssistant({ transactions, isOpen, onClose }: RecommendationAssistantProps) {
     const [selectedTransactionId, setSelectedTransactionId] = useState("");
@@ -38,7 +38,7 @@ export function RecommendationAssistant({ transactions, isOpen, onClose }: Recom
         setSelectedTransactionId(transactionId);
         setError(null);
         const transaction = evaluatedTransactions.find((item) => item.id === transactionId);
-        setMessages([{ role: "assistant", content: transaction ? `Context selectat: ${transaction.externalId}. Ce vrei să îmbunătățești?` : welcomeMessage }]);
+        setMessages([{ role: "assistant", content: transaction ? `Selected transaction: ${transaction.externalId}. What would you like to improve?` : welcomeMessage }]);
     };
 
     const submit = async (event: FormEvent) => {
@@ -54,7 +54,7 @@ export function RecommendationAssistant({ transactions, isOpen, onClose }: Recom
             const response = await askRecommendationAgent(selectedTransaction.id, trimmedMessage);
             setMessages((current) => [...current, { role: "assistant", content: response.message }]);
         } catch (requestError: unknown) {
-            setError(requestError instanceof Error ? requestError.message : "Agentul nu a putut genera recomandări.");
+            setError(requestError instanceof Error ? requestError.message : "The assistant could not generate a recommendation.");
         } finally {
             setIsSending(false);
         }
@@ -66,7 +66,7 @@ export function RecommendationAssistant({ transactions, isOpen, onClose }: Recom
         <aside className="recommendation-assistant is-open">
             <section className="assistant-panel" aria-label="Recommendation assistant">
                 <header className="assistant-header">
-                    <div><strong>AI recommendations</strong><small>Recomandări pentru comision mai mic</small></div>
+                    <div><strong>AI recommendations</strong><small>Suggestions for reducing transaction fees</small></div>
                     <button type="button" className="assistant-close" onClick={onClose} aria-label="Close assistant">×</button>
                 </header>
                 <div className="assistant-context">
@@ -78,13 +78,13 @@ export function RecommendationAssistant({ transactions, isOpen, onClose }: Recom
                 </div>
                 <div className="assistant-messages" aria-live="polite">
                     {messages.map((chatMessage, index) => <div className={`assistant-message ${chatMessage.role}`} key={`${chatMessage.role}-${index}`}>{chatMessage.content}</div>)}
-                    {isSending && <div className="assistant-message assistant">Analizez condițiile calificării...</div>}
+                    {isSending && <div className="assistant-message assistant">Analyzing the transaction...</div>}
                     {error && <div className="assistant-error">{error}</div>}
                     <div ref={endRef} />
                 </div>
                 <form className="assistant-form" onSubmit={submit}>
-                    <input value={message} onChange={(event) => setMessage(event.target.value)} placeholder={evaluatedTransactions.length ? "Ex.: Ce feature pot îmbunătăți?" : "Evaluează întâi tranzacțiile"} disabled={!selectedTransaction || isSending} aria-label="Ask recommendation assistant" />
-                    <button type="submit" disabled={!selectedTransaction || !message.trim() || isSending}>Trimite</button>
+                    <input value={message} onChange={(event) => setMessage(event.target.value)} placeholder={evaluatedTransactions.length ? "E.g. What could be improved?" : "Evaluate transactions first"} disabled={!selectedTransaction || isSending} aria-label="Ask recommendation assistant" />
+                    <button type="submit" disabled={!selectedTransaction || !message.trim() || isSending}>Send</button>
                 </form>
             </section>
         </aside>
