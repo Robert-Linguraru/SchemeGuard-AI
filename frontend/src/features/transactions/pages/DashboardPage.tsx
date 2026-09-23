@@ -27,6 +27,7 @@ interface DashboardPageProps {
     onOpenCardSchemes: () => void;
     onEditProfile: () => void;
     onOpenAnalysisDashboard: () => void;
+    onOpenAssistant: (transactions: Transaction[]) => void;
     selectedUploadId?: string | null;
     selectedUploadFileName?: string | null;
     selectedUploadImportStatus?: string | null;
@@ -40,6 +41,7 @@ export function DashboardPage({
     onEditProfile,
     onOpenCardSchemes,
     onOpenAnalysisDashboard,
+    onOpenAssistant,
     selectedUploadId,
     selectedUploadFileName,
     selectedUploadImportStatus,
@@ -53,13 +55,6 @@ export function DashboardPage({
     const [isLoadingStatistics, setIsLoadingStatistics] = useState(false);
     const [statisticsError, setStatisticsError] = useState<string | null>(null);
 
-    const [explanation, setExplanation] =
-        useState<TransactionExplanation | null>(null);
-
-    const [explanationError, setExplanationError] =
-        useState<string | null>(null);
-
-    const [isExplaining, setIsExplaining] = useState(false);
     const [isEvaluating, setIsEvaluating] = useState(false);
     const [evaluationMessage, setEvaluationMessage] = useState<string | null>(null);
     const [evaluationError, setEvaluationError] = useState<string | null>(null);
@@ -182,45 +177,8 @@ export function DashboardPage({
             key: "estimatedFee",
             label: "Fee",
             render: (transaction) => `${transaction.estimatedFee ?? "0"} ${transaction.currencyCode}`
-        },
-        {
-            key: "explanation",
-            label: "AI explanation",
-            render: (transaction) => (
-                <button
-                    type="button"
-                    className="explain-button"
-                    onClick={() => void explainTransaction(transaction)}
-                >
-                    Explain result
-                </button>
-            )
         }
     ];
-
-    const explainTransaction = async (
-        transaction: Transaction
-    ): Promise<void> => {
-        setExplanation(null);
-        setExplanationError(null);
-        setIsExplaining(true);
-
-        try {
-            const result = await getTransactionExplanation(
-                transaction.id
-            );
-
-            setExplanation(result);
-        } catch (requestError: unknown) {
-            setExplanationError(
-                requestError instanceof Error
-                    ? requestError.message
-                    : "Could not generate explanation"
-            );
-        } finally {
-            setIsExplaining(false);
-        }
-    };
 
     return (
         <main className="dashboard">
@@ -272,6 +230,14 @@ export function DashboardPage({
                             onClick={onOpenAnalysisDashboard}
                         >
                             Dashboard
+                        </button>
+
+                        <button
+                            type="button"
+                            className="assistant-nav-button"
+                            onClick={() => onOpenAssistant(transactions)}
+                        >
+                            AI recommendations
                         </button>
 
                         {selectedUploadId && canEvaluate && (
@@ -351,59 +317,6 @@ export function DashboardPage({
                         </div>
                     )}
 
-                    {isExplaining && (
-                        <LoadingState
-                            message="Qwen is generating the explanation..."
-                        />
-                    )}
-
-                    {explanationError && (
-                        <div className="error-box">
-                            <strong>
-                                LLM explanation unavailable
-                            </strong>
-
-                            <span>
-                                {explanationError}
-                            </span>
-                        </div>
-                    )}
-
-                    {explanation && (
-                        <section
-                            className="explanation-panel"
-                            aria-live="polite"
-                        >
-                            <h3>
-                                Explanation for{" "}
-                                {explanation.externalId}
-                            </h3>
-
-                            <p>
-                                <strong>Status:</strong>{" "}
-                                {explanation.qualificationStatus}
-                            </p>
-
-                            <p>
-                                <strong>Fee:</strong>{" "}
-                                {explanation.interchangeFee ?? "—"}{" "}
-                                {explanation.currencyCode}
-                            </p>
-
-                            <p className="explanation-text">
-                                {explanation.llmExplanation}
-                            </p>
-
-                            {explanation.originalExplanation && (
-                                <small>
-                                    <strong>
-                                        Original rule result:
-                                    </strong>{" "}
-                                    {explanation.originalExplanation}
-                                </small>
-                            )}
-                        </section>
-                    )}
                 </section>
             </section>
         </main>

@@ -28,6 +28,18 @@ public class GlobalExceptionHandler {
                     ));
         }
 
+        if ("No qualification result found for transaction".equals(exceptionMessage)) {
+            return ResponseEntity
+                    .status(HttpStatus.NOT_FOUND)
+                    .body(new ApiError(
+                            HttpStatus.NOT_FOUND.value(),
+                            "Transaction has not been evaluated yet.",
+                            OffsetDateTime.now(),
+                            "QUALIFICATION_RESULT_NOT_FOUND",
+                            null
+                    ));
+        }
+
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
                 .body(new ApiError(
@@ -84,3 +96,4 @@ public class GlobalExceptionHandler {
                 ));
     }
 }
+
