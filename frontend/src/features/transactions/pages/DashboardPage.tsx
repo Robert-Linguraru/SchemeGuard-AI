@@ -19,7 +19,8 @@ import CsvTransactionUploadModal from "../../csvUpload/components/csvUploadModal
 import { EntityList } from "../../../shared/components/EntityList/EntityList";
 import type {
     EntityListColumn,
-    EntityListQuery
+    EntityListQuery,
+    EntityListResponse
 } from "../../../shared/types/list";
 
 interface DashboardPageProps {
@@ -53,6 +54,7 @@ export function DashboardPage({
 }: DashboardPageProps) {
     const { user } = useAuth();
     const isAdmin = user?.role?.toUpperCase() === "ADMIN";
+    const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [uploadStatistics, setUploadStatistics] = useState<UploadStatistics | null>(null);
     const [isLoadingStatistics, setIsLoadingStatistics] = useState(false);
     const [statisticsError, setStatisticsError] = useState<string | null>(null);
@@ -147,6 +149,13 @@ export function DashboardPage({
             );
         },
         [selectedUploadId]
+    );
+
+    const handleTransactionResponse = useCallback(
+        (response: EntityListResponse<Transaction>) => {
+            setTransactions(response.items);
+        },
+        []
     );
 
     const transactionColumns: EntityListColumn<Transaction>[] = [
@@ -289,6 +298,7 @@ export function DashboardPage({
                             description="Transactions imported from this CSV upload."
                             columns={transactionColumns}
                             fetchData={fetchTransactions}
+                            onResponse={handleTransactionResponse}
                             reloadKey={transactionReloadKey}
                             initialQuery={{ size: 50, sort: "createdAt,desc" }}
                             emptyMessage="No transactions available in this CSV upload."
