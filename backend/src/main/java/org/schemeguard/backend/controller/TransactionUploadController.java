@@ -9,15 +9,19 @@ import org.schemeguard.backend.dto.Upload.CreateUploadResponse;
 import org.schemeguard.backend.dto.Upload.PartUploadResponse;
 import org.schemeguard.backend.dto.Upload.UploadPageResponse;
 import org.schemeguard.backend.dto.Upload.UploadStatusResponse;
+import org.schemeguard.backend.dto.Upload.UploadStatisticsResponse;
 import org.schemeguard.backend.dto.TransactionPageResponse;
 import org.schemeguard.backend.service.TransactionService;
 import org.schemeguard.backend.service.ruleIntepreter.RuleEngine;
 import org.schemeguard.backend.service.ruleIntepreter.UploadEvaluationService;
+import org.schemeguard.backend.service.csvUpload.UploadDownloadService;
+import org.schemeguard.backend.service.csvUpload.UploadStatisticsService;
 import org.schemeguard.backend.service.csvUpload.UploadService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.ContentDisposition;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -31,6 +35,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 @RestController
@@ -40,15 +45,21 @@ public class TransactionUploadController {
     private final UploadService uploadService;
     private final TransactionService transactionService;
         private final UploadEvaluationService uploadEvaluationService;
+    private final UploadDownloadService uploadDownloadService;
+    private final UploadStatisticsService uploadStatisticsService;
 
     public TransactionUploadController(
             UploadService uploadService,
             TransactionService transactionService,
-            UploadEvaluationService uploadEvaluationService
+            UploadEvaluationService uploadEvaluationService,
+            UploadDownloadService uploadDownloadService,
+            UploadStatisticsService uploadStatisticsService
     ) {
         this.uploadService = uploadService;
         this.transactionService = transactionService;
         this.uploadEvaluationService = uploadEvaluationService;
+        this.uploadDownloadService = uploadDownloadService;
+        this.uploadStatisticsService = uploadStatisticsService;
     }
 
     @PostMapping
@@ -92,6 +103,32 @@ public class TransactionUploadController {
         ) {
                 return uploadEvaluationService.evaluate(user, uploadId);
         }
+
+            @GetMapping("/{uploadId}/download")
+            public ResponseEntity<byte[]> downloadUpload(
+                @PathVariable UUID uploadId,
+                @AuthenticationPrincipal User user
+            ) {
+            UploadDownloadService.DownloadedUpload download = uploadDownloadService.download(user, uploadId);
+            return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType("text/csv"))
+                .header(
+                    "Content-Disposition",
+                    ContentDisposition.attachment()
+                        .filename(download.fileName(), StandardCharsets.UTF_8)
+                        .build()
+                        .toString()
+                )
+                .body(download.document());
+            }
+
+    @GetMapping("/{uploadId}/statistics")
+    public UploadStatisticsResponse getUploadStatistics(
+            @PathVariable UUID uploadId,
+            @AuthenticationPrincipal User user
+    ) {
+        return uploadStatisticsService.getStatistics(user, uploadId);
+    }
 
     @PutMapping(
             value = "/{uploadId}/parts/{partNumber}",

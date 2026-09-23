@@ -1,16 +1,25 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../../../app/AuthProvider";
 import { AccountMenu } from "../../../shared/components/AccountMenu";
+import { isAbortError } from "../../../shared/api/httpClient";
+import { LoadingState } from "../../../shared/components/LoadingState";
 import type { Transaction } from "../../../shared/types/transaction";
-import { getUploadTransactions } from "../../uploads/api/uploadsApi";
-import { evaluateUpload } from "../../uploads/api/uploadsApi";
+import {
+    evaluateUpload,
+    getUploadStatistics,
+    getUploadTransactions
+} from "../../uploads/api/uploadsApi";
+import type { UploadStatistics } from "../../uploads/types/upload";
+import {
+    getTransactionExplanation,
+    type TransactionExplanation
+} from "../api/transactionExplanationApi";
 import { TransactionStats } from "../components/TransactionStats";
 import CsvTransactionUploadModal from "../../csvUpload/components/csvUploadModal";
 import { EntityList } from "../../../shared/components/EntityList/EntityList";
 import type {
     EntityListColumn,
-    EntityListQuery,
-    EntityListResponse
+    EntityListQuery
 } from "../../../shared/types/list";
 
 interface DashboardPageProps {
@@ -42,13 +51,15 @@ export function DashboardPage({
 }: DashboardPageProps) {
     const { user } = useAuth();
     const isAdmin = user?.role?.toUpperCase() === "ADMIN";
-    const [transactions, setTransactions] = useState<Transaction[]>([]);
-    const [totalTransactions, setTotalTransactions] = useState(0);
+    const [uploadStatistics, setUploadStatistics] = useState<UploadStatistics | null>(null);
+    const [isLoadingStatistics, setIsLoadingStatistics] = useState(false);
+    const [statisticsError, setStatisticsError] = useState<string | null>(null);
 
     const [isEvaluating, setIsEvaluating] = useState(false);
     const [evaluationMessage, setEvaluationMessage] = useState<string | null>(null);
     const [evaluationError, setEvaluationError] = useState<string | null>(null);
     const [transactionReloadKey, setTransactionReloadKey] = useState(0);
+    const [statisticsReloadKey, setStatisticsReloadKey] = useState(0);
 
     const canEvaluate = selectedUploadImportStatus === "COMPLETED"
         && !selectedUploadWasEvaluated;
@@ -66,6 +77,7 @@ export function DashboardPage({
             setEvaluationMessage(result.message);
             onUploadEvaluated(result.wasEvaluated);
             setTransactionReloadKey((key) => key + 1);
+            setStatisticsReloadKey((key) => key + 1);
         } catch (requestError: unknown) {
             setEvaluationError(
                 requestError instanceof Error
@@ -76,6 +88,42 @@ export function DashboardPage({
             setIsEvaluating(false);
         }
     };
+
+    useEffect(() => {
+        if (!selectedUploadId) {
+            setUploadStatistics(null);
+            setStatisticsError(null);
+            return;
+        }
+
+        const controller = new AbortController();
+        let isMounted = true;
+        setIsLoadingStatistics(true);
+        setStatisticsError(null);
+
+        getUploadStatistics(selectedUploadId, controller.signal)
+            .then(setUploadStatistics)
+            .catch((requestError: unknown) => {
+                if (!isMounted || isAbortError(requestError)) {
+                    return;
+                }
+                setStatisticsError(
+                    requestError instanceof Error
+                        ? requestError.message
+                        : "Could not load upload statistics"
+                );
+            })
+            .finally(() => {
+                if (isMounted && !controller.signal.aborted) {
+                    setIsLoadingStatistics(false);
+                }
+            });
+
+        return () => {
+            isMounted = false;
+            controller.abort();
+        };
+    }, [selectedUploadId, statisticsReloadKey]);
 
     const fetchTransactions = useCallback(
         (query: EntityListQuery, signal?: AbortSignal) => {
@@ -97,14 +145,6 @@ export function DashboardPage({
             );
         },
         [selectedUploadId]
-    );
-
-    const handleTransactionResponse = useCallback(
-        (response: EntityListResponse<Transaction>) => {
-            setTransactions(response.items);
-            setTotalTransactions(response.totalElements);
-        },
-        []
     );
 
     const transactionColumns: EntityListColumn<Transaction>[] = [
@@ -242,8 +282,9 @@ export function DashboardPage({
 
                 {selectedUploadId && (
                     <TransactionStats
-                        transactions={transactions}
-                        totalTransactions={totalTransactions}
+                        statistics={uploadStatistics}
+                        isLoading={isLoadingStatistics}
+                        error={statisticsError}
                     />
                 )}
 
@@ -254,7 +295,6 @@ export function DashboardPage({
                             description="Transactions imported from this CSV upload."
                             columns={transactionColumns}
                             fetchData={fetchTransactions}
-                            onResponse={handleTransactionResponse}
                             reloadKey={transactionReloadKey}
                             initialQuery={{ size: 50, sort: "createdAt,desc" }}
                             emptyMessage="No transactions available in this CSV upload."
