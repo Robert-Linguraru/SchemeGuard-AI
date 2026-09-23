@@ -48,6 +48,9 @@ public class Upload {
     @Column(name = "uploaded_at", nullable = false)
     private Instant uploadedAt;
 
+    @Column(name = "was_evaluated", nullable = false)
+    private boolean wasEvaluated = false;
+
     public Upload(User user, UploadSession session, byte[] document) {
         this.user = user;
         this.session = session;

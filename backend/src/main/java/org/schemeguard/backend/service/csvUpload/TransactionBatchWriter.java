@@ -63,78 +63,34 @@ public class TransactionBatchWriter {
             """;
 
     private static final String MERGE_TRANSACTIONS_SQL = """
-            WITH latest AS (
-                SELECT DISTINCT ON (external_id)
-                    upload_id, external_id, merchant_id, network, amount,
-                    currency_code, card_type, card_category, channel,
-                    issuer_country, merchant_country, authorized_at, cleared_at,
-                    three_ds_used, cvv_present, raw_data
-                FROM transaction_import_staging
-                WHERE upload_id = ?
-                ORDER BY external_id, row_number DESC
-            )
-            INSERT INTO transactions AS existing (
+            INSERT INTO transactions (
                 upload_id, external_id, merchant_id, scheme_id, amount, currency_code,
                 card_type, card_category, channel, issuer_country, merchant_country,
                 authorized_at, cleared_at, three_ds_used, cvv_present, status,
                 raw_data, active
             )
             SELECT
-                latest.upload_id,
-                latest.external_id,
-                latest.merchant_id,
+                staging.upload_id,
+                staging.external_id,
+                staging.merchant_id,
                 scheme.id,
-                latest.amount,
-                latest.currency_code,
-                latest.card_type,
-                latest.card_category,
-                latest.channel,
-                latest.issuer_country,
-                latest.merchant_country,
-                latest.authorized_at,
-                latest.cleared_at,
-                latest.three_ds_used,
-                latest.cvv_present,
+                staging.amount,
+                staging.currency_code,
+                staging.card_type,
+                staging.card_category,
+                staging.channel,
+                staging.issuer_country,
+                staging.merchant_country,
+                staging.authorized_at,
+                staging.cleared_at,
+                staging.three_ds_used,
+                staging.cvv_present,
                 'NEW',
-                latest.raw_data,
+                staging.raw_data,
                 scheme.active
-            FROM latest
-            JOIN card_schemes scheme ON scheme.code = latest.network
-            ON CONFLICT (external_id) DO UPDATE SET
-                upload_id = EXCLUDED.upload_id,
-                merchant_id = EXCLUDED.merchant_id,
-                scheme_id = EXCLUDED.scheme_id,
-                amount = EXCLUDED.amount,
-                currency_code = EXCLUDED.currency_code,
-                card_type = EXCLUDED.card_type,
-                card_category = EXCLUDED.card_category,
-                channel = EXCLUDED.channel,
-                issuer_country = EXCLUDED.issuer_country,
-                merchant_country = EXCLUDED.merchant_country,
-                authorized_at = EXCLUDED.authorized_at,
-                cleared_at = EXCLUDED.cleared_at,
-                three_ds_used = EXCLUDED.three_ds_used,
-                cvv_present = EXCLUDED.cvv_present,
-                status = EXCLUDED.status,
-                raw_data = EXCLUDED.raw_data,
-                active = EXCLUDED.active
-            WHERE existing.upload_id IS DISTINCT FROM EXCLUDED.upload_id
-               OR existing.merchant_id IS DISTINCT FROM EXCLUDED.merchant_id
-               OR existing.scheme_id IS DISTINCT FROM EXCLUDED.scheme_id
-               OR existing.amount IS DISTINCT FROM EXCLUDED.amount
-               OR existing.currency_code IS DISTINCT FROM EXCLUDED.currency_code
-               OR existing.card_type IS DISTINCT FROM EXCLUDED.card_type
-               OR existing.card_category IS DISTINCT FROM EXCLUDED.card_category
-               OR existing.channel IS DISTINCT FROM EXCLUDED.channel
-               OR existing.issuer_country IS DISTINCT FROM EXCLUDED.issuer_country
-               OR existing.merchant_country IS DISTINCT FROM EXCLUDED.merchant_country
-               OR existing.authorized_at IS DISTINCT FROM EXCLUDED.authorized_at
-               OR existing.cleared_at IS DISTINCT FROM EXCLUDED.cleared_at
-               OR existing.three_ds_used IS DISTINCT FROM EXCLUDED.three_ds_used
-               OR existing.cvv_present IS DISTINCT FROM EXCLUDED.cvv_present
-               OR existing.status IS DISTINCT FROM EXCLUDED.status
-               OR existing.raw_data IS DISTINCT FROM EXCLUDED.raw_data
-               OR existing.active IS DISTINCT FROM EXCLUDED.active
+            FROM transaction_import_staging staging
+            JOIN card_schemes scheme ON scheme.code = staging.network
+            WHERE staging.upload_id = ?
             """;
 
     private final JdbcTemplate jdbcTemplate;
@@ -144,15 +100,24 @@ public class TransactionBatchWriter {
     }
 
     @Transactional
-    public void write(UUID uploadId, List<TransactionRow> rows) {
+    public void clearStagedRows(UUID uploadId) {
+        jdbcTemplate.update(DELETE_STAGED_ROWS_SQL, uploadId);
+    }
+
+    @Transactional
+    public void stage(UUID uploadId, List<TransactionRow> rows) {
         if (rows.isEmpty()) {
             return;
         }
 
-        // A failed transaction rolls this staging data back. The delete also
-        // makes retries safe if a previous process stopped after a commit point.
-        jdbcTemplate.update(DELETE_STAGED_ROWS_SQL, uploadId);
+        // Staging commits independently from the final merge. This keeps the
+        // database transaction short while ensuring no final transaction is
+        // visible until the complete CSV has been parsed successfully.
         copyRowsToStaging(uploadId, rows);
+    }
+
+    @Transactional
+    public void mergeStagedRows(UUID uploadId) {
         jdbcTemplate.update(UPSERT_MERCHANTS_SQL, uploadId);
         jdbcTemplate.update(UPSERT_SCHEMES_SQL, uploadId);
         jdbcTemplate.update(MERGE_TRANSACTIONS_SQL, uploadId);

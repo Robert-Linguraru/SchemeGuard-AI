@@ -50,6 +50,7 @@ public class UploadService {
     private final ProcessingJobRepository processingJobRepository;
     private final UploadPolicy policy;
     private final StorageService storageService;
+    private final TransactionBatchWriter transactionBatchWriter;
     private final PartRegistrationService partRegistrationService;
     private final ObjectProvider<CsvImportService> csvImportServiceProvider;
     private final JdbcTemplate jdbcTemplate;
@@ -61,6 +62,7 @@ public class UploadService {
             ProcessingJobRepository processingJobRepository,
             UploadPolicy policy,
             StorageService storageService,
+            TransactionBatchWriter transactionBatchWriter,
             PartRegistrationService partRegistrationService,
             ObjectProvider<CsvImportService> csvImportServiceProvider,
             JdbcTemplate jdbcTemplate
@@ -71,6 +73,7 @@ public class UploadService {
         this.processingJobRepository = processingJobRepository;
         this.policy = policy;
         this.storageService = storageService;
+        this.transactionBatchWriter = transactionBatchWriter;
         this.partRegistrationService = partRegistrationService;
         this.csvImportServiceProvider = csvImportServiceProvider;
         this.jdbcTemplate = jdbcTemplate;
@@ -237,13 +240,16 @@ public class UploadService {
                         "Upload session not found."
                 ));
 
-        if (session.getStatus() == UploadStatus.PROCESSING
-                || session.getStatus() == UploadStatus.COMPLETED) {
+        if (session.getStatus() == UploadStatus.COMPLETED) {
             throw new UploadException(
                     HttpStatus.CONFLICT,
                     "UPLOAD_CANNOT_CANCEL",
-                    "A processing or completed upload cannot be cancelled."
+                    "A completed upload cannot be cancelled."
             );
+        }
+
+        if (session.getStatus() == UploadStatus.CANCELLED) {
+            return;
         }
 
         session.setStatus(UploadStatus.CANCELLED);
@@ -288,6 +294,56 @@ public class UploadService {
         return true;
     }
 
+    @Transactional(readOnly = true)
+    public boolean isCancellationRequested(UUID uploadId) {
+        Boolean cancelled = jdbcTemplate.queryForObject(
+                """
+                        SELECT EXISTS (
+                            SELECT 1
+                            FROM upload_sessions
+                            WHERE id = ? AND status = 'CANCELLED'
+                        )
+                        """,
+                Boolean.class,
+                uploadId
+        );
+        return Boolean.TRUE.equals(cancelled);
+    }
+
+    @Transactional
+    public void commitImportedTransactions(
+            UUID uploadId,
+            UUID uploadRecordId,
+            long processedRows
+    ) {
+        UploadSession session = sessionRepository.findByIdForUpdate(uploadId)
+                .orElseThrow(() -> new UploadException(
+                        HttpStatus.NOT_FOUND,
+                        "UPLOAD_NOT_FOUND",
+                        "Upload session not found."
+                ));
+
+        if (session.getStatus() != UploadStatus.PROCESSING) {
+            throw new UploadCancelledException();
+        }
+
+        // The row lock above makes cancellation and the final merge mutually
+        // exclusive. A cancellation that wins the race prevents this merge;
+        // a merge that wins the race completes the upload before cancellation.
+        transactionBatchWriter.mergeStagedRows(uploadRecordId);
+        session.setProcessedRows(processedRows);
+        session.setStatus(UploadStatus.COMPLETED);
+        session.setErrorMessage(null);
+        sessionRepository.save(session);
+        updateProcessingJob(
+                session.getProcessingJobId(),
+                JobStatus.COMPLETED,
+                processedRows,
+                0,
+                null
+        );
+    }
+
     @Transactional
     public void updateProcessedRows(UUID uploadId, long processedRows) {
         jdbcTemplate.update(
@@ -317,23 +373,6 @@ public class UploadService {
                 Math.toIntExact(processedRows),
                 uploadId
         );
-    }
-
-    @Transactional
-    public void markCompleted(UUID uploadId, long processedRows) {
-        sessionRepository.findById(uploadId).ifPresent(session -> {
-            session.setProcessedRows(processedRows);
-            session.setStatus(UploadStatus.COMPLETED);
-            session.setErrorMessage(null);
-            sessionRepository.save(session);
-            updateProcessingJob(
-                    session.getProcessingJobId(),
-                    JobStatus.COMPLETED,
-                    processedRows,
-                    0,
-                    null
-            );
-        });
     }
 
     @Transactional

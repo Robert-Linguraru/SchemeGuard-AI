@@ -11,7 +11,6 @@ import org.springframework.data.repository.query.Param;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 public interface TransactionRepository extends JpaRepository<Transaction, UUID> {
@@ -23,12 +22,14 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
     BigDecimal sumAmount();
 
     @Query(value = """
-            SELECT * FROM transactions WHERE status = 'NEW' AND created_at <= :cutoff
+            SELECT * FROM transactions WHERE status = 'NEW' AND created_at <= :cutoff AND upload_id = :fileId
             ORDER BY created_at, id LIMIT :batchSize FOR UPDATE SKIP LOCKED
             """, nativeQuery = true)
-    List<Transaction> lockUnevaluated(@Param("cutoff") Instant cutoff, @Param("batchSize") int batchSize);
+    List<Transaction> lockUnevaluated(@Param("cutoff") Instant cutoff,
+                                      @Param("batchSize") int batchSize,
+                                      @Param("fileId") UUID fileId);
 
-    Optional<Transaction> findByExternalId(String externalId);
+    List<Transaction> findAllByUpload_IdAndExternalId(UUID uploadId, String externalId);
 
     @Query("select t from Transaction t join fetch t.merchant join fetch t.scheme")
     List<Transaction> findAllWithMerchantAndScheme();

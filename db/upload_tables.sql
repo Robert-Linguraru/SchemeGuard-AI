@@ -43,6 +43,14 @@ ALTER TABLE transactions
 ALTER TABLE transactions
     ALTER COLUMN upload_id DROP NOT NULL;
 
+-- External transaction identifiers are descriptive source values and are not
+-- unique. The same value may appear multiple times in one upload or in
+-- different uploads/sources.
+ALTER TABLE transactions
+    DROP CONSTRAINT IF EXISTS transactions_external_id_key;
+
+DROP INDEX IF EXISTS uq_transactions_upload_external_id;
+
 ALTER TABLE upload_sessions
     ADD COLUMN IF NOT EXISTS processing_job_id UUID
         REFERENCES processing_jobs(id) ON DELETE SET NULL;
@@ -67,7 +75,7 @@ CREATE INDEX IF NOT EXISTS idx_upload_sessions_status
     ON upload_sessions(status);
 
 -- Unlogged staging rows are copied in batches and merged set-wise into the
--- normalized transaction tables. Rows are deleted after every successful batch.
+-- normalized transaction tables only after the complete CSV has been validated.
 CREATE UNLOGGED TABLE IF NOT EXISTS transaction_import_staging (
     upload_id UUID NOT NULL REFERENCES uploads(id) ON DELETE CASCADE,
     row_number BIGINT NOT NULL,

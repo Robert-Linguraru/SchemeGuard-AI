@@ -6,6 +6,8 @@ import org.schemeguard.backend.entity.enums.QualificationStatus;
 import org.schemeguard.backend.entity.enums.TransactionStatus;
 import org.schemeguard.backend.exception.ConflictException;
 import org.schemeguard.backend.repository.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
@@ -58,9 +60,13 @@ public class QualificationBatchService {
         }
     }
 
+    private final static Logger logger = LoggerFactory.getLogger(QualificationBatchService.class);
+
     @Transactional
-    public BatchResult evaluateBatch(Instant cutoff, int batchSize) {
-        var batch = transactions.lockUnevaluated(cutoff, batchSize);
+    public BatchResult evaluateBatch(Instant cutoff, int batchSize, UUID file_id) {
+        logger.info("[Q BATCH S] started batch");
+        long start = System.currentTimeMillis();
+        var batch = transactions.lockUnevaluated(cutoff, batchSize, file_id);
         var cache = new BatchCache();
         var decisions = new ArrayList<EvaluationDecision>(batch.size());
         int qualified = 0;
@@ -72,6 +78,8 @@ public class QualificationBatchService {
         }
 
         decisions.forEach(this::persist);
+        long end = System.currentTimeMillis();
+        logger.info("[Q BATCH S] finished batch. time elapsed: " + (end - start));
         return new BatchResult(batch.size(), qualified, batch.size() - qualified);
     }
 
