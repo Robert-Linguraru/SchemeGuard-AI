@@ -23,39 +23,39 @@ public interface QualificationResultRepository extends JpaRepository<Qualificati
     );
 
                 @Query("""
-                                                select count(result) from QualificationResult result
-                                                where result.qualificationStatus = org.schemeguard.backend.entity.enums.QualificationStatus.QUALIFIED
-                                                        and not exists (
-                                                                        select newer.id from QualificationResult newer
-                                                                        where newer.transaction = result.transaction
-                                                                                and (newer.evaluatedAt > result.evaluatedAt
-                                                                                                 or (newer.evaluatedAt = result.evaluatedAt and newer.id > result.id))
-                                                        )
-                                                """)
+                        select count(result) from QualificationResult result
+                        where result.qualificationStatus = org.schemeguard.backend.entity.enums.QualificationStatus.QUALIFIED
+                                and not exists (
+                                                select newer.id from QualificationResult newer
+                                                where newer.transaction = result.transaction
+                                                        and (newer.evaluatedAt > result.evaluatedAt
+                                                                         or (newer.evaluatedAt = result.evaluatedAt and newer.id > result.id))
+                                )
+                        """)
     long countQualifiedTransactions();
 
                 @Query("""
-                                                select count(result) from QualificationResult result
-                                                where result.qualificationStatus = org.schemeguard.backend.entity.enums.QualificationStatus.NOT_QUALIFIED
-                                                        and not exists (
-                                                                        select newer.id from QualificationResult newer
-                                                                        where newer.transaction = result.transaction
-                                                                                and (newer.evaluatedAt > result.evaluatedAt
-                                                                                                 or (newer.evaluatedAt = result.evaluatedAt and newer.id > result.id))
-                                                        )
-                                                """)
+                        select count(result) from QualificationResult result
+                        where result.qualificationStatus = org.schemeguard.backend.entity.enums.QualificationStatus.NOT_QUALIFIED
+                                and not exists (
+                                                select newer.id from QualificationResult newer
+                                                where newer.transaction = result.transaction
+                                                        and (newer.evaluatedAt > result.evaluatedAt
+                                                                         or (newer.evaluatedAt = result.evaluatedAt and newer.id > result.id))
+                                )
+                        """)
     long countNotQualifiedTransactions();
 
                 @Query("""
-                                                select count(result) from QualificationResult result
-                                                where result.qualificationStatus = org.schemeguard.backend.entity.enums.QualificationStatus.PARTIALLY_QUALIFIED
-                                                        and not exists (
-                                                                        select newer.id from QualificationResult newer
-                                                                        where newer.transaction = result.transaction
-                                                                                and (newer.evaluatedAt > result.evaluatedAt
-                                                                                                 or (newer.evaluatedAt = result.evaluatedAt and newer.id > result.id))
-                                                        )
-                                                """)
+                        select count(result) from QualificationResult result
+                        where result.qualificationStatus = org.schemeguard.backend.entity.enums.QualificationStatus.PARTIALLY_QUALIFIED
+                                and not exists (
+                                                select newer.id from QualificationResult newer
+                                                where newer.transaction = result.transaction
+                                                        and (newer.evaluatedAt > result.evaluatedAt
+                                                                         or (newer.evaluatedAt = result.evaluatedAt and newer.id > result.id))
+                                )
+                        """)
     long countPartiallyQualifiedTransactions();
 
     @Query("select count(transaction) from Transaction transaction where not exists (select result.id from QualificationResult result where result.transaction = transaction)")
