@@ -81,8 +81,6 @@ public class GlobalExceptionHandler {
                 ));
     }
 
-
-
     @ExceptionHandler(UploadException.class)
     public ResponseEntity<ApiError> handleUploadException(
             UploadException exception
