@@ -86,13 +86,19 @@ public class TransactionUploadController {
             @PathVariable UUID uploadId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "createdAt,desc") String sort,
+            @RequestParam(defaultValue = "false") boolean anomaliesOnly,
             @AuthenticationPrincipal User user
     ) {
         return transactionService.findTransactionsForUpload(
                 uploadId,
                 user.getId(),
                 page,
-                size
+                size,
+                search,
+                sort,
+                anomaliesOnly
         );
     }
 

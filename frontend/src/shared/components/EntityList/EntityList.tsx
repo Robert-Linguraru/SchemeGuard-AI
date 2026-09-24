@@ -29,6 +29,7 @@ interface EntityListProps<T> {
     emptyMessage?: string;
     toolbar?: (context: EntityListToolbarContext) => ReactNode;
     onResponse?: (response: EntityListResponse<T>) => void;
+    rowClassName?: (item: T) => string | undefined;
 }
 
 const getSortState = (sort: string) => {
@@ -51,7 +52,8 @@ export function EntityList<T>({
     searchPlaceholder = "Search...",
     emptyMessage = "No records found.",
     toolbar,
-    onResponse
+    onResponse,
+    rowClassName
 }: EntityListProps<T>) {
     const {
         query,
@@ -200,7 +202,10 @@ export function EntityList<T>({
                                     );
 
                                     return (
-                                        <tr key={(item as { id?: string }).id || index}>
+                                        <tr
+                                            key={(item as { id?: string }).id || index}
+                                            className={rowClassName?.(item)}
+                                        >
                                             {columns.map((column) => (
                                                 <td key={column.key}>{displayValue(item, column)}</td>
                                             ))}

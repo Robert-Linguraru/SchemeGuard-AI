@@ -42,6 +42,36 @@
     background: #fbfdfe;
 }
 
+.entity-list-filter {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 190px;
+    color: var(--navy);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.entity-list-filter select {
+    min-height: 42px;
+    padding: 0 12px;
+    border: 1px solid #c4d2dc;
+    border-radius: 8px;
+    background: #fbfdfe;
+    color: var(--navy);
+}
+
+.entity-list-filter-button {
+    align-self: flex-end;
+    min-height: 42px;
+    padding: 0 16px;
+    border: 1px solid var(--navy);
+    border-radius: 8px;
+    background: var(--navy);
+    color: var(--white);
+    font-weight: 700;
+}
+
 .entity-list-checkbox {
     display: flex;
     align-items: center;

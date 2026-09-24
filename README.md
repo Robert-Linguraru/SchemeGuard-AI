@@ -8,8 +8,17 @@ docker compose up ollama-model
 ```
 
 ```bash
-py -m generate_csv --rows [n_rows] --output [file_name.csv]
+py -m generate_csv --rows [n_rows] --output [file_name.csv] --seed 42
+
+# From the repository root, for a deterministic 1,000-row anomaly fixture:
+py misc/generate_csv.py --rows 1000 --output transactions_1000.csv --seed 42 --anomaly-rate 0.02
 ```
+
+The generator creates a realistic transaction distribution and injects a small
+number of deliberate candidates. Those rows remain in the same clustering
+cohort as their peers but have incomplete merchant data and a five-day clearing
+delay, which should cause the rule engine to calculate a different/fallback
+interchange rate. The anomaly detector can therefore be tested end to end.
 
 ## Main features
 
@@ -79,9 +88,10 @@ the following order:
 3. `rule_interpreter.sql` creates fallback rates and evaluation indexes.
 4. `seed_reference_data.sql` inserts roles, card schemes, and 249 country mappings.
 5. `upload_tables.sql` creates the upload tables and the transaction-import staging table.
+6. `transaction_outliers.sql` creates the upload-scoped anomaly table used by outlier detection.
 
-If the database already exists, run `upload_tables.sql` again after deploying this
-optimization so that `transaction_import_staging` is created. The script is safe to rerun.
+If the database already exists, run `transaction_outliers.sql` after deploying this
+feature. Both upload and outlier scripts are safe to rerun.
 
 CSV rows are copied to the unlogged staging table while the file is validated. They are
 merged into the transaction tables only after the complete file succeeds, so a malformed

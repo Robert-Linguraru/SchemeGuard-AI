@@ -1,8 +1,13 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../../../app/AuthProvider";
 import { AccountMenu } from "../../../shared/components/AccountMenu";
 import { getUploadTransactions } from "../../uploads/api/uploadsApi";
-import { evaluateUpload } from "../../uploads/api/uploadsApi";
+import {
+    confirmUploadOutlier,
+    detectUploadOutliers,
+    evaluateUpload,
+    getUploadOutlierIds
+} from "../../uploads/api/uploadsApi";
 import { TransactionStats } from "../components/TransactionStats";
 import { EntityList } from "../../../shared/components/EntityList/EntityList";
 import type { Transaction } from "../../../shared/types/transaction";
@@ -46,9 +51,38 @@ export function DashboardPage({
     const [evaluationMessage, setEvaluationMessage] = useState<string | null>(null);
     const [evaluationError, setEvaluationError] = useState<string | null>(null);
     const [transactionReloadKey, setTransactionReloadKey] = useState(0);
+    const [outlierIds, setOutlierIds] = useState<Set<string>>(new Set());
+    const [confirmedOutlierIds, setConfirmedOutlierIds] = useState<Set<string>>(new Set());
+    const [isDetectingOutliers, setIsDetectingOutliers] = useState(false);
+    const [anomalyError, setAnomalyError] = useState<string | null>(null);
+    const [showTransactionFilters, setShowTransactionFilters] = useState(false);
 
     const canEvaluate = selectedUploadImportStatus === "COMPLETED"
         && !selectedUploadWasEvaluated;
+    const canDetectOutliers = selectedUploadImportStatus === "COMPLETED"
+        && selectedUploadWasEvaluated;
+
+    useEffect(() => {
+        let cancelled = false;
+        setOutlierIds(new Set());
+        setConfirmedOutlierIds(new Set());
+        setAnomalyError(null);
+        if (!selectedUploadId) {
+            return () => { cancelled = true; };
+        }
+        void getUploadOutlierIds(selectedUploadId)
+            .then((ids) => {
+                if (!cancelled) {
+                    setOutlierIds(new Set(ids));
+                }
+            })
+            .catch(() => {
+                if (!cancelled) {
+                    setAnomalyError("Could not load detected outliers.");
+                }
+            });
+        return () => { cancelled = true; };
+    }, [selectedUploadId]);
 
     const runEvaluation = async () => {
         if (!selectedUploadId || !canEvaluate || isEvaluating) {
@@ -74,6 +108,43 @@ export function DashboardPage({
         }
     };
 
+    const runOutlierDetection = async () => {
+        if (!selectedUploadId || !canDetectOutliers || isDetectingOutliers) {
+            return;
+        }
+        setIsDetectingOutliers(true);
+        setAnomalyError(null);
+        try {
+            const result = await detectUploadOutliers(selectedUploadId);
+            setOutlierIds(new Set(result.outlierTransactionIds));
+            setConfirmedOutlierIds(new Set());
+        } catch (requestError: unknown) {
+            setAnomalyError(
+                requestError instanceof Error
+                    ? requestError.message
+                    : "Could not detect outliers"
+            );
+        } finally {
+            setIsDetectingOutliers(false);
+        }
+    };
+
+    const confirmOutlier = async (transactionId: string) => {
+        if (!selectedUploadId || confirmedOutlierIds.has(transactionId)) {
+            return;
+        }
+        try {
+            await confirmUploadOutlier(selectedUploadId, transactionId);
+            setConfirmedOutlierIds((current) => new Set(current).add(transactionId));
+        } catch (requestError: unknown) {
+            setAnomalyError(
+                requestError instanceof Error
+                    ? requestError.message
+                    : "Could not confirm this outlier"
+            );
+        }
+    };
+
     const fetchTransactions = useCallback(
         (query: EntityListQuery, signal?: AbortSignal) => {
             if (!selectedUploadId) {
@@ -88,8 +159,7 @@ export function DashboardPage({
 
             return getUploadTransactions(
                 selectedUploadId,
-                query.page,
-                query.size,
+                query,
                 signal
             );
         },
@@ -107,33 +177,58 @@ export function DashboardPage({
     const transactionColumns: EntityListColumn<Transaction>[] = [
         {
             key: "externalId",
-            label: "Transaction"
+            label: "Transaction",
+            sortable: true
         },
         {
             key: "merchantName",
-            label: "Merchant"
+            label: "Merchant",
+            sortable: true,
+            sortKey: "merchant"
         },
         {
             key: "scheme",
-            label: "Scheme"
+            label: "Scheme",
+            sortable: true,
+            sortKey: "scheme"
         },
         {
             key: "amount",
             label: "Amount",
+            sortable: true,
             render: (transaction) => `${transaction.amount ?? "0"} ${transaction.currencyCode}`
         },
         {
             key: "status",
-            label: "Status"
+            label: "Status",
+            sortable: true
         },
         {
             key: "qualificationStatus",
-            label: "Qualification"
+            label: "Qualification",
+            sortable: true
         },
         {
             key: "estimatedFee",
             label: "Fee",
             render: (transaction) => `${transaction.estimatedFee ?? "0"} ${transaction.currencyCode}`
+        },
+        {
+            key: "anomaly",
+            label: "Anomaly",
+            render: (transaction) => outlierIds.has(transaction.id) ? (
+                <div className="transaction-anomaly-cell">
+                    <span>Outlier</span>
+                    <button
+                        type="button"
+                        className="entity-list-action-button"
+                        disabled={confirmedOutlierIds.has(transaction.id)}
+                        onClick={() => void confirmOutlier(transaction.id)}
+                    >
+                        {confirmedOutlierIds.has(transaction.id) ? "Checked" : "Check off"}
+                    </button>
+                </div>
+            ) : null
         }
     ];
 
@@ -199,6 +294,16 @@ export function DashboardPage({
                         <button
                             type="button"
                             className="dashboard-button"
+                            onClick={() => void runOutlierDetection()}
+                            disabled={!selectedUploadId || !canDetectOutliers || isDetectingOutliers}
+                            title={!canDetectOutliers ? "Evaluate this upload before detecting outliers." : undefined}
+                        >
+                            {isDetectingOutliers ? "Detecting..." : "Detect outliers"}
+                        </button>
+
+                        <button
+                            type="button"
+                            className="dashboard-button"
                             onClick={onOpenCardSchemes}
                         >
                             Card schemes
@@ -230,7 +335,7 @@ export function DashboardPage({
                     />
                 )}
 
-                <section className="transactions-card">
+            <section className="transactions-card">
                     {selectedUploadId ? (
                         <EntityList
                             title={selectedUploadFileName ?? "Transaction list"}
@@ -240,7 +345,56 @@ export function DashboardPage({
                             onResponse={handleTransactionResponse}
                             reloadKey={transactionReloadKey}
                             initialQuery={{ size: 50, sort: "createdAt,desc" }}
+                            toolbar={({ query, updateQuery }) => (
+                                <>
+                                    <button
+                                        type="button"
+                                        className="entity-list-filter-button"
+                                        aria-expanded={showTransactionFilters}
+                                        onClick={() => setShowTransactionFilters((visible) => !visible)}
+                                    >
+                                        {showTransactionFilters ? "Hide filters" : "Filter"}
+                                    </button>
+                                    {showTransactionFilters && <>
+                                    <label className="entity-list-filter">
+                                        <span>Show</span>
+                                        <select
+                                            value={query.anomaliesOnly ? "anomalies" : "all"}
+                                            onChange={(event) => updateQuery({
+                                                anomaliesOnly: event.target.value === "anomalies",
+                                                page: 0
+                                            })}
+                                        >
+                                            <option value="all">All transactions</option>
+                                            <option value="anomalies">Anomalies only</option>
+                                        </select>
+                                    </label>
+                                    <label className="entity-list-filter">
+                                        <span>Order by</span>
+                                        <select
+                                            value={query.sort}
+                                            onChange={(event) => updateQuery({
+                                                sort: event.target.value,
+                                                page: 0
+                                            })}
+                                        >
+                                            <option value="anomaly,asc">Anomalies first</option>
+                                            <option value="createdAt,desc">Newest first</option>
+                                            <option value="createdAt,asc">Oldest first</option>
+                                            <option value="amount,desc">Amount: high to low</option>
+                                            <option value="amount,asc">Amount: low to high</option>
+                                            <option value="externalId,asc">Transaction ID: A–Z</option>
+                                            <option value="merchant,asc">Merchant: A–Z</option>
+                                            <option value="scheme,asc">Scheme: A–Z</option>
+                                            <option value="status,asc">Status: A–Z</option>
+                                            <option value="qualificationStatus,asc">Qualification: A–Z</option>
+                                        </select>
+                                    </label>
+                                    </>}
+                                </>
+                            )}
                             emptyMessage="No transactions available in this CSV upload."
+                            rowClassName={(transaction) => outlierIds.has(transaction.id) ? "transaction-anomaly-row" : undefined}
                         />
                     ) : (
                         <div className="empty-state">
@@ -257,6 +411,12 @@ export function DashboardPage({
                     {evaluationError && (
                         <div className="error-box" role="alert">
                             {evaluationError}
+                        </div>
+                    )}
+
+                    {anomalyError && (
+                        <div className="error-box" role="alert">
+                            {anomalyError}
                         </div>
                     )}
 

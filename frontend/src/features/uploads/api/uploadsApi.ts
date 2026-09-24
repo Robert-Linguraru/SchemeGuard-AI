@@ -63,12 +63,14 @@ export const getUploads = (
 
 export const getUploadTransactions = (
     uploadId: string,
-    page = 0,
-    size = 50,
+    query: EntityListQuery,
     signal?: AbortSignal
 ): Promise<UploadTransactionPage> =>
     request<BackendPage<BackendTransaction>>(
-        `/api/uploads/${encodeURIComponent(uploadId)}/transactions?page=${page}&size=${size}`,
+        buildPageUrl(
+            `/api/uploads/${encodeURIComponent(uploadId)}/transactions`,
+            query
+        ) + (query.anomaliesOnly ? "&anomaliesOnly=true" : ""),
         { method: "GET", signal }
     ).then((response) => {
         const page = toEntityListResponse(response);
@@ -144,4 +146,34 @@ export const downloadUpload = (
         `/api/uploads/${encodeURIComponent(uploadId)}/download`,
         { method: "GET", signal },
         { onResponse }
+    );
+
+export interface AnomalyDetectionResponse {
+    outlierTransactionIds: string[];
+}
+
+export const getUploadOutlierIds = (
+    uploadId: string,
+    signal?: AbortSignal
+): Promise<string[]> =>
+    request<string[]>(
+        `/api/uploads/${encodeURIComponent(uploadId)}/anomalies`,
+        { method: "GET", signal }
+    );
+
+export const detectUploadOutliers = (
+    uploadId: string
+): Promise<AnomalyDetectionResponse> =>
+    request<AnomalyDetectionResponse>(
+        `/api/uploads/${encodeURIComponent(uploadId)}/anomalies/detect`,
+        { method: "POST" }
+    );
+
+export const confirmUploadOutlier = (
+    uploadId: string,
+    transactionId: string
+): Promise<void> =>
+    request<void>(
+        `/api/uploads/${encodeURIComponent(uploadId)}/anomalies/${encodeURIComponent(transactionId)}/confirm`,
+        { method: "POST" }
     );
