@@ -264,7 +264,7 @@ export default function CsvTransactionUploadModal({
         )}
         onCancel={closeModal}
         closable={!isUploading}
-        maskClosable={!isUploading}
+        mask={{ closable: !isUploading }}
         keyboard={!isUploading}
         footer={(
           <Flex justify="space-between" align="center" gap={12}>
