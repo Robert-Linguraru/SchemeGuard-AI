@@ -6,7 +6,6 @@ import { LoadingState } from "../../../shared/components/LoadingState";
 import { getAnalytics, type AnalyticsFilters, type AnalyticsMetric, type AnalyticsResponse } from "../api/analyticsApi";
 
 interface AnalysisDashboardPageProps {
-    onBack: () => void;
     onEditProfile: () => void;
 }
 
@@ -34,7 +33,7 @@ function BarList({ items, valueLabel, useFees = false }: { items: AnalyticsMetri
     );
 }
 
-export function AnalysisDashboardPage({ onBack, onEditProfile }: AnalysisDashboardPageProps) {
+export function AnalysisDashboardPage({ onEditProfile }: AnalysisDashboardPageProps) {
     const { user } = useAuth();
     const [analytics, setAnalytics] = useState<AnalyticsResponse | null>(null);
     const [filters, setFilters] = useState<Filters>(emptyFilters);
@@ -92,7 +91,7 @@ export function AnalysisDashboardPage({ onBack, onEditProfile }: AnalysisDashboa
             <section className="content">
                 <div className="page-heading analysis-heading">
                     <div><p className="eyebrow">ANALYSIS DASHBOARD</p><h2>Descriptive statistics</h2><p>Explore qualification results, fees and transaction distribution.</p></div>
-                    <div className="page-heading-actions"><button type="button" className="secondary-button page-nav-button" onClick={onBack}>CSV uploads</button><button type="button" className="create-rule-button" onClick={exportCsv} disabled={!analytics?.totalTransactions}>Export CSV</button></div>
+                    <div className="page-heading-actions"><button type="button" className="create-rule-button" onClick={exportCsv} disabled={!analytics?.totalTransactions}>Export CSV</button></div>
                 </div>
                 <section className="analysis-filters" aria-label="Dashboard filters">
                     <label>From<input type="date" value={filters.from} onChange={(event) => setFilter("from", event.target.value)} /></label>
