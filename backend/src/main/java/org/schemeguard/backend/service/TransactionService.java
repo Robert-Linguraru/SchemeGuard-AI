@@ -5,8 +5,10 @@ import org.schemeguard.backend.dto.TransactionResponse;
 import org.schemeguard.backend.dto.TransactionStatisticsResponse;
 import org.schemeguard.backend.entity.QualificationResult;
 import org.schemeguard.backend.entity.Transaction;
+import org.schemeguard.backend.entity.FeeCalculation;
 import org.schemeguard.backend.exception.UploadException;
 import org.schemeguard.backend.repository.QualificationResultRepository;
+import org.schemeguard.backend.repository.FeeCalculationRepository;
 import org.schemeguard.backend.repository.TransactionRepository;
 import org.schemeguard.backend.repository.UploadRepository;
 import org.springframework.data.domain.Page;
@@ -32,15 +34,18 @@ public class TransactionService {
 
     private final TransactionRepository transactionRepository;
     private final QualificationResultRepository qualificationResultRepository;
+        private final FeeCalculationRepository feeCalculationRepository;
         private final UploadRepository uploadRepository;
 
     public TransactionService(
             TransactionRepository transactionRepository,
             QualificationResultRepository qualificationResultRepository,
+            FeeCalculationRepository feeCalculationRepository,
             UploadRepository uploadRepository
     ) {
         this.transactionRepository = transactionRepository;
         this.qualificationResultRepository = qualificationResultRepository;
+        this.feeCalculationRepository = feeCalculationRepository;
         this.uploadRepository = uploadRepository;
     }
 
@@ -97,7 +102,11 @@ public class TransactionService {
                 .toList();
         Map<UUID, QualificationResult> qualifications = latestQualifications(transactionIds);
         List<TransactionResponse> content = resultPage.getContent().stream()
-                .map(transaction -> toResponse(transaction, qualifications.get(transaction.getId())))
+                .map(transaction -> toResponse(
+                        transaction,
+                        qualifications.get(transaction.getId()),
+                        feeFor(qualifications.get(transaction.getId()))
+                ))
                 .toList();
 
         return new TransactionPageResponse(
@@ -207,7 +216,8 @@ public class TransactionService {
 
     private TransactionResponse toResponse(
             Transaction transaction,
-            QualificationResult qualification
+            QualificationResult qualification,
+            BigDecimal estimatedFee
     ) {
         return new TransactionResponse(
                 transaction.getId(),
@@ -231,7 +241,18 @@ public class TransactionService {
                 qualification == null ? null : qualification.getExplanation(),
                 qualification == null ? null : qualification.getEvaluatedAt(),
                 transaction.getAuthorizedAt(),
-                transaction.getCreatedAt()
+                                transaction.getCreatedAt(),
+                                estimatedFee
         );
     }
+
+        private BigDecimal feeFor(QualificationResult qualification) {
+                if (qualification == null) {
+                        return null;
+                }
+
+                return feeCalculationRepository.findByQualificationResultId(qualification.getId())
+                                .map(FeeCalculation::getTotalFee)
+                                .orElse(null);
+        }
 }

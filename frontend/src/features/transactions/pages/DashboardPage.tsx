@@ -18,10 +18,7 @@ import type {
 } from "../../../shared/types/list";
 
 interface DashboardPageProps {
-    onCreateRule: () => void;
-    onOpenCardSchemes: () => void;
     onEditProfile: () => void;
-    onOpenAnalysisDashboard: () => void;
     onOpenAssistant: () => void;
     isAssistantOpen: boolean;
     selectedUploadId?: string | null;
@@ -29,28 +26,21 @@ interface DashboardPageProps {
     selectedUploadImportStatus?: string | null;
     selectedUploadWasEvaluated?: boolean;
     onUploadEvaluated: (wasEvaluated: boolean) => void;
-    onBackToUploads: () => void;
 }
 
 export function DashboardPage({
-    onCreateRule,
     onEditProfile,
-    onOpenCardSchemes,
-    onOpenAnalysisDashboard,
     onOpenAssistant,
     isAssistantOpen,
     selectedUploadId,
     selectedUploadFileName,
     selectedUploadImportStatus,
     selectedUploadWasEvaluated = false,
-    onUploadEvaluated,
-    onBackToUploads
+    onUploadEvaluated
 }: DashboardPageProps) {
     const { user } = useAuth();
-    const isAdmin = user?.role?.toUpperCase() === "ADMIN";
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [totalTransactions, setTotalTransactions] = useState(0);
-
     const [isEvaluating, setIsEvaluating] = useState(false);
     const [evaluationMessage, setEvaluationMessage] = useState<string | null>(null);
     const [evaluationError, setEvaluationError] = useState<string | null>(null);
@@ -292,14 +282,6 @@ export function DashboardPage({
                     </div>
 
                     <div className="page-heading-actions">
-                        <button
-                            type="button"
-                            className="dashboard-button"
-                            onClick={onOpenAnalysisDashboard}
-                        >
-                            Analytics
-                        </button>
-
                         {selectedUploadId && canEvaluate && (
                             <button
                                 type="button"
@@ -321,30 +303,6 @@ export function DashboardPage({
                             {isDetectingOutliers ? "Detecting..." : "Detect outliers"}
                         </button>
 
-                        <button
-                            type="button"
-                            className="dashboard-button"
-                            onClick={onOpenCardSchemes}
-                        >
-                            Card schemes
-                        </button>
-
-                        <button
-                            type="button"
-                            className="dashboard-button"
-                            onClick={onBackToUploads}
-                        >
-                            CSV uploads
-                        </button>
-
-                        {isAdmin && (
-                            <button
-                                className="create-rule-button"
-                                onClick={onCreateRule}
-                            >
-                                View Rules
-                            </button>
-                        )}
                     </div>
                 </div>
 
