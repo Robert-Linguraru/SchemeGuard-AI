@@ -32,11 +32,14 @@ export interface AnalyticsFilters {
     status: string;
 }
 
-export function getAnalytics(filters: AnalyticsFilters): Promise<AnalyticsResponse> {
+export function getAnalytics(filters: AnalyticsFilters, signal?: AbortSignal): Promise<AnalyticsResponse> {
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([key, value]) => {
         if (value) params.set(key, value);
     });
     const query = params.toString();
-    return request<AnalyticsResponse>(`/api/analytics${query ? `?${query}` : ""}`, { method: "GET" });
+    return request<AnalyticsResponse>(`/api/analytics${query ? `?${query}` : ""}`, {
+        method: "GET",
+        signal
+    });
 }

@@ -86,44 +86,73 @@
 	margin-top: 72px;
 }
 
-.analysis-filters {
+.analysis-filter-panel {
 	display: grid;
-	grid-template-columns: repeat(7, minmax(110px, 1fr)) auto;
-	align-items: end;
-	gap: 10px;
+	gap: 18px;
 	margin: 28px 0 18px;
-	padding: 16px;
-	border: 1px solid rgba(255, 255, 255, 0.12);
-	border-radius: 14px;
+	padding: 18px;
+	border: 1px solid rgba(255, 255, 255, 0.14);
+	border-radius: 16px;
 	background: rgba(255, 255, 255, 0.08);
 }
 
-.analysis-filters label {
+.analysis-filter-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 18px;
+}
+
+.analysis-filter-title {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	color: var(--blue);
+}
+
+.analysis-filter-title > div {
+	display: grid;
+	gap: 3px;
+}
+
+.analysis-filter-title strong {
+	color: var(--white);
+	font-size: 14px;
+}
+
+.analysis-filter-title span {
+	color: var(--muted);
+	font-size: 12px;
+	font-weight: 400;
+}
+
+.analysis-filter-grid {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 14px;
+}
+
+.analysis-filter-field {
+	display: grid;
+	min-width: 0;
+	gap: 7px;
+}
+
+.analysis-filter-field > span {
 	color: var(--muted);
 	font-size: 11px;
 	font-weight: 700;
-	text-transform: uppercase;
 	letter-spacing: .4px;
+	text-transform: uppercase;
 }
 
-.analysis-filters input,
-.analysis-filters select {
-	min-width: 0;
-	margin-top: 6px;
-	padding: 9px 10px;
-	border: 1px solid #526b7b;
-	border-radius: 7px;
-	background: #213b4c;
-	color: var(--white);
-	font-size: 12px;
+.analysis-filter-field .ant-picker,
+.analysis-filter-field .ant-select {
+	width: 100%;
 }
 
-.filter-reset {
-	padding: 10px 14px;
-	border-radius: 8px;
-	background: var(--white);
-	color: var(--navy);
-	font-weight: 700;
+.analysis-filter-header .ant-btn:disabled {
+	cursor: not-allowed;
 }
 
 .analysis-kpi-grid {
@@ -583,7 +612,12 @@ tbody tr:hover {
 }
 
 @media (max-width: 900px) {
-	.analysis-filters {
+	.analysis-filter-header {
+		align-items: flex-start;
+		flex-direction: column;
+	}
+
+	.analysis-filter-grid {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
 	}
 
@@ -624,7 +658,7 @@ tbody tr:hover {
 		grid-template-columns: 1fr;
 	}
 
-	.analysis-filters,
+	.analysis-filter-grid,
 	.analysis-kpi-grid {
 		grid-template-columns: 1fr;
 	}
