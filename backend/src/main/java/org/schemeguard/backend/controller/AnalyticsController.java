@@ -30,6 +30,7 @@ public class AnalyticsController {
             @RequestParam(required = false) String merchant,
             @RequestParam(required = false) String qualification,
             @RequestParam(required = false) TransactionStatus status,
+            @RequestParam(defaultValue = "EUR") String targetCurrency,
             @AuthenticationPrincipal User user
     ) {
         return ResponseEntity.ok(analyticsAggregationService.aggregate(
@@ -40,7 +41,8 @@ public class AnalyticsController {
                 country,
                 merchant,
                 qualification,
-                status
+                status,
+                targetCurrency
         ));
     }
 }

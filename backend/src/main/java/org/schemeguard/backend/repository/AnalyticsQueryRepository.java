@@ -30,18 +30,33 @@ public class AnalyticsQueryRepository {
             ),
             filtered AS (
                 SELECT t.amount,
+                       t.currency_code,
                        t.status,
                        m.name AS merchant_name,
                        cs.code AS scheme_code,
                        t.merchant_country,
                        lr.qualification_status,
-                       COALESCE(fc.total_fee, CAST(0 AS numeric)) AS total_fee
+                       CASE
+                           WHEN t.currency_code = CAST(:targetCurrency AS text) THEN CAST(1 AS numeric)
+                           ELSE cr.rate
+                       END AS conversion_rate,
+                       t.amount * CASE
+                           WHEN t.currency_code = CAST(:targetCurrency AS text) THEN CAST(1 AS numeric)
+                           ELSE cr.rate
+                       END AS converted_amount,
+                       COALESCE(fc.total_fee, CAST(0 AS numeric)) * CASE
+                           WHEN t.currency_code = CAST(:targetCurrency AS text) THEN CAST(1 AS numeric)
+                           ELSE cr.rate
+                       END AS converted_fee
                 FROM transactions t
                 JOIN uploads u ON u.id = t.upload_id AND u.user_id = :userId
                 JOIN merchants m ON m.id = t.merchant_id
                 JOIN card_schemes cs ON cs.id = t.scheme_id
                 LEFT JOIN latest_results lr ON lr.transaction_id = t.id
                 LEFT JOIN fee_calculations fc ON fc.qualification_result_id = lr.result_id
+                LEFT JOIN currency_rates cr
+                    ON cr.source_currency = t.currency_code
+                   AND cr.target_currency = CAST(:targetCurrency AS text)
                 WHERE (CAST(:fromInstant AS timestamptz) IS NULL OR t.authorized_at >= CAST(:fromInstant AS timestamptz))
                   AND (CAST(:toInstant AS timestamptz) IS NULL OR t.authorized_at < CAST(:toInstant AS timestamptz))
                   AND (CAST(:scheme AS text) IS NULL OR LOWER(cs.code) = LOWER(CAST(:scheme AS text)))
@@ -62,9 +77,10 @@ public class AnalyticsQueryRepository {
                    COUNT(*) FILTER (WHERE qualification_status = 'QUALIFIED') AS qualified_transactions,
                    COUNT(*) FILTER (WHERE qualification_status = 'PARTIALLY_QUALIFIED') AS partially_qualified_transactions,
                    COUNT(*) FILTER (WHERE qualification_status = 'NOT_QUALIFIED') AS not_qualified_transactions,
-                   COALESCE(SUM(amount), CAST(0 AS numeric)) AS total_amount,
-                   COALESCE(SUM(total_fee), CAST(0 AS numeric)) AS total_fees,
-                   COALESCE(AVG(amount), CAST(0 AS numeric)) AS average_transaction_amount
+                   COALESCE(SUM(converted_amount), CAST(0 AS numeric)) AS total_amount,
+                   COALESCE(SUM(converted_fee), CAST(0 AS numeric)) AS total_fees,
+                   COALESCE(AVG(converted_amount), CAST(0 AS numeric)) AS average_transaction_amount,
+                   COUNT(*) FILTER (WHERE conversion_rate IS NULL) AS missing_conversion_rates
             FROM filtered
             """;
 
@@ -83,7 +99,7 @@ public class AnalyticsQueryRepository {
                 SELECT 'scheme' AS metric_group,
                        scheme_code AS name,
                        COUNT(*) AS transactions,
-                       COALESCE(SUM(total_fee), CAST(0 AS numeric)) AS fees,
+                       COALESCE(SUM(converted_fee), CAST(0 AS numeric)) AS fees,
                        COUNT(*)::numeric AS sort_value
                 FROM filtered
                 GROUP BY scheme_code
@@ -103,8 +119,8 @@ public class AnalyticsQueryRepository {
                 SELECT 'merchant' AS metric_group,
                        merchant_name AS name,
                        COUNT(*) AS transactions,
-                       COALESCE(SUM(total_fee), CAST(0 AS numeric)) AS fees,
-                       COALESCE(SUM(total_fee), CAST(0 AS numeric)) AS sort_value
+                       COALESCE(SUM(converted_fee), CAST(0 AS numeric)) AS fees,
+                       COALESCE(SUM(converted_fee), CAST(0 AS numeric)) AS sort_value
                 FROM filtered
                 GROUP BY merchant_name
             )
@@ -131,7 +147,8 @@ public class AnalyticsQueryRepository {
                         resultSet.getLong("not_qualified_transactions"),
                         resultSet.getBigDecimal("total_amount"),
                         resultSet.getBigDecimal("total_fees"),
-                        resultSet.getBigDecimal("average_transaction_amount")
+                        resultSet.getBigDecimal("average_transaction_amount"),
+                        resultSet.getLong("missing_conversion_rates")
                 )
         );
 
@@ -171,7 +188,8 @@ public class AnalyticsQueryRepository {
                 .addValue("country", filter.country())
                 .addValue("merchant", filter.merchant())
                 .addValue("qualification", filter.qualification())
-                .addValue("status", filter.status());
+                .addValue("status", filter.status())
+                .addValue("targetCurrency", filter.targetCurrency());
     }
 
     private Timestamp toTimestamp(Instant instant) {
@@ -186,7 +204,8 @@ public class AnalyticsQueryRepository {
             String country,
             String merchant,
             String qualification,
-            String status
+            String status,
+            String targetCurrency
     ) {
     }
 
@@ -198,10 +217,11 @@ public class AnalyticsQueryRepository {
             long notQualifiedTransactions,
             BigDecimal totalAmount,
             BigDecimal totalFees,
-            BigDecimal averageTransactionAmount
+            BigDecimal averageTransactionAmount,
+            long missingConversionRates
     ) {
         private static AnalyticsSummary empty() {
-            return new AnalyticsSummary(0, 0, 0, 0, 0, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+            return new AnalyticsSummary(0, 0, 0, 0, 0, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, 0);
         }
     }
 
