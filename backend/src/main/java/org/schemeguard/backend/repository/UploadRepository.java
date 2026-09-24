@@ -54,6 +54,42 @@ public interface UploadRepository extends JpaRepository<Upload, UUID> {
 
     Optional<Upload> findBySession_Id(UUID sessionId);
 
+    Optional<Upload> findByIdAndUser_Id(UUID uploadId, UUID userId);
+
+        @Query(value = """
+                        WITH latest_results AS (
+                                SELECT DISTINCT ON (qr.transaction_id)
+                                             qr.transaction_id,
+                                             qr.id AS result_id,
+                                             qr.qualification_status
+                                FROM qualification_results qr
+                                JOIN transactions tx ON tx.id = qr.transaction_id
+                                WHERE tx.upload_id = :uploadId
+                                    AND qr.active = TRUE
+                                ORDER BY qr.transaction_id, qr.evaluated_at DESC, qr.id DESC
+                        )
+                             SELECT COUNT(tx.id) AS "totalTransactions",
+                                 COUNT(*) FILTER (WHERE tx.status = 'PROCESSED') AS "processedTransactions",
+                                 COUNT(*) FILTER (WHERE tx.status = 'NEW') AS "pendingTransactions",
+                                 COUNT(*) FILTER (WHERE lr.qualification_status = 'QUALIFIED') AS "qualifiedTransactions",
+                                 COUNT(*) FILTER (WHERE lr.qualification_status = 'PARTIALLY_QUALIFIED') AS "partiallyQualifiedTransactions",
+                                 COUNT(*) FILTER (WHERE lr.qualification_status = 'NOT_QUALIFIED') AS "notQualifiedTransactions",
+                                 COALESCE(SUM(tx.amount), 0) AS "totalAmount",
+                                 COALESCE(SUM(fc.total_fee), 0) AS "totalFees"
+                        FROM uploads u
+                        LEFT JOIN transactions tx ON tx.upload_id = u.id
+                        LEFT JOIN latest_results lr ON lr.transaction_id = tx.id
+                        LEFT JOIN fee_calculations fc
+                                ON fc.qualification_result_id = lr.result_id
+                             AND fc.active = TRUE
+                        WHERE u.id = :uploadId
+                            AND u.user_id = :userId
+                        """, nativeQuery = true)
+        Optional<UploadStatisticsProjection> findStatisticsByIdAndUserId(
+                        @Param("uploadId") UUID uploadId,
+                        @Param("userId") UUID userId
+        );
+
     boolean existsByIdAndUser_Id(UUID uploadId, UUID userId);
 
     @Query("select u.id from Upload u where u.session.id = :sessionId")

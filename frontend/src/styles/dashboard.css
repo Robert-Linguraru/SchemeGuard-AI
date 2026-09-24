@@ -65,16 +65,28 @@
 	background: #edf3f6;
 }
 
-.assistant-nav-button {
-	padding: 12px 18px;
-	border-radius: 8px;
-	background: var(--coral);
-	color: var(--white);
-	font-weight: 700;
+.assistant-floating-button {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    z-index: 49;
+    display: grid;
+    place-items: center;
+    width: 60px;
+    height: 60px;
+    border: 1px solid rgba(255, 255, 255, .28);
+    border-radius: 50%;
+    background: var(--coral);
+    color: var(--white);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, .3);
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: .03em;
 }
 
-.assistant-nav-button:hover {
-	background: #ff7168;
+.assistant-floating-button:hover {
+    background: #ff7168;
+    transform: translateY(-2px);
 }
 
 .analysis-dashboard .content {
@@ -651,5 +663,12 @@ tbody tr:hover {
 	.recommendation-assistant {
 		right: 14px;
 		bottom: 14px;
+	}
+
+	.assistant-floating-button {
+		right: 14px;
+		bottom: 14px;
+		width: 56px;
+		height: 56px;
 	}
 }

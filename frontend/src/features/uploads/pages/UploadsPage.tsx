@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { useAuth } from "../../../app/AuthProvider";
 import CsvTransactionUploadModal from "../../csvUpload/components/csvUploadModal";
-import { evaluateUpload, getUploads } from "../api/uploadsApi";
+import { downloadUpload, evaluateUpload, getUploads } from "../api/uploadsApi";
 import type { UploadSummary } from "../types/upload";
 import { AccountMenu } from "../../../shared/components/AccountMenu";
 import { ErrorMessage } from "../../../shared/components/ErrorMessage";
@@ -30,10 +30,30 @@ const formatUploadedAt = (uploadedAt: string) => {
 const statusClassName = (status: string) =>
     status === "COMPLETED" ? "entity-list-status active" : "entity-list-status inactive";
 
+const getDownloadFileName = (contentDisposition: string | null): string | null => {
+    if (!contentDisposition) {
+        return null;
+    }
+
+    const encodedMatch = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+    if (encodedMatch?.[1]) {
+        try {
+            return decodeURIComponent(encodedMatch[1].trim().replace(/^"|"$/g, ""));
+        } catch {
+            return null;
+        }
+    }
+
+    const fileNameMatch = contentDisposition.match(/filename="([^"]+)"|filename=([^;]+)/i);
+    return fileNameMatch?.[1]?.trim() || fileNameMatch?.[2]?.trim() || null;
+};
+
 const createColumns = (
     onOpenUpload: UploadsPageProps["onOpenUpload"],
     evaluatingUploadId: string | null,
-    onEvaluateUpload: (uploadId: string) => void
+    onEvaluateUpload: (uploadId: string) => void,
+    downloadingUploadId: string | null,
+    onDownloadUpload: (uploadId: string, fileName: string) => void
 ): EntityListColumn<UploadSummary>[] => [
     {
         key: "fileName",
@@ -89,10 +109,10 @@ const createColumns = (
                 <button
                     type="button"
                     className="entity-list-action-button"
-                    disabled
-                    title="Download will be available in a later release"
+                    disabled={downloadingUploadId === upload.id}
+                    onClick={() => onDownloadUpload(upload.id, upload.fileName)}
                 >
-                    Download unavailable
+                    {downloadingUploadId === upload.id ? "Downloading..." : "Download"}
                 </button>
                 {upload.importStatus === "COMPLETED" && !upload.wasEvaluated && (
                     <button
@@ -124,8 +144,13 @@ export function UploadsPage({
     const [reloadKey, setReloadKey] = useState(0);
     const [evaluatingUploadId, setEvaluatingUploadId] = useState<string | null>(null);
     const [evaluationError, setEvaluationError] = useState<string | null>(null);
+    const [downloadingUploadId, setDownloadingUploadId] = useState<string | null>(null);
+    const [downloadError, setDownloadError] = useState<string | null>(null);
     const isAdmin = user?.role?.toUpperCase() === "ADMIN";
-    const columns = createColumns(onOpenUpload, evaluatingUploadId, async (uploadId) => {
+    const columns = createColumns(
+        onOpenUpload,
+        evaluatingUploadId,
+        async (uploadId) => {
         setEvaluatingUploadId(uploadId);
         setEvaluationError(null);
         try {
@@ -140,7 +165,41 @@ export function UploadsPage({
         } finally {
             setEvaluatingUploadId(null);
         }
-    });
+        },
+        downloadingUploadId,
+        async (uploadId, fallbackFileName) => {
+            setDownloadingUploadId(uploadId);
+            setDownloadError(null);
+            let responseFileName: string | null = null;
+            try {
+                const blob = await downloadUpload(
+                    uploadId,
+                    undefined,
+                    (response) => {
+                        responseFileName = getDownloadFileName(
+                            response.headers.get("Content-Disposition")
+                        );
+                    }
+                );
+                const objectUrl = URL.createObjectURL(blob);
+                const anchor = document.createElement("a");
+                anchor.href = objectUrl;
+                anchor.download = responseFileName || fallbackFileName || "original-file.csv";
+                document.body.appendChild(anchor);
+                anchor.click();
+                anchor.remove();
+                window.setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
+            } catch (requestError: unknown) {
+                setDownloadError(
+                    requestError instanceof Error
+                        ? requestError.message
+                        : "Could not download this upload"
+                );
+            } finally {
+                setDownloadingUploadId(null);
+            }
+        }
+    );
 
     const fetchUploads = useCallback(
         (query: EntityListQuery, signal?: AbortSignal) => getUploads(query, signal),

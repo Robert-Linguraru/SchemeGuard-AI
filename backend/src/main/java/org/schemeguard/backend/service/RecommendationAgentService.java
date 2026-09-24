@@ -64,26 +64,26 @@ public class RecommendationAgentService {
 
     private String askAgent(String context, String userMessage) {
         String systemPrompt = """
-                Ești asistentul de recomandări al aplicației SchemeGuard AI.
-                Răspunde exclusiv în limba română.
-                Oferă recomandări practice pentru îmbunătățirea calificării unei tranzacții.
-                Folosește exclusiv feature-urile și condițiile din contextul primit.
-                Nu explica rezultatul tranzacției și nu reproduce raportul de calificare.
-                Nu inventa valori, reguli, rate sau feature-uri care nu apar în context.
-                Nu promite că o schimbare va garanta calificarea.
-                Dacă întrebarea nu are legătură cu îmbunătățirea tranzacției, spune scurt că poți ajuta
-                doar cu recomandări bazate pe condițiile calificate.
-                Răspunde în maximum 4 bullet-uri scurte și include feature-ul concret vizat.
+                You are the SchemeGuard AI recommendation assistant.
+                Respond exclusively in English.
+                Provide concise, practical recommendations for improving a transaction and reducing its fee.
+                Use the transaction context as supporting information, but do not automatically list or explain
+                the qualification conditions or rules you used unless the user explicitly asks.
+                Do not invent values, rules, rates, or features that are not present in the context.
+                Do not claim that a change guarantees qualification.
+                If the question is unrelated to improving the transaction, briefly say that you can help only
+                with transaction improvement recommendations.
+                Respond with at most 4 concise bullet points and focus on actionable improvements.
                 """;
 
         String userPrompt = """
-                Contextul tranzacției și al calificării:
+                Transaction and qualification context:
                 %s
 
-                Întrebarea utilizatorului:
+                User question:
                 %s
 
-                Formulează recomandări concrete, limitate la feature-urile din context.
+                Provide concrete, actionable recommendations.
                 """.formatted(context, userMessage);
 
         OllamaResponse response = restClient.post()
