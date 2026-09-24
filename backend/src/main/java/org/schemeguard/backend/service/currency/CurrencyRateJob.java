@@ -66,7 +66,7 @@ public class CurrencyRateJob {
                 if (!quotes.isEmpty()) throw new IllegalStateException("Missing Frankfurter rates: " + quotes);
                 rates.addAll(Arrays.asList(response));
             }
-            // Download every pair before opening the database transaction.
+
             log.info("Currency rates refreshed: {} pairs written", service.saveRates(rates));
         } catch (RuntimeException ex) {
             log.error("Currency rate refresh failed; existing rates were retained", ex);
