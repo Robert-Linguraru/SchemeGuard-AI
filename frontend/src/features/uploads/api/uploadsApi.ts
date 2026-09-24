@@ -80,6 +80,34 @@ export const getUploadTransactions = (
         };
     });
 
+export const getAllUploadTransactions = async (
+    uploadId: string,
+    signal?: AbortSignal
+): Promise<UploadTransactionPage["items"]> => {
+    const pageSize = 100;
+    const transactions: UploadTransactionPage["items"] = [];
+    let page = 0;
+    let totalPages = 1;
+
+    while (page < totalPages) {
+        const response = await getUploadTransactions(
+            uploadId,
+            {
+                page,
+                size: pageSize,
+                search: "",
+                sort: "createdAt,desc"
+            },
+            signal
+        );
+        transactions.push(...response.items);
+        totalPages = response.totalPages;
+        page += 1;
+    }
+
+    return transactions;
+};
+
 interface BackendTransaction {
     id: string;
     uploadId: string | null;

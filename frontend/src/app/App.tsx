@@ -9,6 +9,7 @@ import { AnalysisDashboardPage } from "../features/transactions/pages/AnalysisDa
 import { ProfilePage } from "../features/auth/pages/ProfilePage";
 import { CardSchemesPage } from "../features/cardSchemes/pages/CardSchemesPage";
 import { UploadsPage } from "../features/uploads/pages/UploadsPage";
+import { RecommendationAssistant } from "../features/transactions/components/RecommendationAssistant";
 import { LoadingState } from "../shared/components/LoadingState";
 
 function AuthenticatedApp() {
@@ -27,6 +28,7 @@ function AuthenticatedApp() {
         useState<string | null>(null);
     const [selectedUploadWasEvaluated, setSelectedUploadWasEvaluated] =
         useState(false);
+    const [isAssistantOpen, setIsAssistantOpen] = useState(false);
     const isAdmin = user?.role?.toUpperCase() === "ADMIN";
 
     useEffect(() => {
@@ -48,6 +50,7 @@ function AuthenticatedApp() {
                     setSelectedUploadFileName(fileName);
                     setSelectedUploadImportStatus(importStatus);
                     setSelectedUploadWasEvaluated(wasEvaluated);
+                    setIsAssistantOpen(false);
                     setView("upload-details");
                 }}
                 selectedUploadId={selectedUploadId}
@@ -113,24 +116,35 @@ function AuthenticatedApp() {
 
     if (view === "upload-details") {
         return (
-            <DashboardPage
-                onCreateRule={() => setView("rules")}
-                onOpenCardSchemes={() => setView("card-schemes")}
-                onEditProfile={() => setView("profile")}
-                onOpenAnalysisDashboard={() => setView("analysis-dashboard")}
-                selectedUploadId={selectedUploadId}
-                selectedUploadFileName={selectedUploadFileName}
-                selectedUploadImportStatus={selectedUploadImportStatus}
-                selectedUploadWasEvaluated={selectedUploadWasEvaluated}
-                onUploadEvaluated={(wasEvaluated) => setSelectedUploadWasEvaluated(wasEvaluated)}
-                onBackToUploads={() => {
-                    setSelectedUploadId(null);
-                    setSelectedUploadFileName(null);
-                    setSelectedUploadImportStatus(null);
-                    setSelectedUploadWasEvaluated(false);
-                    setView("dashboard");
-                }}
-            />
+            <>
+                <DashboardPage
+                    onCreateRule={() => setView("rules")}
+                    onOpenCardSchemes={() => setView("card-schemes")}
+                    onEditProfile={() => setView("profile")}
+                    onOpenAnalysisDashboard={() => setView("analysis-dashboard")}
+                    onOpenAssistant={() => setIsAssistantOpen(true)}
+                    isAssistantOpen={isAssistantOpen}
+                    selectedUploadId={selectedUploadId}
+                    selectedUploadFileName={selectedUploadFileName}
+                    selectedUploadImportStatus={selectedUploadImportStatus}
+                    selectedUploadWasEvaluated={selectedUploadWasEvaluated}
+                    onUploadEvaluated={(wasEvaluated) => setSelectedUploadWasEvaluated(wasEvaluated)}
+                    onBackToUploads={() => {
+                        setIsAssistantOpen(false);
+                        setSelectedUploadId(null);
+                        setSelectedUploadFileName(null);
+                        setSelectedUploadImportStatus(null);
+                        setSelectedUploadWasEvaluated(false);
+                        setView("dashboard");
+                    }}
+                />
+                <RecommendationAssistant
+                    uploadId={selectedUploadId}
+                    fileName={selectedUploadFileName}
+                    isOpen={isAssistantOpen}
+                    onClose={() => setIsAssistantOpen(false)}
+                />
+            </>
         );
     }
 

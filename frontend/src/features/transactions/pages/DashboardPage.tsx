@@ -22,6 +22,8 @@ interface DashboardPageProps {
     onOpenCardSchemes: () => void;
     onEditProfile: () => void;
     onOpenAnalysisDashboard: () => void;
+    onOpenAssistant: () => void;
+    isAssistantOpen: boolean;
     selectedUploadId?: string | null;
     selectedUploadFileName?: string | null;
     selectedUploadImportStatus?: string | null;
@@ -35,6 +37,8 @@ export function DashboardPage({
     onEditProfile,
     onOpenCardSchemes,
     onOpenAnalysisDashboard,
+    onOpenAssistant,
+    isAssistantOpen,
     selectedUploadId,
     selectedUploadFileName,
     selectedUploadImportStatus,
@@ -55,6 +59,7 @@ export function DashboardPage({
     const [confirmedOutlierIds, setConfirmedOutlierIds] = useState<Set<string>>(new Set());
     const [isDetectingOutliers, setIsDetectingOutliers] = useState(false);
     const [anomalyError, setAnomalyError] = useState<string | null>(null);
+    const [anomalyMessage, setAnomalyMessage] = useState<string | null>(null);
     const [showTransactionFilters, setShowTransactionFilters] = useState(false);
 
     const canEvaluate = selectedUploadImportStatus === "COMPLETED"
@@ -67,6 +72,7 @@ export function DashboardPage({
         setOutlierIds(new Set());
         setConfirmedOutlierIds(new Set());
         setAnomalyError(null);
+        setAnomalyMessage(null);
         if (!selectedUploadId) {
             return () => { cancelled = true; };
         }
@@ -109,15 +115,29 @@ export function DashboardPage({
     };
 
     const runOutlierDetection = async () => {
-        if (!selectedUploadId || !canDetectOutliers || isDetectingOutliers) {
+        if (!selectedUploadId || isDetectingOutliers) {
             return;
         }
+
+        if (!canDetectOutliers) {
+            setAnomalyMessage(null);
+            setAnomalyError("Evaluate this CSV before detecting outliers.");
+            return;
+        }
+
         setIsDetectingOutliers(true);
         setAnomalyError(null);
+        setAnomalyMessage(null);
         try {
             const result = await detectUploadOutliers(selectedUploadId);
             setOutlierIds(new Set(result.outlierTransactionIds));
             setConfirmedOutlierIds(new Set());
+            const count = result.outlierTransactionIds.length;
+            setAnomalyMessage(
+                count === 0
+                    ? "Outlier detection completed. No outliers were found in this CSV."
+                    : `Outlier detection completed. ${count} outlier${count === 1 ? "" : "s"} found.`
+            );
         } catch (requestError: unknown) {
             setAnomalyError(
                 requestError instanceof Error
@@ -295,7 +315,7 @@ export function DashboardPage({
                             type="button"
                             className="dashboard-button"
                             onClick={() => void runOutlierDetection()}
-                            disabled={!selectedUploadId || !canDetectOutliers || isDetectingOutliers}
+                            disabled={!selectedUploadId || isDetectingOutliers}
                             title={!canDetectOutliers ? "Evaluate this upload before detecting outliers." : undefined}
                         >
                             {isDetectingOutliers ? "Detecting..." : "Detect outliers"}
@@ -420,8 +440,25 @@ export function DashboardPage({
                         </div>
                     )}
 
+                    {anomalyMessage && (
+                        <div className="success-box" role="status">
+                            {anomalyMessage}
+                        </div>
+                    )}
+
                 </section>
             </section>
+            {selectedUploadId && !isAssistantOpen && (
+                <button
+                    type="button"
+                    className="assistant-floating-button"
+                    onClick={onOpenAssistant}
+                    aria-label="Open AI recommendations"
+                    title="AI recommendations"
+                >
+                    AI
+                </button>
+            )}
         </main>
     );
 }

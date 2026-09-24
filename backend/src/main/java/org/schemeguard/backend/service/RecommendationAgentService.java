@@ -3,8 +3,11 @@ package org.schemeguard.backend.service;
 import org.schemeguard.backend.dto.Recommendation.RecommendationResponse;
 import org.schemeguard.backend.entity.QualificationResult;
 import org.schemeguard.backend.entity.Transaction;
+import org.schemeguard.backend.entity.User;
 import org.schemeguard.backend.exception.ResourceNotFoundException;
 import org.schemeguard.backend.repository.QualificationResultRepository;
+import org.schemeguard.backend.repository.TransactionRepository;
+import org.schemeguard.backend.repository.UploadRepository;
 import org.schemeguard.backend.service.rag.RagDocumentService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
@@ -14,13 +17,18 @@ import org.springframework.web.client.RestClient;
 import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.text.Normalizer;
 
 @Service
 public class RecommendationAgentService {
 
     private final QualificationResultRepository qualificationResultRepository;
+    private final TransactionRepository transactionRepository;
+    private final UploadRepository uploadRepository;
     private final RagDocumentService ragDocumentService;
 
     private final RestClient restClient;
@@ -28,11 +36,15 @@ public class RecommendationAgentService {
 
     public RecommendationAgentService(
             QualificationResultRepository qualificationResultRepository,
+            TransactionRepository transactionRepository,
+            UploadRepository uploadRepository,
             RagDocumentService ragDocumentService,
             @Value("${app.llm.ollama-url}") String ollamaUrl,
             @Value("${app.llm.model}") String model
     ) {
         this.qualificationResultRepository = qualificationResultRepository;
+        this.transactionRepository = transactionRepository;
+        this.uploadRepository = uploadRepository;
         this.ragDocumentService = ragDocumentService;
         this.model = model;
 
@@ -47,7 +59,17 @@ public class RecommendationAgentService {
                 .build();
     }
 
-    public RecommendationResponse recommend(UUID transactionId, String userMessage) {
+    public RecommendationResponse recommend(
+            User user,
+            UUID uploadId,
+            UUID transactionId,
+            String userMessage
+    ) {
+        if (!uploadRepository.existsByIdAndUser_Id(uploadId, user.getId())
+                || !transactionRepository.existsByIdAndUpload_Id(transactionId, uploadId)) {
+            throw new ResourceNotFoundException("CSV upload or transaction not found");
+        }
+
         QualificationResult result = qualificationResultRepository
                 .findFirstByTransactionIdOrderByEvaluatedAtDescIdDesc(transactionId)
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -55,6 +77,16 @@ public class RecommendationAgentService {
                 ));
 
         Transaction transaction = result.getTransaction();
+        String guardResponse = guardResponse(userMessage);
+        if (guardResponse != null) {
+            return new RecommendationResponse(
+                    transaction.getId(),
+                    transaction.getExternalId(),
+                    result.getQualificationStatus().name(),
+                    guardResponse
+            );
+        }
+
         String context = buildContext(transaction, result);
         String retrievalQuery = userMessage + "\n"
                 + "Qualification category: " + result.getQualificationCategory() + "\n"
@@ -79,6 +111,8 @@ public class RecommendationAgentService {
                 the qualification conditions or rules you used unless the user explicitly asks.
                 Do not invent values, rules, rates, or features that are not present in the context.
                 Do not claim that a change guarantees qualification.
+                When explaining a failed transaction, identify the actual failed conditions and values.
+                Do not recommend changing a condition that already passed.
                 If the question is unrelated to improving the transaction, briefly say that you can help only
                 with transaction improvement recommendations.
                 Respond with at most 4 concise bullet points and focus on actionable improvements.
@@ -119,6 +153,38 @@ public class RecommendationAgentService {
         }
 
         return cleanResponse(response.message().content());
+    }
+
+    private String guardResponse(String userMessage) {
+        String normalized = Normalizer.normalize(
+                userMessage.toLowerCase(Locale.ROOT),
+                Normalizer.Form.NFD
+        ).replaceAll("\\p{M}+", "");
+        String[] words = normalized.split("[^a-z0-9]+", -1);
+
+        Set<String> romanianWords = Set.of(
+                "explica", "romana", "tranzactie", "tranzactia", "comision",
+                "regula", "calificata", "necalificata", "esuat", "esuata",
+                "vreau", "poti", "putem", "pentru", "despre", "reduc"
+        );
+        for (String word : words) {
+            if (romanianWords.contains(word)) {
+                return "Sorry, I only accept questions in English.";
+            }
+        }
+
+        String[] outOfDomainMarkers = {
+                "weather", "recipe", "football", "soccer", "politics", "president",
+                "movie", "music", "song", "joke", "restaurant", "hotel", "travel",
+                "programming", "python", "java", "cryptocurrency", "stock market",
+                "relationship", "homework", "capital of"
+        };
+        for (String marker : outOfDomainMarkers) {
+            if (normalized.contains(marker)) {
+                return "This question is not from this domain.";
+            }
+        }
+        return null;
     }
 
     private String buildKnowledgeContext(List<RagDocumentService.RagSearchResult> results) {
