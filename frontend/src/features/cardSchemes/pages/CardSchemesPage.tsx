@@ -108,7 +108,6 @@ export function CardSchemesPage({ onBack, onEditProfile }: CardSchemesPageProps)
                     <p>Welcome, {user?.fullName}</p>
                 </div>
                 <div className="dashboard-account-actions">
-                    <span className="role-badge">{user?.status} · {user?.role}</span>
                     <AccountMenu onEditProfile={onEditProfile} />
                 </div>
             </header>
@@ -122,7 +121,7 @@ export function CardSchemesPage({ onBack, onEditProfile }: CardSchemesPageProps)
                     </div>
                     <div className="heading-actions">
                         <button type="button" className="page-nav-button" onClick={onBack}>
-                            Transaction dashboard
+                            CSV uploads
                         </button>
                     </div>
                 </div>

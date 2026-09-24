@@ -80,7 +80,7 @@ export function RulesPage({
                             className="page-nav-button"
                             onClick={onBack}
                         >
-                            Transaction dashboard
+                            CSV uploads
                         </button>
 
                         <button

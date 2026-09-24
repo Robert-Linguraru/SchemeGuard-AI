@@ -10,6 +10,14 @@ import java.time.OffsetDateTime;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(CurrencyConversionException.class)
+    public ResponseEntity<ApiError> handleCurrencyConversion(CurrencyConversionException exception) {
+        return ResponseEntity.status(exception.getStatus()).body(new ApiError(
+                exception.getStatus().value(), exception.getMessage(), OffsetDateTime.now(),
+                "CURRENCY_CONVERSION_ERROR", null
+        ));
+    }
+
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ApiError> handleResourceNotFound(
             ResourceNotFoundException exception
