@@ -1,4 +1,4 @@
-import { request } from "../../../shared/api/httpClient";
+import { request, requestBlob } from "../../../shared/api/httpClient";
 import type {
     EntityListQuery,
     EntityListResponse
@@ -63,12 +63,14 @@ export const getUploads = (
 
 export const getUploadTransactions = (
     uploadId: string,
-    page = 0,
-    size = 50,
+    query: EntityListQuery,
     signal?: AbortSignal
 ): Promise<UploadTransactionPage> =>
     request<BackendPage<BackendTransaction>>(
-        `/api/uploads/${encodeURIComponent(uploadId)}/transactions?page=${page}&size=${size}`,
+        buildPageUrl(
+            `/api/uploads/${encodeURIComponent(uploadId)}/transactions`,
+            query
+        ) + (query.anomaliesOnly ? "&anomaliesOnly=true" : ""),
         { method: "GET", signal }
     ).then((response) => {
         const page = toEntityListResponse(response);
@@ -99,6 +101,7 @@ interface BackendTransaction {
     evaluatedAt: string | null;
     authorizedAt: string | null;
     createdAt: string | null;
+    estimatedFee: number | string | null;
 }
 
 const toTransaction = (transaction: BackendTransaction) => ({
@@ -115,7 +118,7 @@ const toTransaction = (transaction: BackendTransaction) => ({
     merchantCountry: transaction.merchantCountry,
     status: transaction.transactionStatus ?? "UNKNOWN",
     qualificationStatus: transaction.qualificationStatus ?? "NOT_EVALUATED",
-    estimatedFee: null,
+    estimatedFee: transaction.estimatedFee,
     explanation: transaction.qualificationExplanation,
     authorizedAt: transaction.authorizedAt ?? transaction.createdAt
 });
@@ -137,9 +140,41 @@ export const getUploadStatistics = (
 
 export const downloadUpload = (
     uploadId: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    onResponse?: (response: Response) => void
 ): Promise<Blob> =>
-    request<Blob>(
+    requestBlob(
         `/api/uploads/${encodeURIComponent(uploadId)}/download`,
+        { method: "GET", signal },
+        { onResponse }
+    );
+
+export interface AnomalyDetectionResponse {
+    outlierTransactionIds: string[];
+}
+
+export const getUploadOutlierIds = (
+    uploadId: string,
+    signal?: AbortSignal
+): Promise<string[]> =>
+    request<string[]>(
+        `/api/uploads/${encodeURIComponent(uploadId)}/anomalies`,
         { method: "GET", signal }
+    );
+
+export const detectUploadOutliers = (
+    uploadId: string
+): Promise<AnomalyDetectionResponse> =>
+    request<AnomalyDetectionResponse>(
+        `/api/uploads/${encodeURIComponent(uploadId)}/anomalies/detect`,
+        { method: "POST" }
+    );
+
+export const confirmUploadOutlier = (
+    uploadId: string,
+    transactionId: string
+): Promise<void> =>
+    request<void>(
+        `/api/uploads/${encodeURIComponent(uploadId)}/anomalies/${encodeURIComponent(transactionId)}/confirm`,
+        { method: "POST" }
     );

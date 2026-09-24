@@ -176,12 +176,12 @@ export function AnalysisDashboardPage({ onBack, onEditProfile }: AnalysisDashboa
             <div className="brand-decoration" aria-hidden="true"><span className="orb orb-blue orb-one"></span><span className="orb orb-coral orb-two"></span><span className="orb orb-white orb-three"></span><span className="orb orb-blue orb-four"></span></div>
             <header className="dashboard-header">
                 <div className="welcome"><h1>SchemeGuard AI</h1><p>Welcome, {user?.fullName}</p></div>
-                <div className="dashboard-account-actions"><span className="role-badge">{user?.status} · MERCHANT</span><AccountMenu onEditProfile={onEditProfile} /></div>
+                <div className="dashboard-account-actions"><AccountMenu onEditProfile={onEditProfile} /></div>
             </header>
             <section className="content">
                 <div className="page-heading analysis-heading">
                     <div><p className="eyebrow">ANALYSIS DASHBOARD</p><h2>Descriptive statistics</h2><p>Explore qualification results, fees and transaction distribution.</p></div>
-                    <div className="page-heading-actions"><button type="button" className="secondary-button page-nav-button" onClick={onBack}>Transaction overview</button><button type="button" className="create-rule-button" onClick={exportCsv} disabled={!analytics || hasPendingFilterChanges || isLoading}>Export CSV</button></div>
+                    <div className="page-heading-actions"><button type="button" className="secondary-button page-nav-button" onClick={onBack}>CSV uploads</button><button type="button" className="create-rule-button" onClick={exportCsv} disabled={!analytics?.totalTransactions}>Export CSV</button></div>
                 </div>
                 <section className="analysis-filter-panel" aria-label="Dashboard filters">
                     <div className="analysis-filter-header">

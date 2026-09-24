@@ -8,16 +8,14 @@ import { DashboardPage } from "../features/transactions/pages/DashboardPage";
 import { AnalysisDashboardPage } from "../features/transactions/pages/AnalysisDashboardPage";
 import { ProfilePage } from "../features/auth/pages/ProfilePage";
 import { CardSchemesPage } from "../features/cardSchemes/pages/CardSchemesPage";
-import { RecommendationAssistant } from "../features/transactions/components/RecommendationAssistant";
-import type { Transaction } from "../shared/types/transaction";
 import { UploadsPage } from "../features/uploads/pages/UploadsPage";
 import { LoadingState } from "../shared/components/LoadingState";
 
 function AuthenticatedApp() {
     const { user } = useAuth();
     const [view, setView] = useState<
-        "uploads" | "dashboard" | "analysis-dashboard" | "rules" | "upload" | "details" | "profile" | "card-schemes"
-    >("uploads");
+        "dashboard" | "analysis-dashboard" | "rules" | "upload" | "details" | "upload-details" | "profile" | "card-schemes"
+    >("dashboard");
 
     const [selectedRuleId, setSelectedRuleId] =
         useState<string | null>(null);
@@ -29,9 +27,6 @@ function AuthenticatedApp() {
         useState<string | null>(null);
     const [selectedUploadWasEvaluated, setSelectedUploadWasEvaluated] =
         useState(false);
-    const [assistantTransactions, setAssistantTransactions] = useState<Transaction[]>([]);
-    const [isAssistantOpen, setIsAssistantOpen] = useState(false);
-
     const isAdmin = user?.role?.toUpperCase() === "ADMIN";
 
     useEffect(() => {
@@ -41,112 +36,121 @@ function AuthenticatedApp() {
         }
     }, [isAdmin, view]);
 
-    if (view === "uploads") {
-        return (
-            <UploadsPage
-                onOpenDashboard={() => setView("dashboard")}
-                onOpenAnalysisDashboard={() => setView("analysis-dashboard")}
-                onOpenCardSchemes={() => setView("card-schemes")}
-                onOpenRules={() => setView("rules")}
-                onEditProfile={() => setView("profile")}
-                onOpenUpload={(uploadId, fileName, importStatus, wasEvaluated) => {
-                    setSelectedUploadId(uploadId);
-                    setSelectedUploadFileName(fileName);
-                    setSelectedUploadImportStatus(importStatus);
-                    setSelectedUploadWasEvaluated(wasEvaluated);
-                    setView("dashboard");
-                }}
-                selectedUploadId={selectedUploadId}
-            />
-        );
-    }
+    const navigationItems = [
+        { view: "dashboard" as const, label: "CSV uploads", active: view === "dashboard" || view === "upload-details" },
+        { view: "analysis-dashboard" as const, label: "Analytics", active: view === "analysis-dashboard" },
+        { view: "card-schemes" as const, label: "Card schemes", active: view === "card-schemes" },
+        ...(isAdmin ? [{ view: "rules" as const, label: "Rules", active: view === "rules" || view === "upload" || view === "details" }] : [])
+    ];
 
-    if (view === "upload") {
-        return (
-            <RuleUploadPage
-                onBack={() => setView("rules")}
-                onEditProfile={() => setView("profile")}
-            />
-        );
-    }
+    const renderPage = () => {
+        if (view === "dashboard") {
+            return (
+                <UploadsPage
+                    onEditProfile={() => setView("profile")}
+                    onOpenUpload={(uploadId, fileName, importStatus, wasEvaluated) => {
+                        setSelectedUploadId(uploadId);
+                        setSelectedUploadFileName(fileName);
+                        setSelectedUploadImportStatus(importStatus);
+                        setSelectedUploadWasEvaluated(wasEvaluated);
+                        setView("upload-details");
+                    }}
+                    selectedUploadId={selectedUploadId}
+                />
+            );
+        }
 
-    if (view === "profile") {
-        return <ProfilePage onBack={() => setView("dashboard")} onEditProfile={() => setView("profile")} />;
-    }
+        if (view === "upload") {
+            return (
+                <RuleUploadPage
+                    onBack={() => setView("rules")}
+                    onEditProfile={() => setView("profile")}
+                />
+            );
+        }
 
-    if (view === "analysis-dashboard") {
-        return (
-            <AnalysisDashboardPage
-                onBack={() => setView("dashboard")}
-                onEditProfile={() => setView("profile")}
-            />
-        );
-    }
+        if (view === "profile") {
+            return <ProfilePage onBack={() => setView("dashboard")} onEditProfile={() => setView("profile")} />;
+        }
 
-    if (view === "card-schemes") {
-        return (
-            <CardSchemesPage
-                onBack={() => setView("dashboard")}
-                onEditProfile={() => setView("profile")}
-            />
-        );
-    }
+        if (view === "analysis-dashboard") {
+            return (
+                <AnalysisDashboardPage
+                    onBack={() => setView("dashboard")}
+                    onEditProfile={() => setView("profile")}
+                />
+            );
+        }
 
-    if (view === "details" && selectedRuleId) {
-        return (
-            <RuleDetailsPage
-                ruleId={selectedRuleId}
-                onBack={() => setView("rules")}
-                onDeleted={() => setView("rules")}
-                onEditProfile={() => setView("profile")}
-            />
-        );
-    }
+        if (view === "card-schemes") {
+            return (
+                <CardSchemesPage
+                    onBack={() => setView("dashboard")}
+                    onEditProfile={() => setView("profile")}
+                />
+            );
+        }
 
-    if (view === "rules") {
-        return (
-            <RulesPage
-                onBack={() => setView("dashboard")}
-                onCreateRule={() => setView("upload")}
-                onOpenRule={(id) => {
-                    setSelectedRuleId(id);
-                    setView("details");
-                }}
-                onEditProfile={() => setView("profile")}
-            />
-        );
-    }
+        if (view === "details" && selectedRuleId) {
+            return (
+                <RuleDetailsPage
+                    ruleId={selectedRuleId}
+                    onBack={() => setView("rules")}
+                    onDeleted={() => setView("rules")}
+                    onEditProfile={() => setView("profile")}
+                />
+            );
+        }
+
+        if (view === "rules") {
+            return (
+                <RulesPage
+                    onBack={() => setView("dashboard")}
+                    onCreateRule={() => setView("upload")}
+                    onOpenRule={(id) => {
+                        setSelectedRuleId(id);
+                        setView("details");
+                    }}
+                    onEditProfile={() => setView("profile")}
+                />
+            );
+        }
+
+        if (view === "upload-details") {
+            return (
+                <DashboardPage
+                    onEditProfile={() => setView("profile")}
+                    selectedUploadId={selectedUploadId}
+                    selectedUploadFileName={selectedUploadFileName}
+                    selectedUploadImportStatus={selectedUploadImportStatus}
+                    selectedUploadWasEvaluated={selectedUploadWasEvaluated}
+                    onUploadEvaluated={(wasEvaluated) => setSelectedUploadWasEvaluated(wasEvaluated)}
+                />
+            );
+        }
+
+        return null;
+    };
 
     return (
-        <>
-            <DashboardPage
-                onCreateRule={() => setView("rules")}
-                onOpenCardSchemes={() => setView("card-schemes")}
-                onEditProfile={() => setView("profile")}
-                onOpenAnalysisDashboard={() => setView("analysis-dashboard")}
-                onOpenAssistant={(transactions) => {
-                    setAssistantTransactions(transactions);
-                    setIsAssistantOpen(true);
-                }}
-                selectedUploadId={selectedUploadId}
-                selectedUploadFileName={selectedUploadFileName}
-                selectedUploadImportStatus={selectedUploadImportStatus}
-                selectedUploadWasEvaluated={selectedUploadWasEvaluated}
-                onUploadEvaluated={(wasEvaluated) => setSelectedUploadWasEvaluated(wasEvaluated)}
-                onBackToUploads={() => {
-                    setSelectedUploadId(null);
-                    setSelectedUploadFileName(null);
-                    setSelectedUploadImportStatus(null);
-                    setSelectedUploadWasEvaluated(false);
-                    setView("uploads");
-                }}
-            />
-            <RecommendationAssistant
-                transactions={assistantTransactions}
-                isOpen={isAssistantOpen}
-                onClose={() => setIsAssistantOpen(false)}
-            />
-        </>
+        <div className="authenticated-app">
+            <nav className="app-navbar" aria-label="Main navigation">
+                <div className="app-navbar-links">
+                    {navigationItems.map((item) => (
+                        <button
+                            key={item.view}
+                            type="button"
+                            className="app-navbar-link"
+                            aria-current={item.active ? "page" : undefined}
+                            onClick={() => setView(item.view)}
+                        >
+                            {item.label}
+                        </button>
+                    ))}
+                </div>
+            </nav>
+            {renderPage()}
+        </div>
     );
 }
 

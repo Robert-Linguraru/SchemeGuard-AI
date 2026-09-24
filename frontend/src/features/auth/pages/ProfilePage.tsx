@@ -55,7 +55,7 @@ export function ProfilePage({ onBack, onEditProfile }: ProfilePageProps) {
 
             <section className="content">
                 <button className="page-nav-button" type="button" onClick={onBack}>
-                    Transaction dashboard
+                    CSV uploads
                 </button>
                 <div className="profile-heading">
                     <p className="eyebrow">ACCOUNT SETTINGS</p>
