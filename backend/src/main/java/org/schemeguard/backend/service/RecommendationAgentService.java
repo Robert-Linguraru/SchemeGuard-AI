@@ -5,6 +5,7 @@ import org.schemeguard.backend.entity.QualificationResult;
 import org.schemeguard.backend.entity.Transaction;
 import org.schemeguard.backend.exception.ResourceNotFoundException;
 import org.schemeguard.backend.repository.QualificationResultRepository;
+import org.schemeguard.backend.service.rag.RagDocumentService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
@@ -20,16 +21,19 @@ import java.util.UUID;
 public class RecommendationAgentService {
 
     private final QualificationResultRepository qualificationResultRepository;
+    private final RagDocumentService ragDocumentService;
 
     private final RestClient restClient;
     private final String model;
 
     public RecommendationAgentService(
             QualificationResultRepository qualificationResultRepository,
+            RagDocumentService ragDocumentService,
             @Value("${app.llm.ollama-url}") String ollamaUrl,
             @Value("${app.llm.model}") String model
     ) {
         this.qualificationResultRepository = qualificationResultRepository;
+        this.ragDocumentService = ragDocumentService;
         this.model = model;
 
         HttpClient httpClient = HttpClient.newBuilder()
@@ -52,7 +56,11 @@ public class RecommendationAgentService {
 
         Transaction transaction = result.getTransaction();
         String context = buildContext(transaction, result);
-        String answer = askAgent(context, userMessage);
+        String retrievalQuery = userMessage + "\n"
+                + "Qualification category: " + result.getQualificationCategory() + "\n"
+                + "Failed conditions: " + result.getFailedConditions();
+        String knowledgeContext = buildKnowledgeContext(ragDocumentService.search(retrievalQuery));
+        String answer = askAgent(context, knowledgeContext, userMessage);
 
         return new RecommendationResponse(
                 transaction.getId(),
@@ -62,7 +70,7 @@ public class RecommendationAgentService {
         );
     }
 
-    private String askAgent(String context, String userMessage) {
+    private String askAgent(String context, String knowledgeContext, String userMessage) {
         String systemPrompt = """
                 You are the SchemeGuard AI recommendation assistant.
                 Respond exclusively in English.
@@ -80,11 +88,15 @@ public class RecommendationAgentService {
                 Transaction and qualification context:
                 %s
 
+                Relevant knowledge retrieved from the rules and documentation:
+                %s
+
                 User question:
                 %s
 
-                Provide concrete, actionable recommendations.
-                """.formatted(context, userMessage);
+                Provide concrete, actionable recommendations. Use the retrieved knowledge when relevant,
+                but do not mention the retrieval process or list the underlying conditions unless asked.
+                """.formatted(context, knowledgeContext, userMessage);
 
         OllamaResponse response = restClient.post()
                 .uri("/api/chat")
@@ -107,6 +119,27 @@ public class RecommendationAgentService {
         }
 
         return cleanResponse(response.message().content());
+    }
+
+    private String buildKnowledgeContext(List<RagDocumentService.RagSearchResult> results) {
+        if (results.isEmpty()) {
+            return "No additional rules or documentation were retrieved.";
+        }
+
+        StringBuilder context = new StringBuilder();
+        for (int index = 0; index < results.size(); index++) {
+            RagDocumentService.RagSearchResult result = results.get(index);
+            context.append("[Snippet ")
+                    .append(index + 1)
+                    .append("] ")
+                    .append(result.title())
+                    .append(" (source: ")
+                    .append(result.source())
+                    .append(")\n")
+                    .append(result.content())
+                    .append("\n\n");
+        }
+        return context.toString().trim();
     }
 
     private String buildContext(Transaction transaction, QualificationResult result) {

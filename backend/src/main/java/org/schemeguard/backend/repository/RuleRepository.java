@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -26,6 +27,16 @@ public interface RuleRepository extends CrudRepository<Rule, UUID> {
 
     @EntityGraph(attributePaths = "scheme")
     Optional<Rule> findById(UUID id);
+
+    @EntityGraph(attributePaths = "scheme")
+    @Query("""
+            SELECT r FROM Rule r
+            WHERE r.active = true
+            AND r.effectiveFrom <= CURRENT_DATE
+            AND (r.effectiveTo IS NULL OR r.effectiveTo >= CURRENT_DATE)
+            ORDER BY r.priority ASC, r.createdAt DESC, r.id ASC
+            """)
+    List<Rule> findAllCurrentlyApplicable();
 
     @EntityGraph(attributePaths = "scheme")
     Iterable<Rule> findAll();

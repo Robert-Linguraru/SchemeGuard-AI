@@ -10,11 +10,15 @@ services:
       ML_SERVICE_URL: http://ml:8000
       OLLAMA_URL: http://ollama:11434
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:1.7b}
+<<<<<<< Updated upstream
       CURRENCY_RATES_ENABLED: ${CURRENCY_RATES_ENABLED:-true}
       CURRENCY_RATES_CRON: ${CURRENCY_RATES_CRON:-0 0 18 * * MON-FRI}
       CURRENCY_RATES_ZONE: ${CURRENCY_RATES_ZONE:-Europe/Bucharest}
       CURRENCY_RATES_CURRENCIES: ${CURRENCY_RATES_CURRENCIES:-EUR,RON,USD,GBP,CHF}
       CURRENCY_RATES_REFRESH_ON_STARTUP: ${CURRENCY_RATES_REFRESH_ON_STARTUP:-true}
+=======
+      OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL:-embeddinggemma}
+>>>>>>> Stashed changes
     ports:
       - "8080:8080"
     depends_on:
@@ -60,10 +64,13 @@ services:
     command:
       - >-
         ollama show "$${OLLAMA_MODEL}" >/dev/null 2>&1 ||
-        ollama pull "$${OLLAMA_MODEL}"
+        ollama pull "$${OLLAMA_MODEL}";
+        ollama show "$${OLLAMA_EMBEDDING_MODEL}" >/dev/null 2>&1 ||
+        ollama pull "$${OLLAMA_EMBEDDING_MODEL}"
     environment:
       OLLAMA_HOST: http://ollama:11434
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:1.7b}
+      OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL:-embeddinggemma}
     depends_on:
       ollama:
         condition: service_healthy

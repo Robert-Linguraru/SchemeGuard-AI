@@ -4,6 +4,7 @@ SchemeGuardAI manages card-scheme rules, qualifies imported transactions, and ca
 
 !! You have to run the container that pulls the ollama model before running the entire project
 ```
+
 docker compose up ollama-model
 ```
 
@@ -315,3 +316,30 @@ Unqualified
 }
 
 ```
+
+## RAG knowledge retrieval
+
+The recommendation assistant keeps exact transaction and qualification data in PostgreSQL and optionally enriches the prompt with semantically retrieved rule/documentation snippets.
+
+Before using RAG, run `db/rag_documents.sql` against the application database. The backend uses Ollama's `embeddinggemma` model by default and pulls it through Docker Compose.
+
+After the schema and model are available, an administrator can index the existing interchange rules:
+
+```http
+POST /api/rag/rules/reindex
+```
+
+Additional documentation can be indexed through:
+
+```http
+POST /api/rag/documents
+Content-Type: application/json
+
+{
+  "title": "Card scheme guidance",
+  "source": "docs/card-scheme-guidance.md",
+  "content": "Documentation text to split into chunks and index."
+}
+```
+
+RAG is optional at runtime: if the vector schema or embedding model is unavailable, the assistant falls back to the exact transaction context and continues to answer normally.
