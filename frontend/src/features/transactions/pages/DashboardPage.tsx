@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../../../app/AuthProvider";
 import { AccountMenu } from "../../../shared/components/AccountMenu";
-import { getUploadTransactions } from "../../uploads/api/uploadsApi";
+import { getUploadStatistics, getUploadTransactions } from "../../uploads/api/uploadsApi";
+import type { UploadStatistics } from "../../uploads/types/upload";
 import {
     confirmUploadOutlier,
     detectUploadOutliers,
@@ -54,6 +55,36 @@ export function DashboardPage({
         && !selectedUploadWasEvaluated;
     const canDetectOutliers = selectedUploadImportStatus === "COMPLETED"
         && selectedUploadWasEvaluated;
+
+    useEffect(() => {
+        const controller = new AbortController();
+        setUploadStatistics(null);
+        setStatisticsError(null);
+        setIsLoadingStatistics(Boolean(selectedUploadId));
+
+        if (selectedUploadId) {
+            void getUploadStatistics(selectedUploadId, controller.signal)
+                .then((statistics) => {
+                    if (!controller.signal.aborted) {
+                        setUploadStatistics(statistics);
+                    }
+                })
+                .catch((error: unknown) => {
+                    if (!controller.signal.aborted) {
+                        setStatisticsError(error instanceof Error
+                            ? error.message
+                            : "Could not load upload statistics.");
+                    }
+                })
+                .finally(() => {
+                    if (!controller.signal.aborted) {
+                        setIsLoadingStatistics(false);
+                    }
+                });
+        }
+
+        return () => controller.abort();
+    }, [selectedUploadId, transactionReloadKey]);
 
     useEffect(() => {
         let cancelled = false;
@@ -289,10 +320,16 @@ export function DashboardPage({
                     </div>
                 </div>
 
-                {selectedUploadId && (
+                {selectedUploadId && isLoadingStatistics && (
+                    <p role="status">Loading upload statistics...</p>
+                )}
+                {selectedUploadId && statisticsError && (
+                    <div className="error-box" role="alert">{statisticsError}</div>
+                )}
+                {selectedUploadId && uploadStatistics && (
                     <TransactionStats
                         transactions={transactions}
-                        totalTransactions={totalTransactions}
+                        totalTransactions={uploadStatistics.totalTransactions}
                     />
                 )}
 
