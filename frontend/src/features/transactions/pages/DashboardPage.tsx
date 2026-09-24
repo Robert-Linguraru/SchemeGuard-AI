@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "../../../app/AuthProvider";
 import { AccountMenu } from "../../../shared/components/AccountMenu";
 import { isAbortError } from "../../../shared/api/httpClient";
@@ -14,6 +14,7 @@ import {
     getTransactionExplanation,
     type TransactionExplanation
 } from "../api/transactionExplanationApi";
+import { TransactionDetails } from "../components/TransactionDetails";
 import { TransactionStats } from "../components/TransactionStats";
 import CsvTransactionUploadModal from "../../csvUpload/components/csvUploadModal";
 import { EntityList } from "../../../shared/components/EntityList/EntityList";
@@ -25,6 +26,7 @@ import type {
 
 interface DashboardPageProps {
     onCreateRule: () => void;
+    onOpenRule: (ruleId: string) => void;
     onOpenCardSchemes: () => void;
     onEditProfile: () => void;
     onOpenAnalysisDashboard: () => void;
@@ -40,6 +42,7 @@ interface DashboardPageProps {
 
 export function DashboardPage({
     onCreateRule,
+    onOpenRule,
     onEditProfile,
     onOpenCardSchemes,
     onOpenAnalysisDashboard,
@@ -64,6 +67,12 @@ export function DashboardPage({
     const [evaluationError, setEvaluationError] = useState<string | null>(null);
     const [transactionReloadKey, setTransactionReloadKey] = useState(0);
     const [statisticsReloadKey, setStatisticsReloadKey] = useState(0);
+    const [expandedTransactionId, setExpandedTransactionId] = useState<string | null>(null);
+    const [transactionDetails, setTransactionDetails] = useState<Record<string, TransactionExplanation>>({});
+    const [detailErrors, setDetailErrors] = useState<Record<string, string>>({});
+    const [loadingDetailId, setLoadingDetailId] = useState<string | null>(null);
+    const detailCache = useRef(new Map<string, TransactionExplanation>());
+    const detailRequest = useRef<AbortController | null>(null);
 
     const canEvaluate = selectedUploadImportStatus === "COMPLETED"
         && !selectedUploadWasEvaluated;
@@ -92,6 +101,98 @@ export function DashboardPage({
             setIsEvaluating(false);
         }
     };
+
+    useEffect(() => {
+        detailRequest.current?.abort();
+        detailRequest.current = null;
+        detailCache.current.clear();
+        setExpandedTransactionId(null);
+        setTransactionDetails({});
+        setDetailErrors({});
+        setLoadingDetailId(null);
+    }, [selectedUploadId]);
+
+    useEffect(() => () => {
+        detailRequest.current?.abort();
+    }, []);
+
+    const loadTransactionDetails = useCallback(async (transaction: Transaction) => {
+        if (!selectedUploadId) {
+            return;
+        }
+
+        if (detailCache.current.has(transaction.id)) {
+            setExpandedTransactionId(transaction.id);
+            return;
+        }
+
+        const qualificationStatus = transaction.qualificationStatus?.toUpperCase();
+        const isUnevaluated = transaction.status.toUpperCase() === "NEW"
+            || qualificationStatus === "NOT_EVALUATED"
+            || qualificationStatus === "PENDING"
+            || qualificationStatus === "UNKNOWN";
+
+        if (isUnevaluated) {
+            setExpandedTransactionId(transaction.id);
+            setLoadingDetailId(null);
+            return;
+        }
+
+        detailRequest.current?.abort();
+        const controller = new AbortController();
+        detailRequest.current = controller;
+        setExpandedTransactionId(transaction.id);
+        setLoadingDetailId(transaction.id);
+        setDetailErrors((current) => {
+            const next = { ...current };
+            delete next[transaction.id];
+            return next;
+        });
+
+        try {
+            const details = await getTransactionExplanation(transaction.id, selectedUploadId, controller.signal);
+            if (controller.signal.aborted) {
+                return;
+            }
+            detailCache.current.set(transaction.id, details);
+            setTransactionDetails((current) => ({ ...current, [transaction.id]: details }));
+        } catch (requestError: unknown) {
+            if (controller.signal.aborted || isAbortError(requestError)) {
+                return;
+            }
+            setDetailErrors((current) => ({
+                ...current,
+                [transaction.id]: requestError instanceof Error
+                    ? requestError.message
+                    : "Could not load qualification details."
+            }));
+        } finally {
+            if (!controller.signal.aborted) {
+                setLoadingDetailId(null);
+            }
+        }
+    }, [selectedUploadId]);
+
+    const toggleTransactionDetails = (transaction: Transaction) => {
+        if (expandedTransactionId === transaction.id) {
+            setExpandedTransactionId(null);
+            return;
+        }
+        void loadTransactionDetails(transaction);
+    };
+
+    const handleTransactionResponse = useCallback(
+        (response: EntityListResponse<Transaction>) => {
+            detailRequest.current?.abort();
+            detailCache.current.clear();
+            setExpandedTransactionId(null);
+            setTransactionDetails({});
+            setDetailErrors({});
+            setLoadingDetailId(null);
+            setTransactions(response.items);
+        },
+        []
+    );
 
     useEffect(() => {
         if (!selectedUploadId) {
@@ -149,13 +250,6 @@ export function DashboardPage({
             );
         },
         [selectedUploadId]
-    );
-
-    const handleTransactionResponse = useCallback(
-        (response: EntityListResponse<Transaction>) => {
-            setTransactions(response.items);
-        },
-        []
     );
 
     const transactionColumns: EntityListColumn<Transaction>[] = [
@@ -299,6 +393,34 @@ export function DashboardPage({
                             columns={transactionColumns}
                             fetchData={fetchTransactions}
                             onResponse={handleTransactionResponse}
+                            expandedItemId={expandedTransactionId}
+                            onToggleExpanded={toggleTransactionDetails}
+                            renderExpanded={(transaction) => {
+                                const qualificationStatus = transaction.qualificationStatus?.toUpperCase();
+                                const isUnevaluated = transaction.status.toUpperCase() === "NEW"
+                                    || qualificationStatus === "NOT_EVALUATED"
+                                    || qualificationStatus === "PENDING"
+                                    || qualificationStatus === "UNKNOWN";
+                                if (isUnevaluated) {
+                                    return <TransactionDetails unevaluated />;
+                                }
+                                if (loadingDetailId === transaction.id) {
+                                    return <LoadingState message="Loading qualification details..." />;
+                                }
+                                if (detailErrors[transaction.id]) {
+                                    return <div className="error-box" role="alert">{detailErrors[transaction.id]}</div>;
+                                }
+                                const details = transactionDetails[transaction.id];
+                                return details ? (
+                                    <TransactionDetails
+                                        details={details}
+                                        currency={transaction.currencyCode}
+                                        onViewRule={onOpenRule}
+                                    />
+                                ) : (
+                                    <LoadingState message="Loading qualification details..." />
+                                );
+                            }}
                             reloadKey={transactionReloadKey}
                             initialQuery={{ size: 50, sort: "createdAt,desc" }}
                             emptyMessage="No transactions available in this CSV upload."

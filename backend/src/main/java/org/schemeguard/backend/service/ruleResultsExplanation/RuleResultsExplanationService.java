@@ -4,8 +4,15 @@ import lombok.RequiredArgsConstructor;
 import org.schemeguard.backend.dto.Explanation.ConditionExplanationDto;
 import org.schemeguard.backend.dto.Explanation.RuleResultsExplanationResponse;
 import org.schemeguard.backend.entity.QualificationResult;
+import org.schemeguard.backend.entity.FeeCalculation;
+import org.schemeguard.backend.entity.User;
 import org.schemeguard.backend.exception.ResourceNotFoundException;
+import org.schemeguard.backend.exception.UploadException;
+import org.schemeguard.backend.repository.FeeCalculationRepository;
 import org.schemeguard.backend.repository.QualificationResultRepository;
+import org.schemeguard.backend.repository.TransactionRepository;
+import org.schemeguard.backend.repository.UploadRepository;
+import org.springframework.http.HttpStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,15 +28,38 @@ public class RuleResultsExplanationService {
 
     private final QualificationResultRepository qualificationResultRepository;
     private final ConditionExplanationService conditionExplanationService;
+    private final UploadRepository uploadRepository;
+    private final TransactionRepository transactionRepository;
+    private final FeeCalculationRepository feeCalculationRepository;
 
     @Transactional(readOnly = true)
-    public RuleResultsExplanationResponse explain(UUID transactionId) {
+    public RuleResultsExplanationResponse explain(UUID transactionId, UUID uploadId, User user) {
+        if (!uploadRepository.existsByIdAndUser_Id(uploadId, user.getId())) {
+            throw new UploadException(
+                    HttpStatus.NOT_FOUND,
+                    "UPLOAD_NOT_FOUND",
+                    "Upload not found."
+            );
+        }
+
+        if (!transactionRepository.existsByIdAndUpload_Id(transactionId, uploadId)) {
+            throw new UploadException(
+                    HttpStatus.NOT_FOUND,
+                    "TRANSACTION_NOT_FOUND",
+                    "Transaction not found in this upload."
+            );
+        }
+
         QualificationResult result = qualificationResultRepository
                 .findFirstByTransactionIdOrderByEvaluatedAtDescIdDesc(transactionId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "No qualification results found for transaction "
                                 + transactionId
                 ));
+
+                    FeeCalculation fee = feeCalculationRepository
+                        .findByQualificationResultId(result.getId())
+                        .orElse(null);
 
         List<ConditionExplanationDto> passedConditions =
                 explainConditions(result.getPassedConditions(), true);
@@ -38,14 +68,25 @@ public class RuleResultsExplanationService {
                 explainConditions(result.getFailedConditions(), false);
 
         return new RuleResultsExplanationResponse(
+            transactionId,
                 result.getQualificationStatus(),
                 result.getQualificationCategory(),
                 result.getRule() == null ? null : result.getRule().getId(),
+            result.getRuleVersion(),
+            result.getRule() == null ? null : result.getRule().getRuleCode(),
+            result.getRule() == null ? null : result.getRule().getRuleName(),
                 result.getEvaluatedAt(),
                 result.getExplanation(),
                 buildSummary(result),
                 passedConditions,
-                failedConditions
+            failedConditions,
+            fee == null ? null : fee.getInterchangeRate(),
+            fee == null ? null : fee.getInterchangeFee(),
+            fee == null ? null : fee.getSchemeFee(),
+            fee == null ? null : fee.getAcquirerFee(),
+            fee == null ? null : fee.getTotalFee(),
+            fee == null ? null : fee.getOptimizedFee(),
+            fee == null ? null : fee.getPotentialSaving()
         );
     }
 

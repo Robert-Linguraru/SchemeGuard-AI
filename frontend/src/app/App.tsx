@@ -121,6 +121,10 @@ function AuthenticatedApp() {
         <>
             <DashboardPage
                 onCreateRule={() => setView("rules")}
+                onOpenRule={(ruleId) => {
+                    setSelectedRuleId(ruleId);
+                    setView("details");
+                }}
                 onOpenCardSchemes={() => setView("card-schemes")}
                 onEditProfile={() => setView("profile")}
                 onOpenAnalysisDashboard={() => setView("analysis-dashboard")}

@@ -3,12 +3,14 @@ package org.schemeguard.backend.controller;
 
 import jakarta.validation.Valid;
 import org.schemeguard.backend.dto.Explanation.RuleResultsExplanationResponse;
+import org.schemeguard.backend.entity.User;
 import org.schemeguard.backend.service.ruleResultsExplanation.RuleResultsExplanationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
 import java.util.UUID;
 
@@ -25,8 +27,10 @@ public class RuleResultsExplanationController {
 
     @GetMapping("/explanation")
     public RuleResultsExplanationResponse getResultsExplanation(
-            @Valid @RequestParam UUID transactionId
+            @Valid @RequestParam UUID transactionId,
+            @Valid @RequestParam UUID uploadId,
+            @AuthenticationPrincipal User user
     ) {
-        return ruleResultsExplanationService.explain(transactionId);
+        return ruleResultsExplanationService.explain(transactionId, uploadId, user);
     }
 }

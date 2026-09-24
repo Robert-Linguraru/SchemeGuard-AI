@@ -38,6 +38,8 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
 
     List<Transaction> findAllByUpload_IdAndExternalId(UUID uploadId, String externalId);
 
+        boolean existsByIdAndUpload_Id(UUID transactionId, UUID uploadId);
+
         long countByUpload_IdAndStatus(UUID uploadId, TransactionStatus status);
 
     @Query("select t from Transaction t join fetch t.merchant join fetch t.scheme")
