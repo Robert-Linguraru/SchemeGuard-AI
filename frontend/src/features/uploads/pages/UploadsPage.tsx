@@ -9,9 +9,6 @@ import { EntityList } from "../../../shared/components/EntityList/EntityList";
 import type { EntityListColumn, EntityListQuery } from "../../../shared/types/list";
 
 interface UploadsPageProps {
-    onOpenAnalysisDashboard: () => void;
-    onOpenCardSchemes: () => void;
-    onOpenRules: () => void;
     onEditProfile: () => void;
     onOpenUpload: (
         uploadId: string,
@@ -133,9 +130,6 @@ const createColumns = (
 ];
 
 export function UploadsPage({
-    onOpenAnalysisDashboard,
-    onOpenCardSchemes,
-    onOpenRules,
     onEditProfile,
     onOpenUpload,
     selectedUploadId
@@ -146,7 +140,6 @@ export function UploadsPage({
     const [evaluationError, setEvaluationError] = useState<string | null>(null);
     const [downloadingUploadId, setDownloadingUploadId] = useState<string | null>(null);
     const [downloadError, setDownloadError] = useState<string | null>(null);
-    const isAdmin = user?.role?.toUpperCase() === "ADMIN";
     const columns = createColumns(
         onOpenUpload,
         evaluatingUploadId,
@@ -235,20 +228,9 @@ export function UploadsPage({
                     </div>
 
                     <div className="page-heading-actions">
-                        <button type="button" className="dashboard-button" onClick={onOpenAnalysisDashboard}>
-                            Analytics
-                        </button>
-                        <button type="button" className="dashboard-button" onClick={onOpenCardSchemes}>
-                            Card schemes
-                        </button>
                         <CsvTransactionUploadModal
                             onCompleted={() => setReloadKey((currentKey) => currentKey + 1)}
                         />
-                        {isAdmin && (
-                            <button type="button" className="create-rule-button" onClick={onOpenRules}>
-                                View Rules
-                            </button>
-                        )}
                     </div>
                 </div>
 

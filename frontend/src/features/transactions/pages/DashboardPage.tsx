@@ -18,32 +18,23 @@ import type {
 } from "../../../shared/types/list";
 
 interface DashboardPageProps {
-    onCreateRule: () => void;
-    onOpenCardSchemes: () => void;
     onEditProfile: () => void;
-    onOpenAnalysisDashboard: () => void;
     selectedUploadId?: string | null;
     selectedUploadFileName?: string | null;
     selectedUploadImportStatus?: string | null;
     selectedUploadWasEvaluated?: boolean;
     onUploadEvaluated: (wasEvaluated: boolean) => void;
-    onBackToUploads: () => void;
 }
 
 export function DashboardPage({
-    onCreateRule,
     onEditProfile,
-    onOpenCardSchemes,
-    onOpenAnalysisDashboard,
     selectedUploadId,
     selectedUploadFileName,
     selectedUploadImportStatus,
     selectedUploadWasEvaluated = false,
-    onUploadEvaluated,
-    onBackToUploads
+    onUploadEvaluated
 }: DashboardPageProps) {
     const { user } = useAuth();
-    const isAdmin = user?.role?.toUpperCase() === "ADMIN";
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [uploadStatistics, setUploadStatistics] = useState<UploadStatistics | null>(null);
     const [isLoadingStatistics, setIsLoadingStatistics] = useState(false);
@@ -273,14 +264,6 @@ export function DashboardPage({
                     </div>
 
                     <div className="page-heading-actions">
-                        <button
-                            type="button"
-                            className="dashboard-button"
-                            onClick={onOpenAnalysisDashboard}
-                        >
-                            Analytics
-                        </button>
-
                         {selectedUploadId && canEvaluate && (
                             <button
                                 type="button"
@@ -292,40 +275,17 @@ export function DashboardPage({
                             </button>
                         )}
 
-                        <button
-                            type="button"
-                            className="dashboard-button"
-                            onClick={() => void runOutlierDetection()}
-                            disabled={!selectedUploadId || !canDetectOutliers || isDetectingOutliers}
-                            title={!canDetectOutliers ? "Evaluate this upload before detecting outliers." : undefined}
-                        >
-                            {isDetectingOutliers ? "Detecting..." : "Detect outliers"}
-                        </button>
-
-                        <button
-                            type="button"
-                            className="dashboard-button"
-                            onClick={onOpenCardSchemes}
-                        >
-                            Card schemes
-                        </button>
-
-                        <button
-                            type="button"
-                            className="dashboard-button"
-                            onClick={onBackToUploads}
-                        >
-                            CSV uploads
-                        </button>
-
-                        {isAdmin && (
+                        {selectedUploadId && canDetectOutliers && (
                             <button
-                                className="create-rule-button"
-                                onClick={onCreateRule}
+                                type="button"
+                                className="dashboard-button"
+                                onClick={() => void runOutlierDetection()}
+                                disabled={isDetectingOutliers}
                             >
-                                View Rules
+                                {isDetectingOutliers ? "Detecting..." : "Detect outliers"}
                             </button>
                         )}
+
                     </div>
                 </div>
 
