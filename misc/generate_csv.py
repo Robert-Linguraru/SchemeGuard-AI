@@ -58,6 +58,15 @@ MCC_BY_CATEGORY = {
 COUNTRIES = ["RO", "FR", "DE", "GB", "IT", "ES", "PT", "US", "NL", "BE"]
 CURRENCIES = ["EUR", "USD", "GBP"]
 
+# The generator deliberately keeps the fields used for clustering stable for
+# most rows.  This gives the detector a useful peer group instead of producing
+# one almost-unique combination per transaction.
+# Keep the baseline deterministic: otherwise naturally incomplete rows would
+# be indistinguishable from the deliberately injected anomaly candidates.
+NORMAL_MERCHANT_DATA_PROBABILITY = 1.0
+NORMAL_CLEARING_DELAY_DAYS = (1, 2)
+ANOMALY_CLEARING_DELAY_DAYS = 5
+
 def amount_for_currency(currency: str) -> str:
     limits = {"EUR": (5, 800), "USD": (5, 1000), "GBP": (5, 700)}
     low, high = limits[currency]
@@ -74,16 +83,32 @@ def guess_mcc(merchant_name: str) -> int:
             return mcc
     return MCC_BY_CATEGORY["general"]
 
-def generate_transaction(transaction_number: int, start: datetime) -> dict:
+def generate_transaction(
+    transaction_number: int,
+    start: datetime,
+    anomaly: bool = False,
+) -> dict:
     merchant_id = random.choice(list(MERCHANTS))
     merchant = MERCHANTS[merchant_id]
-    channel = random.choices(["ecommerce", "pos"], weights=[35, 65])[0]
+    if anomaly:
+        # Keep the clustering attributes unchanged, but move the merchant to a
+        # different processing region. Combined with incomplete data and late
+        # clearing below, this makes the rule engine choose a different/fallback
+        # rate while leaving a meaningful peer group for the ML service.
+        merchant_id = "fb59177f-7334-3f2d-95fd-6af635c02d53"
+        merchant = MERCHANTS[merchant_id]
+    channel = random.choices(["ecommerce", "pos"], weights=[30, 70])[0]
     network = random.choice(["VISA", "MASTERCARD"])
     card_type = random.choice(["debit", "credit", "consumer_credit"])
     currency = random.choice(CURRENCIES)
     auth_time = start + timedelta(minutes=random.randint(0, 60 * 24 * 30))
-    clearing_time = auth_time + timedelta(hours = random.randint(12, 96))
+    normal_delay = random.choice(NORMAL_CLEARING_DELAY_DAYS)
+    clearing_delay = ANOMALY_CLEARING_DELAY_DAYS if anomaly else normal_delay
+    clearing_time = auth_time + timedelta(days=clearing_delay)
     card_not_present = channel == "ecommerce"
+    merchant_data_complete = (
+        False if anomaly else random.random() < NORMAL_MERCHANT_DATA_PROBABILITY
+    )
 
     return {
         "transaction_id": f"TX-{200000 + transaction_number:06d}",
@@ -105,30 +130,50 @@ def generate_transaction(transaction_number: int, start: datetime) -> dict:
         "clearing_timestamp": timestamp(clearing_time),
         "authorization_code": f"{random.choice('ABCDEFGH')}{random.randint(10000, 999999)}",
         "settlement_status": random.choice(["settled", "pending"]),
-        "merchant_data_complete": "TRUE" if random.random() < 0.01 else "FALSE",
+        # An anomaly is represented by a transaction that otherwise belongs to
+        # a normal peer group but fails two common qualification controls:
+        # incomplete merchant data and late clearing.  The CSV schema does not
+        # contain an interchange-rate column; the backend calculates the rate
+        # from these attributes, so this is the realistic way to create a
+        # rate outlier for an end-to-end test.
+        "merchant_data_complete": "TRUE" if merchant_data_complete else "FALSE",
         "recurring": "TRUE" if random.random() < 0.08 else "FALSE",
         "refund": "TRUE" if random.random() < 0.03 else "FALSE",
     }
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="")
-    parser.add_argument("--rows", type=int, default=100, help="nr randuri")
-    parser.add_argument("--output", default="transactions.csv", help="nume fis")
+    parser.add_argument("--rows", type=int, default=1000, help="number of rows")
+    parser.add_argument("--output", default="transactions_1000.csv", help="output CSV")
     parser.add_argument("--seed", type=int, default=None, help="seed")
+    parser.add_argument(
+        "--anomaly-rate",
+        type=float,
+        default=0.02,
+        help="fraction of rows to make deliberate rate-anomaly candidates (default: 0.02)",
+    )
 
     args = parser.parse_args()
 
     if args.seed is not None:
         random.seed(args.seed)
+    if args.rows < 1:
+        parser.error("--rows must be at least 1")
+    if not 0 <= args.anomaly_rate <= 1:
+        parser.error("--anomaly-rate must be between 0 and 1")
 
     start = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    anomaly_count = round(args.rows * args.anomaly_rate)
+    anomaly_rows = set(random.sample(range(1, args.rows + 1), anomaly_count))
     with open(args.output, "w", newline="", encoding="utf-8") as csv_file:
         writer = csv.DictWriter(csv_file, fieldnames=FIELDNAMES)
         writer.writeheader()
         for number in range(1, args.rows + 1):
-            writer.writerow(generate_transaction(number, start))
+            writer.writerow(
+                generate_transaction(number, start, anomaly=number in anomaly_rows)
+            )
 
-    print("gata")
+    print(f"Generated {args.rows} transactions, including {anomaly_count} anomaly candidates.")
 
 if __name__ == "__main__":
     main()
