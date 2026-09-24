@@ -45,7 +45,9 @@ export function DashboardPage({
     const { user } = useAuth();
     const isAdmin = user?.role?.toUpperCase() === "ADMIN";
     const [transactions, setTransactions] = useState<Transaction[]>([]);
-    const [totalTransactions, setTotalTransactions] = useState(0);
+    const [uploadStatistics, setUploadStatistics] = useState<UploadStatistics | null>(null);
+    const [isLoadingStatistics, setIsLoadingStatistics] = useState(false);
+    const [statisticsError, setStatisticsError] = useState<string | null>(null);
 
     const [isEvaluating, setIsEvaluating] = useState(false);
     const [evaluationMessage, setEvaluationMessage] = useState<string | null>(null);
@@ -169,7 +171,6 @@ export function DashboardPage({
     const handleTransactionResponse = useCallback(
         (response: EntityListResponse<Transaction>) => {
             setTransactions(response.items);
-            setTotalTransactions(response.totalElements);
         },
         []
     );

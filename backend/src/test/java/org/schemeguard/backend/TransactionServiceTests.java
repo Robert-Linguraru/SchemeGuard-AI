@@ -3,6 +3,7 @@ package org.schemeguard.backend;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.schemeguard.backend.entity.CardScheme;
+import org.schemeguard.backend.entity.FeeCalculation;
 import org.schemeguard.backend.entity.Merchant;
 import org.schemeguard.backend.entity.QualificationResult;
 import org.schemeguard.backend.entity.Transaction;
@@ -15,6 +16,7 @@ import org.schemeguard.backend.dto.TransactionPageResponse;
 import org.schemeguard.backend.dto.TransactionResponse;
 import org.schemeguard.backend.dto.TransactionStatisticsResponse;
 import org.schemeguard.backend.repository.QualificationResultRepository;
+import org.schemeguard.backend.repository.FeeCalculationRepository;
 import org.schemeguard.backend.repository.TransactionRepository;
 import org.schemeguard.backend.repository.UploadRepository;
 import org.schemeguard.backend.service.TransactionService;
@@ -41,6 +43,7 @@ class TransactionServiceTests {
 
     private final TransactionRepository transactionRepository = mock(TransactionRepository.class);
     private final QualificationResultRepository qualificationResultRepository = mock(QualificationResultRepository.class);
+        private final FeeCalculationRepository feeCalculationRepository = mock(FeeCalculationRepository.class);
         private final UploadRepository uploadRepository = mock(UploadRepository.class);
     private TransactionService transactionService;
 
@@ -49,10 +52,13 @@ class TransactionServiceTests {
         transactionService = new TransactionService(
                 transactionRepository,
                 qualificationResultRepository,
+                feeCalculationRepository,
                 uploadRepository
         );
         when(qualificationResultRepository.findForTransactions(any()))
                 .thenReturn(List.of());
+        when(feeCalculationRepository.findByQualificationResultId(any()))
+                .thenReturn(Optional.empty());
     }
 
     @Test
@@ -204,10 +210,14 @@ class TransactionServiceTests {
         result.setQualificationCategory("EU_POS");
         result.setExplanation("All conditions passed.");
         result.setEvaluatedAt(Instant.parse("2026-09-15T10:00:00Z"));
+        FeeCalculation fee = new FeeCalculation();
+        fee.setTotalFee(new BigDecimal("0.42"));
         when(transactionRepository.findAllByOrderByCreatedAtDescIdDesc(any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(transaction)));
         when(qualificationResultRepository.findForTransactions(any()))
                 .thenReturn(List.of(result));
+        when(feeCalculationRepository.findByQualificationResultId(result.getId()))
+                .thenReturn(Optional.of(fee));
 
         TransactionResponse response = transactionService.findTransactions(0, 50)
                 .content().getFirst();
@@ -216,6 +226,7 @@ class TransactionServiceTests {
         assertEquals("EU_POS", response.qualificationCategory());
         assertEquals("All conditions passed.", response.qualificationExplanation());
         assertEquals(result.getEvaluatedAt(), response.evaluatedAt());
+                assertEquals(new BigDecimal("0.42"), response.estimatedFee());
     }
 
     @Test

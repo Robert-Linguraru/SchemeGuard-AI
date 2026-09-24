@@ -101,6 +101,7 @@ interface BackendTransaction {
     evaluatedAt: string | null;
     authorizedAt: string | null;
     createdAt: string | null;
+    estimatedFee: number | string | null;
 }
 
 const toTransaction = (transaction: BackendTransaction) => ({
@@ -117,7 +118,7 @@ const toTransaction = (transaction: BackendTransaction) => ({
     merchantCountry: transaction.merchantCountry,
     status: transaction.transactionStatus ?? "UNKNOWN",
     qualificationStatus: transaction.qualificationStatus ?? "NOT_EVALUATED",
-    estimatedFee: null,
+    estimatedFee: transaction.estimatedFee,
     explanation: transaction.qualificationExplanation,
     authorizedAt: transaction.authorizedAt ?? transaction.createdAt
 });
