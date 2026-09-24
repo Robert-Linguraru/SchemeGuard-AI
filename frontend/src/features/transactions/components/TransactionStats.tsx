@@ -1,46 +1,15 @@
-import { useEffect, useState } from "react";
-import type { Transaction } from "../../../shared/types/transaction";
-import { convertFeeToEur } from "../api/currencyApi";
-import { sumPageFeesInEur } from "../utils/pageFees";
+import type { UploadStatistics } from "../../uploads/types/upload";
 
 interface TransactionStatsProps {
-    transactions: Transaction[];
-    totalTransactions: number;
+    statistics: UploadStatistics;
 }
 
-export function TransactionStats({ transactions, totalTransactions }: TransactionStatsProps) {
-    const [feeResult, setFeeResult] = useState<{
-        transactions: Transaction[];
-        total?: number;
-        error?: string;
-    } | null>(null);
-
-    useEffect(() => {
-        const controller = new AbortController();
-        void sumPageFeesInEur(transactions, convertFeeToEur, controller.signal)
-            .then((total) => {
-                if (!controller.signal.aborted) setFeeResult({ transactions, total });
-            })
-            .catch((error: unknown) => {
-                if (!controller.signal.aborted) {
-                    setFeeResult({ transactions, error: error instanceof Error
-                        ? error.message : "Currency conversion failed." });
-                    controller.abort();
-                }
-            });
-        return () => controller.abort();
-    }, [transactions]);
-
-    const currentFees = feeResult?.transactions === transactions ? feeResult : null;
-    const processed = transactions.filter((transaction) => transaction.status === "PROCESSED").length;
-    const qualified = transactions.filter((transaction) => transaction.qualificationStatus === "QUALIFIED").length;
+export function TransactionStats({ statistics }: TransactionStatsProps) {
     const stats = [
-        ["Total transactions", totalTransactions, "Complete CSV total"],
-        ["Processed", processed, "On this page"],
-        ["Qualified", qualified, "On this page"],
-        ["Estimated fees", currentFees?.error ? "Unavailable"
-            : currentFees?.total !== undefined ? `${currentFees.total.toFixed(2)} EUR` : "Converting...",
-            currentFees?.error ? `Could not convert fees to EUR: ${currentFees.error}` : "On this page · Converted to EUR"]
+        ["Total transactions", statistics.totalTransactions, "Complete CSV total"],
+        ["Processed", statistics.processedTransactions, "Complete CSV total"],
+        ["Qualified", statistics.qualifiedTransactions, "Complete CSV total"],
+        ["Estimated fees", `${statistics.totalFees.toFixed(2)} EUR`, "Complete CSV total - Converted to EUR"]
     ];
 
     return (
