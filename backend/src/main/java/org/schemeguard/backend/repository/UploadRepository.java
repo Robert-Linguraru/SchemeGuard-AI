@@ -10,6 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
+import java.util.List;
 import java.util.UUID;
 
 public interface UploadRepository extends JpaRepository<Upload, UUID> {
@@ -74,21 +75,36 @@ public interface UploadRepository extends JpaRepository<Upload, UUID> {
                                  COUNT(*) FILTER (WHERE lr.qualification_status = 'QUALIFIED') AS "qualifiedTransactions",
                                  COUNT(*) FILTER (WHERE lr.qualification_status = 'PARTIALLY_QUALIFIED') AS "partiallyQualifiedTransactions",
                                  COUNT(*) FILTER (WHERE lr.qualification_status = 'NOT_QUALIFIED') AS "notQualifiedTransactions",
-                                 COALESCE(SUM(tx.amount), 0) AS "totalAmount",
-                                 COALESCE(SUM(fc.total_fee), 0) AS "totalFees"
+                                 COALESCE(SUM(tx.amount), 0) AS "totalAmount"
                         FROM uploads u
                         LEFT JOIN transactions tx ON tx.upload_id = u.id
                         LEFT JOIN latest_results lr ON lr.transaction_id = tx.id
-                        LEFT JOIN fee_calculations fc
-                                ON fc.qualification_result_id = lr.result_id
-                             AND fc.active = TRUE
                         WHERE u.id = :uploadId
                             AND u.user_id = :userId
+                        GROUP BY u.id
                         """, nativeQuery = true)
         Optional<UploadStatisticsProjection> findStatisticsByIdAndUserId(
                         @Param("uploadId") UUID uploadId,
                         @Param("userId") UUID userId
         );
+
+    @Query(value = """
+            WITH latest_results AS (
+                SELECT DISTINCT ON (qr.transaction_id) qr.transaction_id, qr.id
+                FROM qualification_results qr
+                JOIN transactions t ON t.id = qr.transaction_id
+                JOIN uploads u ON u.id = t.upload_id
+                WHERE u.id = :uploadId AND u.user_id = :userId AND qr.active = TRUE
+                ORDER BY qr.transaction_id, qr.evaluated_at DESC, qr.id DESC
+            )
+            SELECT t.currency_code AS currency, fc.total_fee AS fee, COUNT(*) AS "transactionCount"
+            FROM latest_results qr
+            JOIN transactions t ON t.id = qr.transaction_id
+            JOIN fee_calculations fc ON fc.qualification_result_id = qr.id AND fc.active = TRUE
+            GROUP BY t.currency_code, fc.total_fee
+            """, nativeQuery = true)
+    List<UploadFeeProjection> findFeeGroupsByIdAndUserId(
+            @Param("uploadId") UUID uploadId, @Param("userId") UUID userId);
 
     boolean existsByIdAndUser_Id(UUID uploadId, UUID userId);
 
