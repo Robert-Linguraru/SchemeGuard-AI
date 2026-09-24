@@ -14,8 +14,7 @@ import { EntityList } from "../../../shared/components/EntityList/EntityList";
 import type { Transaction } from "../../../shared/types/transaction";
 import type {
     EntityListColumn,
-    EntityListQuery,
-    EntityListResponse
+    EntityListQuery
 } from "../../../shared/types/list";
 
 interface DashboardPageProps {
@@ -40,8 +39,9 @@ export function DashboardPage({
     onUploadEvaluated
 }: DashboardPageProps) {
     const { user } = useAuth();
-    const [transactions, setTransactions] = useState<Transaction[]>([]);
-    const [totalTransactions, setTotalTransactions] = useState(0);
+    const [uploadStatistics, setUploadStatistics] = useState<UploadStatistics | null>(null);
+    const [isLoadingStatistics, setIsLoadingStatistics] = useState(false);
+    const [statisticsError, setStatisticsError] = useState<string | null>(null);
     const [isEvaluating, setIsEvaluating] = useState(false);
     const [evaluationMessage, setEvaluationMessage] = useState<string | null>(null);
     const [evaluationError, setEvaluationError] = useState<string | null>(null);
@@ -207,14 +207,6 @@ export function DashboardPage({
         [selectedUploadId]
     );
 
-    const handleTransactionResponse = useCallback(
-        (response: EntityListResponse<Transaction>) => {
-            setTransactions(response.items);
-            setTotalTransactions(response.totalElements);
-        },
-        []
-    );
-
     const transactionColumns: EntityListColumn<Transaction>[] = [
         {
             key: "externalId",
@@ -345,8 +337,7 @@ export function DashboardPage({
                 )}
                 {selectedUploadId && uploadStatistics && (
                     <TransactionStats
-                        transactions={transactions}
-                        totalTransactions={uploadStatistics.totalTransactions}
+                        statistics={uploadStatistics}
                     />
                 )}
 
@@ -357,7 +348,6 @@ export function DashboardPage({
                             description="Transactions imported from this CSV upload."
                             columns={transactionColumns}
                             fetchData={fetchTransactions}
-                            onResponse={handleTransactionResponse}
                             reloadKey={transactionReloadKey}
                             initialQuery={{ size: 50, sort: "createdAt,desc" }}
                             toolbar={({ query, updateQuery }) => (

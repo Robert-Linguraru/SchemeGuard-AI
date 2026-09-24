@@ -1,19 +1,15 @@
-import type { Transaction } from "../../../shared/types/transaction";
+import type { UploadStatistics } from "../../uploads/types/upload";
 
 interface TransactionStatsProps {
-    transactions: Transaction[];
-    totalTransactions: number;
+    statistics: UploadStatistics;
 }
 
-export function TransactionStats({ transactions, totalTransactions }: TransactionStatsProps) {
-    const processed = transactions.filter((transaction) => transaction.status === "PROCESSED").length;
-    const qualified = transactions.filter((transaction) => transaction.qualificationStatus === "QUALIFIED").length;
-    const totalFees = transactions.reduce((total, transaction) => total + Number(transaction.estimatedFee || 0), 0);
+export function TransactionStats({ statistics }: TransactionStatsProps) {
     const stats = [
-        ["Total transactions", totalTransactions, "Complete CSV total"],
-        ["Processed", processed, "On this page"],
-        ["Qualified", qualified, "On this page"],
-        ["Estimated fees", `${totalFees.toFixed(2)} EUR`, "On this page"]
+        ["Total transactions", statistics.totalTransactions, "Complete CSV total"],
+        ["Processed", statistics.processedTransactions, "Complete CSV total"],
+        ["Qualified", statistics.qualifiedTransactions, "Complete CSV total"],
+        ["Estimated fees", `${statistics.totalFees.toFixed(2)} EUR`, "Complete CSV total - Converted to EUR"]
     ];
 
     return (

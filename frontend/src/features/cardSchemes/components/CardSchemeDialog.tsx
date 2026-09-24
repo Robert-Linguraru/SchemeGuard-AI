@@ -1,35 +1,43 @@
 import { useState } from "react";
-import { updateCardScheme } from "../api/cardSchemeApi";
+import { createCardScheme, updateCardScheme } from "../api/cardSchemeApi";
 import type { CardScheme } from "../types/cardScheme";
 
-interface CardSchemeEditDialogProps {
-    scheme: CardScheme;
+interface CardSchemeDialogProps {
+    scheme?: CardScheme;
     onClose: () => void;
     onSaved: (scheme: CardScheme) => void;
 }
 
-export function CardSchemeEditDialog({
+export function CardSchemeDialog({
     scheme,
     onClose,
     onSaved
-}: CardSchemeEditDialogProps) {
-    const [code, setCode] = useState(scheme.code);
-    const [name, setName] = useState(scheme.name);
+}: CardSchemeDialogProps) {
+    const [code, setCode] = useState(scheme?.code ?? "");
+    const [name, setName] = useState(scheme?.name ?? "");
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const save = async () => {
+        if (isSaving) return;
+        const payload = { code: code.trim(), name: name.trim() };
+        if (!payload.code || !payload.name) {
+            setError("Code and name are required.");
+            return;
+        }
         setIsSaving(true);
         setError(null);
 
         try {
-            const updatedScheme = await updateCardScheme(scheme.id, { code, name });
-            onSaved(updatedScheme);
+            const savedScheme = scheme
+                ? await updateCardScheme(scheme.id, payload)
+                : await createCardScheme(payload);
+            onSaved(savedScheme);
         } catch (requestError) {
             setError(
                 requestError instanceof Error
                     ? requestError.message
-                    : "Could not update the card scheme."
+                    : "Could not save the card scheme."
             );
         } finally {
             setIsSaving(false);
@@ -50,12 +58,12 @@ export function CardSchemeEditDialog({
                 className="entity-list-dialog"
                 role="dialog"
                 aria-modal="true"
-                aria-labelledby="edit-card-scheme-title"
+                aria-labelledby="card-scheme-dialog-title"
             >
                 <div className="entity-list-dialog-heading">
                     <div>
                         <p className="eyebrow">CARD SCHEME</p>
-                        <h2 id="edit-card-scheme-title">Edit card scheme</h2>
+                        <h2 id="card-scheme-dialog-title">{scheme ? "Edit card scheme" : "Create card scheme"}</h2>
                     </div>
                     <button
                         type="button"
@@ -80,7 +88,8 @@ export function CardSchemeEditDialog({
                             value={code}
                             onChange={(event) => setCode(event.target.value)}
                             required
-                            maxLength={50}
+                            maxLength={30}
+                            autoFocus
                             disabled={isSaving}
                         />
                     </label>
@@ -90,12 +99,12 @@ export function CardSchemeEditDialog({
                             value={name}
                             onChange={(event) => setName(event.target.value)}
                             required
-                            maxLength={150}
+                            maxLength={100}
                             disabled={isSaving}
                         />
                     </label>
 
-                    {error && <p className="form-error">{error}</p>}
+                    {error && <p className="form-error" role="alert">{error}</p>}
 
                     <div className="entity-list-dialog-actions">
                         <button
@@ -107,7 +116,7 @@ export function CardSchemeEditDialog({
                             Cancel
                         </button>
                         <button type="submit" className="create-rule-button" disabled={isSaving}>
-                            {isSaving ? "Saving..." : "Save changes"}
+                            {isSaving ? "Saving..." : scheme ? "Save changes" : "Create card scheme"}
                         </button>
                     </div>
                 </form>

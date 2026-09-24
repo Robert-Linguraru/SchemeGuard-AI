@@ -79,7 +79,6 @@ function AuthenticatedApp() {
         if (view === "analysis-dashboard") {
             return (
                 <AnalysisDashboardPage
-                    onBack={() => setView("dashboard")}
                     onEditProfile={() => setView("profile")}
                 />
             );
@@ -88,7 +87,6 @@ function AuthenticatedApp() {
         if (view === "card-schemes") {
             return (
                 <CardSchemesPage
-                    onBack={() => setView("dashboard")}
                     onEditProfile={() => setView("profile")}
                 />
             );
@@ -108,7 +106,6 @@ function AuthenticatedApp() {
         if (view === "rules") {
             return (
                 <RulesPage
-                    onBack={() => setView("dashboard")}
                     onCreateRule={() => setView("upload")}
                     onOpenRule={(id) => {
                         setSelectedRuleId(id);

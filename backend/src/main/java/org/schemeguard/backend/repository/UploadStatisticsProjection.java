@@ -10,5 +10,4 @@ public interface UploadStatisticsProjection {
     long getPartiallyQualifiedTransactions();
     long getNotQualifiedTransactions();
     BigDecimal getTotalAmount();
-    BigDecimal getTotalFees();
 }
