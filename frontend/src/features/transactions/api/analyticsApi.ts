@@ -1,5 +1,7 @@
 import { request } from "../../../shared/api/httpClient";
 
+export const ANALYTICS_CURRENCY = "EUR";
+
 export interface AnalyticsMetric {
     name: string;
     transactions: number;
@@ -7,6 +9,7 @@ export interface AnalyticsMetric {
 }
 
 export interface AnalyticsResponse {
+    currency: string;
     totalTransactions: number;
     processedTransactions: number;
     qualifiedTransactions: number;
@@ -32,11 +35,15 @@ export interface AnalyticsFilters {
     status: string;
 }
 
-export function getAnalytics(filters: AnalyticsFilters): Promise<AnalyticsResponse> {
+export function getAnalytics(filters: AnalyticsFilters, signal?: AbortSignal): Promise<AnalyticsResponse> {
     const params = new URLSearchParams();
     Object.entries(filters).forEach(([key, value]) => {
         if (value) params.set(key, value);
     });
+    params.set("targetCurrency", ANALYTICS_CURRENCY);
     const query = params.toString();
-    return request<AnalyticsResponse>(`/api/analytics${query ? `?${query}` : ""}`, { method: "GET" });
+    return request<AnalyticsResponse>(`/api/analytics${query ? `?${query}` : ""}`, {
+        method: "GET",
+        signal
+    });
 }

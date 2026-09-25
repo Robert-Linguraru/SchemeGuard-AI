@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 public record AnalyticsResponseDto(
+        String currency,
         long totalTransactions,
         long processedTransactions,
         long qualifiedTransactions,

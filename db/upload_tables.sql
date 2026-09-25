@@ -71,6 +71,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_uploads_session_id
 CREATE INDEX IF NOT EXISTS idx_transactions_upload_id
     ON transactions(upload_id);
 
+CREATE INDEX IF NOT EXISTS idx_transactions_upload_authorized_at
+    ON transactions(upload_id, authorized_at);
+
 CREATE INDEX IF NOT EXISTS idx_upload_sessions_status
     ON upload_sessions(status);
 
