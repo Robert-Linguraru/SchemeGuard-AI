@@ -20,7 +20,6 @@ import {
 } from "../api/analyticsApi";
 
 interface AnalysisDashboardPageProps {
-    onBack: () => void;
     onEditProfile: () => void;
 }
 
