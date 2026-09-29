@@ -38,8 +38,7 @@ const emptyFilters: Filters = {
     scheme: "",
     country: "",
     merchant: "",
-    qualification: "",
-    status: ""
+    qualification: ""
 };
 
 const filterKeys = Object.keys(emptyFilters) as Array<keyof Filters>;
@@ -409,21 +408,6 @@ export function AnalysisDashboardPage({ onEditProfile }: AnalysisDashboardPagePr
                                     { value: "PENDING", label: "Pending" }
                                 ]}
                                 onChange={(value) => setFilter("qualification", value ?? "")}
-                            />
-                        </div>
-                        <div className="analysis-filter-field">
-                            <span>Status</span>
-                            <Select
-                                className="analysis-filter-control"
-                                allowClear
-                                value={filters.status || undefined}
-                                placeholder="All statuses"
-                                options={[
-                                    { value: "NEW", label: "New" },
-                                    { value: "PROCESSED", label: "Processed" },
-                                    { value: "FAILED", label: "Failed" }
-                                ]}
-                                onChange={(value) => setFilter("status", value ?? "")}
                             />
                         </div>
                         <div className="analysis-filter-actions">
