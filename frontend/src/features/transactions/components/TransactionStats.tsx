@@ -1,30 +1,19 @@
-import type { UploadStatistics } from "../../uploads/types/upload";
+import type { Transaction } from "../../../shared/types/transaction";
 
 interface TransactionStatsProps {
-    statistics: UploadStatistics | null;
-    isLoading: boolean;
-    error: string | null;
+    transactions: Transaction[];
+    totalTransactions: number;
 }
 
-export function TransactionStats({ statistics, isLoading, error }: TransactionStatsProps) {
-    if (isLoading) {
-        return <section className="stats-grid"><div className="empty-state">Loading statistics...</div></section>;
-    }
-
-    if (error) {
-        return <section className="stats-grid"><div className="error-box" role="alert">{error}</div></section>;
-    }
-
-    if (!statistics) {
-        return null;
-    }
-
-    const hasProcessedTransactions = statistics.processedTransactions > 0;
+export function TransactionStats({ transactions, totalTransactions }: TransactionStatsProps) {
+    const processed = transactions.filter((transaction) => transaction.status === "PROCESSED").length;
+    const qualified = transactions.filter((transaction) => transaction.qualificationStatus === "QUALIFIED").length;
+    const totalFees = transactions.reduce((total, transaction) => total + Number(transaction.estimatedFee || 0), 0);
     const stats = [
-        ["Total transactions", statistics.totalTransactions, "Complete CSV total"],
-        ["Processed", statistics.processedTransactions, "Complete CSV total"],
-        ["Qualified", hasProcessedTransactions ? statistics.qualifiedTransactions : "—", "Complete CSV total"],
-        ["Estimated fees", hasProcessedTransactions ? `${statistics.totalFees.toFixed(2)} EUR` : "—", "Complete CSV total"]
+        ["Total transactions", totalTransactions, "Complete CSV total"],
+        ["Processed", processed, "On this page"],
+        ["Qualified", qualified, "On this page"],
+        ["Estimated fees", `${totalFees.toFixed(2)} EUR`, "On this page"]
     ];
 
     return (
