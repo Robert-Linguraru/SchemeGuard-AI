@@ -16,3 +16,5 @@ CREATE INDEX IF NOT EXISTS idx_transactions_unevaluated
     ON transactions (created_at, id) WHERE status = 'NEW';
 CREATE INDEX IF NOT EXISTS idx_qualification_transaction
     ON qualification_results (transaction_id, evaluated_at);
+CREATE INDEX IF NOT EXISTS idx_qualification_transaction_latest
+    ON qualification_results (transaction_id, evaluated_at DESC, id DESC);
