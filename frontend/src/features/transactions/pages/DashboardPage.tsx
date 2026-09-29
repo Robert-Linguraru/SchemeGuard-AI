@@ -19,6 +19,8 @@ import type {
 
 interface DashboardPageProps {
     onEditProfile: () => void;
+    onOpenAssistant: () => void;
+    isAssistantOpen: boolean;
     selectedUploadId?: string | null;
     selectedUploadFileName?: string | null;
     selectedUploadImportStatus?: string | null;
@@ -28,6 +30,8 @@ interface DashboardPageProps {
 
 export function DashboardPage({
     onEditProfile,
+    onOpenAssistant,
+    isAssistantOpen,
     selectedUploadId,
     selectedUploadFileName,
     selectedUploadImportStatus,
@@ -38,7 +42,6 @@ export function DashboardPage({
     const [uploadStatistics, setUploadStatistics] = useState<UploadStatistics | null>(null);
     const [isLoadingStatistics, setIsLoadingStatistics] = useState(false);
     const [statisticsError, setStatisticsError] = useState<string | null>(null);
-
     const [isEvaluating, setIsEvaluating] = useState(false);
     const [evaluationMessage, setEvaluationMessage] = useState<string | null>(null);
     const [evaluationError, setEvaluationError] = useState<string | null>(null);
@@ -47,6 +50,7 @@ export function DashboardPage({
     const [confirmedOutlierIds, setConfirmedOutlierIds] = useState<Set<string>>(new Set());
     const [isDetectingOutliers, setIsDetectingOutliers] = useState(false);
     const [anomalyError, setAnomalyError] = useState<string | null>(null);
+    const [anomalyMessage, setAnomalyMessage] = useState<string | null>(null);
     const [showTransactionFilters, setShowTransactionFilters] = useState(false);
 
     const canEvaluate = selectedUploadImportStatus === "COMPLETED"
@@ -89,6 +93,7 @@ export function DashboardPage({
         setOutlierIds(new Set());
         setConfirmedOutlierIds(new Set());
         setAnomalyError(null);
+        setAnomalyMessage(null);
         if (!selectedUploadId) {
             return () => { cancelled = true; };
         }
@@ -131,15 +136,29 @@ export function DashboardPage({
     };
 
     const runOutlierDetection = async () => {
-        if (!selectedUploadId || !canDetectOutliers || isDetectingOutliers) {
+        if (!selectedUploadId || isDetectingOutliers) {
             return;
         }
+
+        if (!canDetectOutliers) {
+            setAnomalyMessage(null);
+            setAnomalyError("Evaluate this CSV before detecting outliers.");
+            return;
+        }
+
         setIsDetectingOutliers(true);
         setAnomalyError(null);
+        setAnomalyMessage(null);
         try {
             const result = await detectUploadOutliers(selectedUploadId);
             setOutlierIds(new Set(result.outlierTransactionIds));
             setConfirmedOutlierIds(new Set());
+            const count = result.outlierTransactionIds.length;
+            setAnomalyMessage(
+                count === 0
+                    ? "Outlier detection completed. No outliers were found in this CSV."
+                    : `Outlier detection completed. ${count} outlier${count === 1 ? "" : "s"} found.`
+            );
         } catch (requestError: unknown) {
             setAnomalyError(
                 requestError instanceof Error
@@ -297,16 +316,15 @@ export function DashboardPage({
                             </button>
                         )}
 
-                        {selectedUploadId && canDetectOutliers && (
-                            <button
-                                type="button"
-                                className="dashboard-button"
-                                onClick={() => void runOutlierDetection()}
-                                disabled={isDetectingOutliers}
-                            >
-                                {isDetectingOutliers ? "Detecting..." : "Detect outliers"}
-                            </button>
-                        )}
+                        <button
+                            type="button"
+                            className="dashboard-button"
+                            onClick={() => void runOutlierDetection()}
+                            disabled={!selectedUploadId || isDetectingOutliers}
+                            title={!canDetectOutliers ? "Evaluate this upload before detecting outliers." : undefined}
+                        >
+                            {isDetectingOutliers ? "Detecting..." : "Detect outliers"}
+                        </button>
 
                     </div>
                 </div>
@@ -407,8 +425,25 @@ export function DashboardPage({
                         </div>
                     )}
 
+                    {anomalyMessage && (
+                        <div className="success-box" role="status">
+                            {anomalyMessage}
+                        </div>
+                    )}
+
                 </section>
             </section>
+            {selectedUploadId && !isAssistantOpen && (
+                <button
+                    type="button"
+                    className="assistant-floating-button"
+                    onClick={onOpenAssistant}
+                    aria-label="Open AI recommendations"
+                    title="AI recommendations"
+                >
+                    AI
+                </button>
+            )}
         </main>
     );
 }
