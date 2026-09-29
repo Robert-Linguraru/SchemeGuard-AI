@@ -18,7 +18,6 @@ export function AuthPage() {
                     <span className="brand-mark">●</span>
                     <span className="brand-name">SchemeGuard AI</span>
                 </div>
-                <h1>SchemeGuard AI</h1>
                 <p className="subtitle">Interchange qualification workspace</p>
                 <div className="tabs">
                     <button className={mode === "login" ? "active" : ""} onClick={() => setMode("login")}>Login</button>
