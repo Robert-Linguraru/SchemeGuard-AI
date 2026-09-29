@@ -11,6 +11,7 @@ import {
 import { createCardSchemeActions, cardSchemeColumns } from "../config/cardSchemeListConfig";
 import { CardSchemeDialog } from "../components/CardSchemeDialog";
 import type { CardScheme } from "../types/cardScheme";
+import { Button } from "antd";
 
 export function CardSchemesPage() {
     const { user } = useAuth();
@@ -106,9 +107,10 @@ export function CardSchemesPage() {
                     </div>
                     {user?.role === "ADMIN" && (
                         <div className="heading-actions">
-                            <button
-                                type="button"
-                                className="create-rule-button"
+                            <Button
+                                type="primary"
+                                //className="create-rule-button"
+                                size="large"
                                 disabled={pendingAction !== null}
                                 onClick={() => {
                                     setActionError(null);
@@ -117,7 +119,7 @@ export function CardSchemesPage() {
                                 }}
                             >
                                 Create card scheme
-                            </button>
+                            </Button>
                         </div>
                     )}
                 </div>

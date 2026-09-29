@@ -23,6 +23,13 @@ function AuthenticatedApp() {
     const [isAssistantOpen, setIsAssistantOpen] = useState(false);
     const isAdmin = user?.role?.toUpperCase() === "ADMIN";
 
+    const navigate = (nextView: View) => {
+        setView(nextView);
+        if (nextView !== "upload-details") {
+            setIsAssistantOpen(false);
+        }
+    };
+
     useEffect(() => {
         if (!isAdmin && (view === "rules" || view === "upload" || view === "details")) {
             setView("dashboard");
@@ -35,7 +42,7 @@ function AuthenticatedApp() {
             <NavBar
                 currentView={view}
                 isAdmin={isAdmin}
-                onViewChange={setView}
+                onViewChange={navigate}
                 onEditProfile={() => setView("profile")}
             />
             <AppRouter
@@ -45,19 +52,22 @@ function AuthenticatedApp() {
                 selectedUploadFileName={selectedUploadFileName}
                 selectedUploadImportStatus={selectedUploadImportStatus}
                 selectedUploadWasEvaluated={selectedUploadWasEvaluated}
-                onNavigate={setView}
+                onNavigate={navigate}
                 onOpenRule={(id) => {
                     setSelectedRuleId(id);
-                    setView("details");
+                    navigate("details");
                 }}
                 onOpenUpload={(uploadId, fileName, importStatus, wasEvaluated) => {
                     setSelectedUploadId(uploadId);
                     setSelectedUploadFileName(fileName);
                     setSelectedUploadImportStatus(importStatus);
                     setSelectedUploadWasEvaluated(wasEvaluated);
-                    setView("upload-details");
+                    navigate("upload-details");
                 }}
                 onUploadEvaluated={(wasEvaluated) => setSelectedUploadWasEvaluated(wasEvaluated)}
+                onOpenAssistant={() => setIsAssistantOpen(true)}
+                onCloseAssistant={() => setIsAssistantOpen(false)}
+                isAssistantOpen={isAssistantOpen}
             />
         </div>
     );

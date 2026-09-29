@@ -44,9 +44,6 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
                 <span className="orb orb-blue orb-four"></span>
             </div>
             <section className="content">
-                <button className="page-nav-button" type="button" onClick={onBack}>
-                    CSV uploads
-                </button>
                 <div className="profile-heading">
                     <p className="eyebrow">ACCOUNT SETTINGS</p>
                     <h2>Edit profile</h2>

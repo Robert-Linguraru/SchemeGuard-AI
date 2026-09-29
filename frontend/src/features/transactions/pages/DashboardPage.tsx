@@ -8,6 +8,7 @@ import {
     getUploadOutlierIds
 } from "../../uploads/api/uploadsApi";
 import { TransactionStats } from "../components/TransactionStats";
+import { RecommendationAssistant } from "../components/RecommendationAssistant";
 import { EntityList } from "../../../shared/components/EntityList/EntityList";
 import type { Transaction } from "../../../shared/types/transaction";
 import type {
@@ -16,8 +17,8 @@ import type {
 } from "../../../shared/types/list";
 
 interface DashboardPageProps {
-    // onEditProfile: () => void;
     onOpenAssistant: () => void;
+    onCloseAssistant: () => void;
     isAssistantOpen: boolean;
     selectedUploadId?: string | null;
     selectedUploadFileName?: string | null;
@@ -27,8 +28,8 @@ interface DashboardPageProps {
 }
 
 export function DashboardPage({
-    //onEditProfile,
     onOpenAssistant,
+    onCloseAssistant,
     isAssistantOpen,
     selectedUploadId,
     selectedUploadFileName,
@@ -428,6 +429,12 @@ export function DashboardPage({
                     AI
                 </button>
             )}
+            <RecommendationAssistant
+                uploadId={selectedUploadId ?? null}
+                fileName={selectedUploadFileName}
+                isOpen={isAssistantOpen}
+                onClose={onCloseAssistant}
+            />
         </main>
     );
 }

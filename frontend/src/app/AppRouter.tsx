@@ -24,6 +24,9 @@ type AppRouterProps = {
         wasEvaluated: boolean
     ) => void;
     onUploadEvaluated: (wasEvaluated: boolean) => void;
+    onOpenAssistant: () => void;
+    onCloseAssistant: () => void;
+    isAssistantOpen: boolean;
 };
 
 export function AppRouter({
@@ -37,6 +40,9 @@ export function AppRouter({
     onOpenRule,
     onOpenUpload,
     onUploadEvaluated,
+    onOpenAssistant,
+    onCloseAssistant,
+    isAssistantOpen,
 }: AppRouterProps) {
     switch (view) {
         case "dashboard":
@@ -87,6 +93,9 @@ export function AppRouter({
         case "upload-details":
             return (
                 <DashboardPage
+                    onOpenAssistant={onOpenAssistant}
+                    onCloseAssistant={onCloseAssistant}
+                    isAssistantOpen={isAssistantOpen}
                     selectedUploadId={selectedUploadId}
                     selectedUploadFileName={selectedUploadFileName}
                     selectedUploadImportStatus={selectedUploadImportStatus}
