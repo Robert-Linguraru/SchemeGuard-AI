@@ -135,6 +135,7 @@
 .entity-list-status.active {
     background: var(--green-bg);
     color: var(--green);
+    align-items: center;
 }
 
 .entity-list-status.inactive {

@@ -12,19 +12,51 @@
 .app-navbar {
 	position: relative;
 	z-index: 20;
-	padding: 12px 34px;
+	padding: 0 34px;
 	background: linear-gradient(110deg, var(--navy-light), var(--navy));
 	border-top: 3px solid var(--coral);
 	border-bottom: 1px solid rgba(169, 187, 199, 0.18);
 	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
 
+.app-navbar-inner {
+	display: flex;
+	align-items: center;
+	gap: 22px;
+	max-width: 1240px;
+	min-height: 78px;
+	margin: 0 auto;
+}
+
+.app-navbar-brand {
+	flex: 0 0 auto;
+	color: var(--white);
+	font-size: 22px;
+	font-weight: 800;
+	letter-spacing: -0.02em;
+	white-space: nowrap;
+}
+
 .app-navbar-links {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 8px;
-	max-width: 1240px;
-	margin: 0 auto;
+	align-items: center;
+	padding: 12px 0;
+}
+
+.app-navbar-actions {
+	display: flex;
+	align-items: center;
+	gap: 18px;
+	margin-left: auto;
+}
+
+.app-navbar-welcome {
+	color: var(--muted);
+	font-size: 14px;
+	font-weight: 700;
+	white-space: nowrap;
 }
 
 .app-navbar-link {
@@ -78,8 +110,21 @@
 		padding: 10px 16px;
 	}
 
+	.app-navbar-inner {
+		align-items: flex-start;
+		flex-wrap: wrap;
+		gap: 8px 14px;
+		min-height: 0;
+	}
+
+	.app-navbar-actions {
+		margin-left: auto;
+	}
+
 	.app-navbar-links {
 		gap: 6px;
+		order: 3;
+		width: 100%;
 	}
 
 	.app-navbar-link {
@@ -97,19 +142,10 @@
 	overflow: hidden;
 }
 
-.dashboard-header,
 .content {
 	position: relative;
 	max-width: 1240px;
 	margin: 0 auto;
-}
-
-.dashboard-header {
-	z-index: 10;
-	display: flex;
-	align-items: flex-start;
-	justify-content: space-between;
-	gap: 24px;
 }
 
 .content {
@@ -120,12 +156,6 @@
 	display: flex;
 	align-items: center;
 	gap: 24px;
-}
-
-.dashboard-account-actions {
-	display: flex;
-	align-items: center;
-	gap: 12px;
 }
 
 /* Group the actions for the current workspace. */
@@ -179,9 +209,9 @@
     transform: translateY(-2px);
 }
 
-.analysis-dashboard .content {
+/* .analysis-dashboard .content {
 	margin-top: 62px;
-}
+} */
 
 .analysis-dashboard {
 	--analysis-surface: var(--navy-light);
@@ -203,6 +233,10 @@
 
 .analysis-export-button.ant-btn:hover,
 .analysis-export-button.ant-btn:focus {
+	background: #ff7168 !important;
+}
+
+.action-button{
 	background: #ff7168 !important;
 }
 
@@ -529,7 +563,7 @@
 }
 
 .content {
-	margin-top: 90px;
+	margin-top: 0;
 }
 
 .page-heading,
@@ -925,14 +959,13 @@ tbody tr:hover {
 		grid-template-columns: repeat(2, 1fr);
 	}
 
-	.dashboard-header,
 	.page-heading {
 		align-items: flex-start;
 		flex-direction: column;
 	}
 
 	.content {
-		margin-top: 55px;
+		margin-top: 0;
 	}
 
 	.header-actions {

@@ -1,6 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import { useAuth } from "../../../app/AuthProvider";
-import { AccountMenu } from "../../../shared/components/AccountMenu";
 import { getUploadStatistics, getUploadTransactions } from "../../uploads/api/uploadsApi";
 import type { UploadStatistics } from "../../uploads/types/upload";
 import {
@@ -18,7 +16,6 @@ import type {
 } from "../../../shared/types/list";
 
 interface DashboardPageProps {
-    onEditProfile: () => void;
     selectedUploadId?: string | null;
     selectedUploadFileName?: string | null;
     selectedUploadImportStatus?: string | null;
@@ -27,14 +24,12 @@ interface DashboardPageProps {
 }
 
 export function DashboardPage({
-    onEditProfile,
     selectedUploadId,
     selectedUploadFileName,
     selectedUploadImportStatus,
     selectedUploadWasEvaluated = false,
     onUploadEvaluated
 }: DashboardPageProps) {
-    const { user } = useAuth();
     const [uploadStatistics, setUploadStatistics] = useState<UploadStatistics | null>(null);
     const [isLoadingStatistics, setIsLoadingStatistics] = useState(false);
     const [statisticsError, setStatisticsError] = useState<string | null>(null);
@@ -257,19 +252,6 @@ export function DashboardPage({
                 <span className="orb orb-white orb-three"></span>
                 <span className="orb orb-blue orb-four"></span>
             </div>
-
-            <header className="dashboard-header">
-                <div className="welcome">
-                    <h1>SchemeGuard AI</h1>
-                    <p>Welcome, {user?.fullName}</p>
-                </div>
-
-                <div className="dashboard-account-actions">
-                    <AccountMenu
-                        onEditProfile={onEditProfile}
-                    />
-                </div>
-            </header>
 
             <section className="content">
                 <div className="page-heading">
