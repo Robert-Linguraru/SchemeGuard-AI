@@ -20,6 +20,7 @@ function AuthenticatedApp() {
         useState<string | null>(null);
     const [selectedUploadWasEvaluated, setSelectedUploadWasEvaluated] =
         useState(false);
+    const [isAssistantOpen, setIsAssistantOpen] = useState(false);
     const isAdmin = user?.role?.toUpperCase() === "ADMIN";
 
     useEffect(() => {

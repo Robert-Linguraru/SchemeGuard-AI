@@ -133,6 +133,8 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
 
     List<Transaction> findAllByUpload_IdAndExternalId(UUID uploadId, String externalId);
 
+    boolean existsByIdAndUpload_Id(UUID transactionId, UUID uploadId);
+
     @Query(value = """
             SELECT DISTINCT ON (t.id)
                    t.id AS id,
