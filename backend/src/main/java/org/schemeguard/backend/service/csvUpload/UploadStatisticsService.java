@@ -5,6 +5,7 @@ import org.schemeguard.backend.entity.User;
 import org.schemeguard.backend.exception.UploadException;
 import org.schemeguard.backend.repository.UploadRepository;
 import org.schemeguard.backend.repository.UploadStatisticsProjection;
+import org.schemeguard.backend.service.currency.CurrencyRateService;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,14 +13,18 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.UUID;
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 public class UploadStatisticsService {
 
     private final UploadRepository uploadRepository;
+    private final CurrencyRateService currencyRateService;
 
-    public UploadStatisticsService(UploadRepository uploadRepository) {
+    public UploadStatisticsService(UploadRepository uploadRepository, CurrencyRateService currencyRateService) {
         this.uploadRepository = uploadRepository;
+        this.currencyRateService = currencyRateService;
     }
 
     @Transactional(readOnly = true)
@@ -48,9 +53,22 @@ public class UploadStatisticsService {
                 statistics.getPartiallyQualifiedTransactions(),
                 statistics.getNotQualifiedTransactions(),
                 zeroIfNull(statistics.getTotalAmount()),
-                zeroIfNull(statistics.getTotalFees()),
+                totalFeesInEur(uploadId, user.getId()),
                 qualificationRate
         );
+    }
+
+    private BigDecimal totalFeesInEur(UUID uploadId, UUID userId) {
+        Map<String, BigDecimal> rates = new HashMap<>();
+        BigDecimal total = new BigDecimal("0.00");
+        for (var group : uploadRepository.findFeeGroupsByIdAndUserId(uploadId, userId)) {
+            if (group.getFee().signum() == 0) continue;
+            BigDecimal rate = rates.computeIfAbsent(group.getCurrency(), currency ->
+                    currencyRateService.convert(currency, "EUR", BigDecimal.ZERO).rate());
+            BigDecimal convertedFee = group.getFee().multiply(rate).setScale(2, RoundingMode.HALF_UP);
+            total = total.add(convertedFee.multiply(BigDecimal.valueOf(group.getTransactionCount())));
+        }
+        return total;
     }
 
     private BigDecimal zeroIfNull(BigDecimal value) {

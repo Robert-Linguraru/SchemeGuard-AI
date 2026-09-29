@@ -6,14 +6,12 @@ import type { RuleListResponse } from "../types/rule";
 import { AccountMenu } from "../../../shared/components/AccountMenu";
 
 interface RulesPageProps {
-    onBack: () => void;
     onCreateRule: () => void;
     onOpenRule: (id: string) => void;
     onEditProfile: () => void;
 }
 
 export function RulesPage({
-                              onBack,
                               onCreateRule,
                               onOpenRule,
                               onEditProfile
@@ -76,13 +74,6 @@ export function RulesPage({
                     </div>
 
                     <div className="heading-actions">
-                        <button
-                            className="page-nav-button"
-                            onClick={onBack}
-                        >
-                            CSV uploads
-                        </button>
-
                         <button
                             className="create-rule-button"
                             onClick={onCreateRule}

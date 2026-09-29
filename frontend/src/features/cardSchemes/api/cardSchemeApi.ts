@@ -55,6 +55,14 @@ export const getCardScheme = (
     ).then((response) => response.cardScheme);
 };
 
+export const createCardScheme = (
+    payload: { code: string; name: string }
+): Promise<CardScheme> =>
+    request<CardSchemeMutationResponse>("/api/card-schemes", {
+        method: "POST",
+        body: JSON.stringify(payload)
+    }).then((response) => response.cardScheme);
+
 export const updateCardScheme = (
     id: string,
     payload: { code: string; name: string }

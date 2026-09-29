@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "../../../app/AuthProvider";
 import { AccountMenu } from "../../../shared/components/AccountMenu";
-import { getUploadTransactions } from "../../uploads/api/uploadsApi";
+import { getUploadStatistics, getUploadTransactions } from "../../uploads/api/uploadsApi";
+import type { UploadStatistics } from "../../uploads/types/upload";
 import {
     confirmUploadOutlier,
     detectUploadOutliers,
@@ -13,8 +14,7 @@ import { EntityList } from "../../../shared/components/EntityList/EntityList";
 import type { Transaction } from "../../../shared/types/transaction";
 import type {
     EntityListColumn,
-    EntityListQuery,
-    EntityListResponse
+    EntityListQuery
 } from "../../../shared/types/list";
 
 interface DashboardPageProps {
@@ -35,7 +35,6 @@ export function DashboardPage({
     onUploadEvaluated
 }: DashboardPageProps) {
     const { user } = useAuth();
-    const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [uploadStatistics, setUploadStatistics] = useState<UploadStatistics | null>(null);
     const [isLoadingStatistics, setIsLoadingStatistics] = useState(false);
     const [statisticsError, setStatisticsError] = useState<string | null>(null);
@@ -54,6 +53,36 @@ export function DashboardPage({
         && !selectedUploadWasEvaluated;
     const canDetectOutliers = selectedUploadImportStatus === "COMPLETED"
         && selectedUploadWasEvaluated;
+
+    useEffect(() => {
+        const controller = new AbortController();
+        setUploadStatistics(null);
+        setStatisticsError(null);
+        setIsLoadingStatistics(Boolean(selectedUploadId));
+
+        if (selectedUploadId) {
+            void getUploadStatistics(selectedUploadId, controller.signal)
+                .then((statistics) => {
+                    if (!controller.signal.aborted) {
+                        setUploadStatistics(statistics);
+                    }
+                })
+                .catch((error: unknown) => {
+                    if (!controller.signal.aborted) {
+                        setStatisticsError(error instanceof Error
+                            ? error.message
+                            : "Could not load upload statistics.");
+                    }
+                })
+                .finally(() => {
+                    if (!controller.signal.aborted) {
+                        setIsLoadingStatistics(false);
+                    }
+                });
+        }
+
+        return () => controller.abort();
+    }, [selectedUploadId, transactionReloadKey]);
 
     useEffect(() => {
         let cancelled = false;
@@ -157,13 +186,6 @@ export function DashboardPage({
             );
         },
         [selectedUploadId]
-    );
-
-    const handleTransactionResponse = useCallback(
-        (response: EntityListResponse<Transaction>) => {
-            setTransactions(response.items);
-        },
-        []
     );
 
     const transactionColumns: EntityListColumn<Transaction>[] = [
@@ -289,10 +311,15 @@ export function DashboardPage({
                     </div>
                 </div>
 
-                {selectedUploadId && (
+                {selectedUploadId && isLoadingStatistics && (
+                    <p role="status">Loading upload statistics...</p>
+                )}
+                {selectedUploadId && statisticsError && (
+                    <div className="error-box" role="alert">{statisticsError}</div>
+                )}
+                {selectedUploadId && uploadStatistics && (
                     <TransactionStats
-                        transactions={transactions}
-                        totalTransactions={totalTransactions}
+                        statistics={uploadStatistics}
                     />
                 )}
 
@@ -303,7 +330,6 @@ export function DashboardPage({
                             description="Transactions imported from this CSV upload."
                             columns={transactionColumns}
                             fetchData={fetchTransactions}
-                            onResponse={handleTransactionResponse}
                             reloadKey={transactionReloadKey}
                             initialQuery={{ size: 50, sort: "createdAt,desc" }}
                             toolbar={({ query, updateQuery }) => (
