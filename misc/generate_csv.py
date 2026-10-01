@@ -56,7 +56,7 @@ MCC_BY_CATEGORY = {
 }
 
 COUNTRIES = ["RO", "FR", "DE", "GB", "IT", "ES", "PT", "US", "NL", "BE"]
-CURRENCIES = ["EUR", "USD", "GBP"]
+CURRENCIES = ["EUR", "RON", "USD", "GBP", "CHF"]
 
 # The generator deliberately keeps the fields used for clustering stable for
 # most rows.  This gives the detector a useful peer group instead of producing
@@ -68,7 +68,7 @@ NORMAL_CLEARING_DELAY_DAYS = (1, 2)
 ANOMALY_CLEARING_DELAY_DAYS = 5
 
 def amount_for_currency(currency: str) -> str:
-    limits = {"EUR": (5, 800), "USD": (5, 1000), "GBP": (5, 700)}
+    limits = {"EUR": (5, 800), "USD": (5, 1000), "GBP": (5, 700), "RON": (5, 1200), "CHF": (5, 700)}
     low, high = limits[currency]
     amount = Decimal(random.randint(low * 100, high * 100)) / 100
     return format(amount, "f").rstrip("0").rstrip(".")

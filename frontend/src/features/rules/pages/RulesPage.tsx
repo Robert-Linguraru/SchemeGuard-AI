@@ -1,24 +1,17 @@
 import { useEffect, useState } from "react";
-import { useAuth } from "../../../app/AuthProvider";
 import { deleteRule, getRules } from "../api/rulesApi";
 import { getRuleErrorMessage } from "../api/ruleErrors";
 import type { RuleListResponse } from "../types/rule";
-import { AccountMenu } from "../../../shared/components/AccountMenu";
 
 interface RulesPageProps {
-    onBack: () => void;
     onCreateRule: () => void;
     onOpenRule: (id: string) => void;
-    onEditProfile: () => void;
 }
 
 export function RulesPage({
-                              onBack,
                               onCreateRule,
-                              onOpenRule,
-                              onEditProfile
+                              onOpenRule
                           }: RulesPageProps) {
-    const { user } = useAuth();
     const [rules, setRules] = useState<RuleListResponse[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -59,14 +52,6 @@ export function RulesPage({
 
     return (
         <main className="dashboard rules-page">
-            <header className="dashboard-header">
-                <div className="welcome">
-                        <h1>SchemeGuard AI</h1>
-                        <p>Welcome, {user?.fullName}</p>
-                </div>
-                <AccountMenu onEditProfile={onEditProfile} />
-            </header>
-
             <section className="content">
                 <div className="page-heading">
                     <div>
@@ -76,13 +61,6 @@ export function RulesPage({
                     </div>
 
                     <div className="heading-actions">
-                        <button
-                            className="page-nav-button"
-                            onClick={onBack}
-                        >
-                            CSV uploads
-                        </button>
-
                         <button
                             className="create-rule-button"
                             onClick={onCreateRule}

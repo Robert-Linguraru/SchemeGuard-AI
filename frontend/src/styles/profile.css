@@ -33,10 +33,15 @@
 }
 
 .account-chevron {
-    margin-left: 2px;
-    color: var(--muted);
-    font-size: 16px;
-    line-height: 1;
+	width: 7px;
+	height: 7px;
+	margin-left: 2px;
+	margin-top: -3px;
+	border-right: 1.5px solid var(--muted);
+	border-bottom: 1.5px solid var(--muted);
+	color: var(--muted);
+	transform: rotate(45deg);
+	flex: 0 0 auto;
 }
 
 .account-dropdown {

@@ -1,66 +1,56 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useAuth } from "../../../app/AuthProvider";
-import { AccountMenu } from "../../../shared/components/AccountMenu";
-import { getUploadTransactions } from "../../uploads/api/uploadsApi";
+import { useCallback, useEffect, useState } from "react";
 import {
     confirmUploadOutlier,
     detectUploadOutliers,
     evaluateUpload,
-    getUploadOutlierIds
+    getUploadOutlierIds,
+    getUploadStatistics,
+    getUploadTransactions
 } from "../../uploads/api/uploadsApi";
 import type { UploadStatistics } from "../../uploads/types/upload";
-import {
-    getTransactionExplanation,
-    type TransactionExplanation
-} from "../api/transactionExplanationApi";
 import { TransactionStats } from "../components/TransactionStats";
+import { RecommendationAssistant } from "../components/RecommendationAssistant";
 import { EntityList } from "../../../shared/components/EntityList/EntityList";
 import type { Transaction } from "../../../shared/types/transaction";
 import type {
     EntityListColumn,
-    EntityListQuery,
-    EntityListResponse
+    EntityListQuery
 } from "../../../shared/types/list";
 
 interface DashboardPageProps {
-    onCreateRule: () => void;
-    onOpenRule: (ruleId: string) => void;
-    onOpenCardSchemes: () => void;
-    onEditProfile: () => void;
-    onOpenAnalysisDashboard: () => void;
+    onOpenAssistant: () => void;
+    onCloseAssistant: () => void;
+    isAssistantOpen: boolean;
     selectedUploadId?: string | null;
     selectedUploadFileName?: string | null;
     selectedUploadImportStatus?: string | null;
     selectedUploadWasEvaluated?: boolean;
     onUploadEvaluated: (wasEvaluated: boolean) => void;
-    onBackToUploads: () => void;
 }
 
 export function DashboardPage({
-    onCreateRule,
-    onOpenRule,
-    onEditProfile,
-    onOpenCardSchemes,
-    onOpenAnalysisDashboard,
+    onOpenAssistant,
+    onCloseAssistant,
+    isAssistantOpen,
     selectedUploadId,
     selectedUploadFileName,
     selectedUploadImportStatus,
     selectedUploadWasEvaluated = false,
-    onUploadEvaluated,
-    onBackToUploads
+    onUploadEvaluated
 }: DashboardPageProps) {
-    const { user } = useAuth();
-    const isAdmin = user?.role?.toUpperCase() === "ADMIN";
-    const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [uploadStatistics, setUploadStatistics] = useState<UploadStatistics | null>(null);
     const [isLoadingStatistics, setIsLoadingStatistics] = useState(false);
     const [statisticsError, setStatisticsError] = useState<string | null>(null);
-
     const [isEvaluating, setIsEvaluating] = useState(false);
     const [evaluationMessage, setEvaluationMessage] = useState<string | null>(null);
     const [evaluationError, setEvaluationError] = useState<string | null>(null);
     const [transactionReloadKey, setTransactionReloadKey] = useState(0);
-    const [statisticsReloadKey, setStatisticsReloadKey] = useState(0);
+    const [outlierIds, setOutlierIds] = useState<Set<string>>(new Set());
+    const [confirmedOutlierIds, setConfirmedOutlierIds] = useState<Set<string>>(new Set());
+    const [isDetectingOutliers, setIsDetectingOutliers] = useState(false);
+    const [anomalyError, setAnomalyError] = useState<string | null>(null);
+    const [anomalyMessage, setAnomalyMessage] = useState<string | null>(null);
+    const [showTransactionFilters, setShowTransactionFilters] = useState(false);
 
     const canEvaluate = selectedUploadImportStatus === "COMPLETED"
         && !selectedUploadWasEvaluated;
@@ -68,10 +58,41 @@ export function DashboardPage({
         && selectedUploadWasEvaluated;
 
     useEffect(() => {
+        const controller = new AbortController();
+        setUploadStatistics(null);
+        setStatisticsError(null);
+        setIsLoadingStatistics(Boolean(selectedUploadId));
+
+        if (selectedUploadId) {
+            void getUploadStatistics(selectedUploadId, controller.signal)
+                .then((statistics) => {
+                    if (!controller.signal.aborted) {
+                        setUploadStatistics(statistics);
+                    }
+                })
+                .catch((error: unknown) => {
+                    if (!controller.signal.aborted) {
+                        setStatisticsError(error instanceof Error
+                            ? error.message
+                            : "Could not load upload statistics.");
+                    }
+                })
+                .finally(() => {
+                    if (!controller.signal.aborted) {
+                        setIsLoadingStatistics(false);
+                    }
+                });
+        }
+
+        return () => controller.abort();
+    }, [selectedUploadId, transactionReloadKey]);
+
+    useEffect(() => {
         let cancelled = false;
         setOutlierIds(new Set());
         setConfirmedOutlierIds(new Set());
         setAnomalyError(null);
+        setAnomalyMessage(null);
         if (!selectedUploadId) {
             return () => { cancelled = true; };
         }
@@ -113,108 +134,30 @@ export function DashboardPage({
         }
     };
 
-    useEffect(() => {
-        detailRequest.current?.abort();
-        detailRequest.current = null;
-        detailCache.current.clear();
-        setExpandedTransactionId(null);
-        setTransactionDetails({});
-        setDetailErrors({});
-        setLoadingDetailId(null);
-    }, [selectedUploadId]);
-
-    useEffect(() => () => {
-        detailRequest.current?.abort();
-    }, []);
-
-    const loadTransactionDetails = useCallback(async (transaction: Transaction) => {
-        if (!selectedUploadId) {
-            return;
-        }
-
-        if (detailCache.current.has(transaction.id)) {
-            setExpandedTransactionId(transaction.id);
-            return;
-        }
-
-        const qualificationStatus = transaction.qualificationStatus?.toUpperCase();
-        const isUnevaluated = transaction.status.toUpperCase() === "NEW"
-            || qualificationStatus === "NOT_EVALUATED"
-            || qualificationStatus === "PENDING"
-            || qualificationStatus === "UNKNOWN";
-
-        if (isUnevaluated) {
-            setExpandedTransactionId(transaction.id);
-            setLoadingDetailId(null);
-            return;
-        }
-
-        detailRequest.current?.abort();
-        const controller = new AbortController();
-        detailRequest.current = controller;
-        setExpandedTransactionId(transaction.id);
-        setLoadingDetailId(transaction.id);
-        setDetailErrors((current) => {
-            const next = { ...current };
-            delete next[transaction.id];
-            return next;
-        });
-
-        try {
-            const details = await getTransactionExplanation(transaction.id, selectedUploadId, controller.signal);
-            if (controller.signal.aborted) {
-                return;
-            }
-            detailCache.current.set(transaction.id, details);
-            setTransactionDetails((current) => ({ ...current, [transaction.id]: details }));
-        } catch (requestError: unknown) {
-            if (controller.signal.aborted || isAbortError(requestError)) {
-                return;
-            }
-            setDetailErrors((current) => ({
-                ...current,
-                [transaction.id]: requestError instanceof Error
-                    ? requestError.message
-                    : "Could not load qualification details."
-            }));
-        } finally {
-            if (!controller.signal.aborted) {
-                setLoadingDetailId(null);
-            }
-        }
-    }, [selectedUploadId]);
-
-    const toggleTransactionDetails = (transaction: Transaction) => {
-        if (expandedTransactionId === transaction.id) {
-            setExpandedTransactionId(null);
-            return;
-        }
-        void loadTransactionDetails(transaction);
-    };
-
-    const handleTransactionResponse = useCallback(
-        (response: EntityListResponse<Transaction>) => {
-            detailRequest.current?.abort();
-            detailCache.current.clear();
-            setExpandedTransactionId(null);
-            setTransactionDetails({});
-            setDetailErrors({});
-            setLoadingDetailId(null);
-            setTransactions(response.items);
-        },
-        []
-    );
-
     const runOutlierDetection = async () => {
-        if (!selectedUploadId || !canDetectOutliers || isDetectingOutliers) {
+        if (!selectedUploadId || isDetectingOutliers) {
             return;
         }
+
+        if (!canDetectOutliers) {
+            setAnomalyMessage(null);
+            setAnomalyError("Evaluate this CSV before detecting outliers.");
+            return;
+        }
+
         setIsDetectingOutliers(true);
         setAnomalyError(null);
+        setAnomalyMessage(null);
         try {
             const result = await detectUploadOutliers(selectedUploadId);
             setOutlierIds(new Set(result.outlierTransactionIds));
             setConfirmedOutlierIds(new Set());
+            const count = result.outlierTransactionIds.length;
+            setAnomalyMessage(
+                count === 0
+                    ? "Outlier detection completed. No outliers were found in this CSV."
+                    : `Outlier detection completed. ${count} outlier${count === 1 ? "" : "s"} found.`
+            );
         } catch (requestError: unknown) {
             setAnomalyError(
                 requestError instanceof Error
@@ -333,19 +276,6 @@ export function DashboardPage({
                 <span className="orb orb-blue orb-four"></span>
             </div>
 
-            <header className="dashboard-header">
-                <div className="welcome">
-                    <h1>SchemeGuard AI</h1>
-                    <p>Welcome, {user?.fullName}</p>
-                </div>
-
-                <div className="dashboard-account-actions">
-                    <AccountMenu
-                        onEditProfile={onEditProfile}
-                    />
-                </div>
-            </header>
-
             <section className="content">
                 <div className="page-heading">
                     <div>
@@ -361,14 +291,6 @@ export function DashboardPage({
                     </div>
 
                     <div className="page-heading-actions">
-                        <button
-                            type="button"
-                            className="dashboard-button"
-                            onClick={onOpenAnalysisDashboard}
-                        >
-                            Analytics
-                        </button>
-
                         {selectedUploadId && canEvaluate && (
                             <button
                                 type="button"
@@ -384,43 +306,24 @@ export function DashboardPage({
                             type="button"
                             className="dashboard-button"
                             onClick={() => void runOutlierDetection()}
-                            disabled={!selectedUploadId || !canDetectOutliers || isDetectingOutliers}
+                            disabled={!selectedUploadId || isDetectingOutliers}
                             title={!canDetectOutliers ? "Evaluate this upload before detecting outliers." : undefined}
                         >
                             {isDetectingOutliers ? "Detecting..." : "Detect outliers"}
                         </button>
 
-                        <button
-                            type="button"
-                            className="dashboard-button"
-                            onClick={onOpenCardSchemes}
-                        >
-                            Card schemes
-                        </button>
-
-                        <button
-                            type="button"
-                            className="dashboard-button"
-                            onClick={onBackToUploads}
-                        >
-                            CSV uploads
-                        </button>
-
-                        {isAdmin && (
-                            <button
-                                className="create-rule-button"
-                                onClick={onCreateRule}
-                            >
-                                View Rules
-                            </button>
-                        )}
                     </div>
                 </div>
 
-                {selectedUploadId && (
+                {selectedUploadId && isLoadingStatistics && (
+                    <p role="status">Loading upload statistics...</p>
+                )}
+                {selectedUploadId && statisticsError && (
+                    <div className="error-box" role="alert">{statisticsError}</div>
+                )}
+                {selectedUploadId && uploadStatistics && (
                     <TransactionStats
-                        transactions={transactions}
-                        totalTransactions={totalTransactions}
+                        statistics={uploadStatistics}
                     />
                 )}
 
@@ -431,35 +334,6 @@ export function DashboardPage({
                             description="Transactions imported from this CSV upload."
                             columns={transactionColumns}
                             fetchData={fetchTransactions}
-                            onResponse={handleTransactionResponse}
-                            expandedItemId={expandedTransactionId}
-                            onToggleExpanded={toggleTransactionDetails}
-                            renderExpanded={(transaction) => {
-                                const qualificationStatus = transaction.qualificationStatus?.toUpperCase();
-                                const isUnevaluated = transaction.status.toUpperCase() === "NEW"
-                                    || qualificationStatus === "NOT_EVALUATED"
-                                    || qualificationStatus === "PENDING"
-                                    || qualificationStatus === "UNKNOWN";
-                                if (isUnevaluated) {
-                                    return <TransactionDetails unevaluated />;
-                                }
-                                if (loadingDetailId === transaction.id) {
-                                    return <LoadingState message="Loading qualification details..." />;
-                                }
-                                if (detailErrors[transaction.id]) {
-                                    return <div className="error-box" role="alert">{detailErrors[transaction.id]}</div>;
-                                }
-                                const details = transactionDetails[transaction.id];
-                                return details ? (
-                                    <TransactionDetails
-                                        details={details}
-                                        currency={transaction.currencyCode}
-                                        onViewRule={onOpenRule}
-                                    />
-                                ) : (
-                                    <LoadingState message="Loading qualification details..." />
-                                );
-                            }}
                             reloadKey={transactionReloadKey}
                             initialQuery={{ size: 50, sort: "createdAt,desc" }}
                             toolbar={({ query, updateQuery }) => (
@@ -537,8 +411,31 @@ export function DashboardPage({
                         </div>
                     )}
 
+                    {anomalyMessage && (
+                        <div className="success-box" role="status">
+                            {anomalyMessage}
+                        </div>
+                    )}
+
                 </section>
             </section>
+            {selectedUploadId && !isAssistantOpen && (
+                <button
+                    type="button"
+                    className="assistant-floating-button"
+                    onClick={onOpenAssistant}
+                    aria-label="Open AI recommendations"
+                    title="AI recommendations"
+                >
+                    AI
+                </button>
+            )}
+            <RecommendationAssistant
+                uploadId={selectedUploadId ?? null}
+                fileName={selectedUploadFileName}
+                isOpen={isAssistantOpen}
+                onClose={onCloseAssistant}
+            />
         </main>
     );
 }

@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
 import { useAuth } from "../../../app/AuthProvider";
-import { AccountMenu } from "../../../shared/components/AccountMenu";
 import { EntityList } from "../../../shared/components/EntityList/EntityList";
 import type { EntityListQuery } from "../../../shared/types/list";
 import {
@@ -10,17 +9,14 @@ import {
     getCardSchemes
 } from "../api/cardSchemeApi";
 import { createCardSchemeActions, cardSchemeColumns } from "../config/cardSchemeListConfig";
-import { CardSchemeEditDialog } from "../components/CardSchemeEditDialog";
+import { CardSchemeDialog } from "../components/CardSchemeDialog";
 import type { CardScheme } from "../types/cardScheme";
+import { Button } from "antd";
 
-interface CardSchemesPageProps {
-    onBack: () => void;
-    onEditProfile: () => void;
-}
-
-export function CardSchemesPage({ onBack, onEditProfile }: CardSchemesPageProps) {
+export function CardSchemesPage() {
     const { user } = useAuth();
     const [editingScheme, setEditingScheme] = useState<CardScheme | null>(null);
+    const [isCreating, setIsCreating] = useState(false);
     const [actionError, setActionError] = useState<string | null>(null);
     const [actionSuccess, setActionSuccess] = useState<string | null>(null);
     const [pendingAction, setPendingAction] = useState<string | null>(null);
@@ -102,16 +98,6 @@ export function CardSchemesPage({ onBack, onEditProfile }: CardSchemesPageProps)
 
     return (
         <main className="dashboard card-scheme-page">
-            <header className="dashboard-header">
-                <div className="welcome">
-                    <h1>SchemeGuard AI</h1>
-                    <p>Welcome, {user?.fullName}</p>
-                </div>
-                <div className="dashboard-account-actions">
-                    <AccountMenu onEditProfile={onEditProfile} />
-                </div>
-            </header>
-
             <section className="content">
                 <div className="page-heading">
                     <div>
@@ -119,11 +105,23 @@ export function CardSchemesPage({ onBack, onEditProfile }: CardSchemesPageProps)
                         <h2>Card schemes</h2>
                         <p>Search, sort and manage payment card schemes.</p>
                     </div>
-                    <div className="heading-actions">
-                        <button type="button" className="page-nav-button" onClick={onBack}>
-                            CSV uploads
-                        </button>
-                    </div>
+                    {user?.role === "ADMIN" && (
+                        <div className="heading-actions">
+                            <Button
+                                type="primary"
+                                //className="create-rule-button"
+                                size="large"
+                                disabled={pendingAction !== null}
+                                onClick={() => {
+                                    setActionError(null);
+                                    setActionSuccess(null);
+                                    setIsCreating(true);
+                                }}
+                            >
+                                Create card scheme
+                            </Button>
+                        </div>
+                    )}
                 </div>
 
                 {actionError && <div className="form-error" role="alert">{actionError}</div>}
@@ -156,13 +154,18 @@ export function CardSchemesPage({ onBack, onEditProfile }: CardSchemesPageProps)
                 />
             </section>
 
-            {editingScheme && (
-                <CardSchemeEditDialog
-                    scheme={editingScheme}
-                    onClose={() => setEditingScheme(null)}
-                    onSaved={(updatedScheme) => {
+            {(isCreating || editingScheme) && (
+                <CardSchemeDialog
+                    key={editingScheme?.id ?? "create"}
+                    scheme={editingScheme ?? undefined}
+                    onClose={() => {
                         setEditingScheme(null);
-                        setActionSuccess(`${updatedScheme.name} was updated.`);
+                        setIsCreating(false);
+                    }}
+                    onSaved={(savedScheme) => {
+                        setEditingScheme(null);
+                        setIsCreating(false);
+                        setActionSuccess(`${savedScheme.name} was ${isCreating ? "created" : "updated"}.`);
                         setReloadKey((currentKey) => currentKey + 1);
                     }}
                 />

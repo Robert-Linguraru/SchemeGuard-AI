@@ -1,18 +1,15 @@
 import { useEffect, useState } from "react";
-import { useAuth } from "../../../app/AuthProvider";
 import { deleteRule, getRule } from "../api/rulesApi";
 import { getRuleErrorMessage } from "../api/ruleErrors";
 import type {
     RuleCondition,
     RuleDetailsResponse
 } from "../types/rule";
-import { AccountMenu } from "../../../shared/components/AccountMenu";
 
 interface RuleDetailsPageProps {
     ruleId: string;
     onBack: () => void;
     onDeleted: () => void;
-    onEditProfile: () => void;
 }
 
 const labelize = (value: string) =>
@@ -32,10 +29,8 @@ const formatValue = (value: unknown) => {
 export function RuleDetailsPage({
                                     ruleId,
                                     onBack,
-                                    onDeleted,
-                                    onEditProfile
+                                    onDeleted
                                 }: RuleDetailsPageProps) {
-    const { user } = useAuth();
     const [rule, setRule] = useState<RuleDetailsResponse | null>(null);
     const [error, setError] = useState<string | null>(null);
 
@@ -64,14 +59,6 @@ export function RuleDetailsPage({
 
     return (
         <main className="dashboard rules-page">
-            <header className="dashboard-header">
-                <div className="welcome">
-                        <h1>SchemeGuard AI</h1>
-                        <p>Welcome, {user?.fullName}</p>
-                </div>
-                <AccountMenu onEditProfile={onEditProfile} />
-            </header>
-
             <section className="content">
                 <button
                     className="page-nav-button"

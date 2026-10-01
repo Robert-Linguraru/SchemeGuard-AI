@@ -1,13 +1,11 @@
 import { type FormEvent, useState } from "react";
 import { useAuth } from "../../../app/AuthProvider";
-import { AccountMenu } from "../../../shared/components/AccountMenu";
 
 interface ProfilePageProps {
     onBack: () => void;
-    onEditProfile: () => void;
 }
 
-export function ProfilePage({ onBack, onEditProfile }: ProfilePageProps) {
+export function ProfilePage({ onBack }: ProfilePageProps) {
     const { user, updateProfile } = useAuth();
     const [fullName, setFullName] = useState(user?.fullName ?? "");
     const [email, setEmail] = useState(user?.email ?? "");
@@ -45,18 +43,7 @@ export function ProfilePage({ onBack, onEditProfile }: ProfilePageProps) {
                 <span className="orb orb-white orb-three"></span>
                 <span className="orb orb-blue orb-four"></span>
             </div>
-            <header className="dashboard-header">
-                <div className="welcome">
-                    <h1>SchemeGuard AI</h1>
-                    <p>Welcome, {user?.fullName}</p>
-                </div>
-                <AccountMenu onEditProfile={onEditProfile} />
-            </header>
-
             <section className="content">
-                <button className="page-nav-button" type="button" onClick={onBack}>
-                    CSV uploads
-                </button>
                 <div className="profile-heading">
                     <p className="eyebrow">ACCOUNT SETTINGS</p>
                     <h2>Edit profile</h2>

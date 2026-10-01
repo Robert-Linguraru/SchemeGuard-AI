@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import java.util.UUID;
 
 public record RecommendationRequest(
+        UUID uploadId,
         UUID transactionId,
         @NotBlank(message = "Message is required") String message
 ) {
