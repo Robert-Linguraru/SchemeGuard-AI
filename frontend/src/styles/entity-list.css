@@ -110,6 +110,115 @@
     vertical-align: middle;
 }
 
+.entity-list-table > tbody > tr > td[colspan] {
+    padding: 0;
+    background: #f7fafb;
+    max-width: 0;
+}
+
+.transaction-details {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    padding: 22px;
+    color: var(--navy);
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.transaction-details-heading,
+.transaction-rule-summary {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.transaction-details-heading h3 {
+    min-width: 0;
+    margin: 5px 0 0;
+    font-size: 20px;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.transaction-details-empty-state p {
+    margin: 8px 0 0;
+    color: #65738b;
+}
+
+.transaction-details-section {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid #dce6eb;
+}
+
+.transaction-details-section h4 {
+    margin: 0 0 10px;
+    color: var(--navy);
+    font-size: 14px;
+}
+
+.transaction-details-section ul {
+    margin: 0;
+    padding-left: 20px;
+    color: #526579;
+}
+
+.transaction-details-section li + li {
+    margin-top: 7px;
+}
+
+.transaction-rule-summary {
+    min-width: 0;
+    align-items: center;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+}
+
+.transaction-rule-summary strong,
+.transaction-rule-summary span {
+    min-width: 0;
+    color: #65738b;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.transaction-rule-summary strong {
+    color: var(--navy);
+}
+
+.transaction-fee-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(140px, 1fr));
+    gap: 12px;
+    margin: 0;
+}
+
+.transaction-fee-grid div {
+    padding: 11px 13px;
+    border: 1px solid #dce6eb;
+    border-radius: 8px;
+    background: var(--white);
+}
+
+.transaction-fee-grid dt {
+    color: #65738b;
+    font-size: 11px;
+}
+
+.transaction-fee-grid dd {
+    margin: 5px 0 0;
+    font-weight: 700;
+}
+
+.transaction-details-empty,
+.transaction-details-original {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    color: #65738b;
+}
+
 .entity-list-sort-button {
     padding: 0;
     background: transparent;
@@ -161,6 +270,32 @@
 
 .entity-list-action-button:hover {
     filter: brightness(0.96);
+}
+
+.entity-list-expand-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border: 1px solid #c4d2dc;
+    border-radius: 7px;
+    background: #edf3f6;
+    color: var(--navy);
+    font-size: 12px;
+    font-weight: 700;
+    text-align: center;
+}
+
+.entity-list-expand-button:hover,
+.entity-list-expand-button:focus-visible {
+    filter: brightness(0.96);
+}
+
+.entity-list-expand-icon {
+    font-size: 16px;
+    line-height: 1;
 }
 
 .entity-list-action-success {
@@ -287,6 +422,16 @@
 }
 
 @media (max-width: 760px) {
+    .transaction-details-heading,
+    .transaction-rule-summary {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .transaction-fee-grid {
+        grid-template-columns: 1fr;
+    }
+
     .entity-list-toolbar,
     .entity-list-feedback,
     .entity-list-pagination {

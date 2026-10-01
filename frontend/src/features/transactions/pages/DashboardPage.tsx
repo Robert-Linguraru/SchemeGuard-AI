@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
-import { getUploadStatistics, getUploadTransactions } from "../../uploads/api/uploadsApi";
-import type { UploadStatistics } from "../../uploads/types/upload";
 import {
     confirmUploadOutlier,
     detectUploadOutliers,
     evaluateUpload,
-    getUploadOutlierIds
+    getUploadOutlierIds,
+    getUploadStatistics,
+    getUploadTransactions
 } from "../../uploads/api/uploadsApi";
+import type { UploadStatistics } from "../../uploads/types/upload";
 import { TransactionStats } from "../components/TransactionStats";
 import { RecommendationAssistant } from "../components/RecommendationAssistant";
 import { EntityList } from "../../../shared/components/EntityList/EntityList";

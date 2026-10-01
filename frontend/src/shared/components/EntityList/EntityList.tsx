@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import { ErrorMessage } from "../ErrorMessage";
 import { LoadingState } from "../LoadingState";
 import { useEntityList } from "../../hooks/useEntityList";
@@ -29,7 +29,9 @@ interface EntityListProps<T> {
     emptyMessage?: string;
     toolbar?: (context: EntityListToolbarContext) => ReactNode;
     onResponse?: (response: EntityListResponse<T>) => void;
-    rowClassName?: (item: T) => string | undefined;
+    expandedItemId?: string | null;
+    onToggleExpanded?: (item: T) => void;
+    renderExpanded?: (item: T) => ReactNode;
 }
 
 const getSortState = (sort: string) => {
@@ -53,7 +55,9 @@ export function EntityList<T>({
     emptyMessage = "No records found.",
     toolbar,
     onResponse,
-    rowClassName
+    expandedItemId = null,
+    onToggleExpanded,
+    renderExpanded
 }: EntityListProps<T>) {
     const {
         query,
@@ -192,6 +196,7 @@ export function EntityList<T>({
                                             ) : column.label}
                                         </th>
                                     ))}
+                                    {renderExpanded && <th scope="col">Qualification</th>}
                                     {visibleActionCount && <th scope="col">Actions</th>}
                                 </tr>
                             </thead>
@@ -202,13 +207,28 @@ export function EntityList<T>({
                                     );
 
                                     return (
-                                        <tr
-                                            key={(item as { id?: string }).id || index}
-                                            className={rowClassName?.(item)}
-                                        >
+                                        <Fragment key={(item as { id?: string }).id || index}>
+                                        <tr>
                                             {columns.map((column) => (
                                                 <td key={column.key}>{displayValue(item, column)}</td>
                                             ))}
+                                            {renderExpanded && (
+                                                <td>
+                                                    <button
+                                                        type="button"
+                                                        className="entity-list-expand-button"
+                                                        aria-expanded={expandedItemId === (item as { id?: string }).id}
+                                                        aria-label={expandedItemId === (item as { id?: string }).id
+                                                            ? "Collapse qualification details"
+                                                            : "Expand qualification details"}
+                                                        onClick={() => onToggleExpanded?.(item)}
+                                                    >
+                                                        <span className="entity-list-expand-icon" aria-hidden="true">
+                                                            {expandedItemId === (item as { id?: string }).id ? "⌃" : "⌄"}
+                                                        </span>
+                                                    </button>
+                                                </td>
+                                            )}
                                             {visibleActionCount && (
                                                 <td>
                                                     <div className="entity-list-actions">
@@ -227,6 +247,14 @@ export function EntityList<T>({
                                                 </td>
                                             )}
                                         </tr>
+                                        {renderExpanded && expandedItemId === (item as { id?: string }).id && (
+                                            <tr>
+                                                <td colSpan={columns.length + 1 + (visibleActionCount ? 1 : 0)}>
+                                                    {renderExpanded(item)}
+                                                </td>
+                                            </tr>
+                                        )}
+                                        </Fragment>
                                     );
                                 })}
                             </tbody>
