@@ -1,6 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import { useAuth } from "../../../app/AuthProvider";
-import { AccountMenu } from "../../../shared/components/AccountMenu";
 import { getUploadStatistics, getUploadTransactions } from "../../uploads/api/uploadsApi";
 import type { UploadStatistics } from "../../uploads/types/upload";
 import {
@@ -10,6 +8,7 @@ import {
     getUploadOutlierIds
 } from "../../uploads/api/uploadsApi";
 import { TransactionStats } from "../components/TransactionStats";
+import { RecommendationAssistant } from "../components/RecommendationAssistant";
 import { EntityList } from "../../../shared/components/EntityList/EntityList";
 import type { Transaction } from "../../../shared/types/transaction";
 import type {
@@ -18,8 +17,8 @@ import type {
 } from "../../../shared/types/list";
 
 interface DashboardPageProps {
-    onEditProfile: () => void;
     onOpenAssistant: () => void;
+    onCloseAssistant: () => void;
     isAssistantOpen: boolean;
     selectedUploadId?: string | null;
     selectedUploadFileName?: string | null;
@@ -29,8 +28,8 @@ interface DashboardPageProps {
 }
 
 export function DashboardPage({
-    onEditProfile,
     onOpenAssistant,
+    onCloseAssistant,
     isAssistantOpen,
     selectedUploadId,
     selectedUploadFileName,
@@ -38,7 +37,6 @@ export function DashboardPage({
     selectedUploadWasEvaluated = false,
     onUploadEvaluated
 }: DashboardPageProps) {
-    const { user } = useAuth();
     const [uploadStatistics, setUploadStatistics] = useState<UploadStatistics | null>(null);
     const [isLoadingStatistics, setIsLoadingStatistics] = useState(false);
     const [statisticsError, setStatisticsError] = useState<string | null>(null);
@@ -277,19 +275,6 @@ export function DashboardPage({
                 <span className="orb orb-blue orb-four"></span>
             </div>
 
-            <header className="dashboard-header">
-                <div className="welcome">
-                    <h1>SchemeGuard AI</h1>
-                    <p>Welcome, {user?.fullName}</p>
-                </div>
-
-                <div className="dashboard-account-actions">
-                    <AccountMenu
-                        onEditProfile={onEditProfile}
-                    />
-                </div>
-            </header>
-
             <section className="content">
                 <div className="page-heading">
                     <div>
@@ -444,6 +429,12 @@ export function DashboardPage({
                     AI
                 </button>
             )}
+            <RecommendationAssistant
+                uploadId={selectedUploadId ?? null}
+                fileName={selectedUploadFileName}
+                isOpen={isAssistantOpen}
+                onClose={onCloseAssistant}
+            />
         </main>
     );
 }

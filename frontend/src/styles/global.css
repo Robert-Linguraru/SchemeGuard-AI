@@ -180,3 +180,8 @@ form button:disabled {
         animation: none;
     }
 }
+
+Button.primary {
+    background: var(--blue);
+    color: var(--white);
+}

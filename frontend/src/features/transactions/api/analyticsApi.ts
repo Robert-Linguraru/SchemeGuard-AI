@@ -32,7 +32,6 @@ export interface AnalyticsFilters {
     country: string;
     merchant: string;
     qualification: string;
-    status: string;
 }
 
 export function getAnalytics(filters: AnalyticsFilters, signal?: AbortSignal): Promise<AnalyticsResponse> {
