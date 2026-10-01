@@ -231,10 +231,10 @@
 	font-weight: 700;
 }
 
-.analysis-export-button.ant-btn:hover,
+/* .analysis-export-button.ant-btn:hover,
 .analysis-export-button.ant-btn:focus {
 	background: #ff7168 !important;
-}
+} */
 
 .action-button{
 	background: #ff7168 !important;

@@ -319,7 +319,7 @@ export function AnalysisDashboardPage() {
                         <Button
                             type="primary"
                             shape="circle"
-                            className="analysis-export-button"
+                            //className="analysis-export-button"
                             icon={<DownloadOutlined />}
                             onClick={exportCsv}
                             disabled={!analytics?.totalTransactions}
