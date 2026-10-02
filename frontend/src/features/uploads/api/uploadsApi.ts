@@ -177,8 +177,11 @@ export const downloadUpload = (
         { onResponse }
     );
 
-export interface AnomalyDetectionResponse {
-    outlierTransactionIds: string[];
+export interface AnomalyJobResponse {
+    jobId: string;
+    uploadId: string;
+    status: "PENDING" | "RUNNING" | "COMPLETED" | "FAILED";
+    errorMessage: string | null;
 }
 
 export const getUploadOutlierIds = (
@@ -192,10 +195,16 @@ export const getUploadOutlierIds = (
 
 export const detectUploadOutliers = (
     uploadId: string
-): Promise<AnomalyDetectionResponse> =>
-    request<AnomalyDetectionResponse>(
+): Promise<AnomalyJobResponse> =>
+    request<AnomalyJobResponse>(
         `/api/uploads/${encodeURIComponent(uploadId)}/anomalies/detect`,
         { method: "POST" }
+    );
+
+export const getUploadAnomalyJob = (uploadId: string): Promise<AnomalyJobResponse> =>
+    request<AnomalyJobResponse>(
+        `/api/uploads/${encodeURIComponent(uploadId)}/anomalies/status`,
+        { method: "GET" }
     );
 
 export const confirmUploadOutlier = (

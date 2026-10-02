@@ -69,6 +69,24 @@ docker compose up --build --remove-orphans
 | ML health check | http://localhost:8000/health |
 | Ollama API | http://localhost:11434 |
 
+### OpenAPI contract generation
+
+The backend generates its OpenAPI 3 contract from Spring controllers and DTOs using
+springdoc. After starting the backend, inspect the specification at
+`http://localhost:8080/v3/api-docs` or Swagger UI at `http://localhost:8080/swagger-ui.html`.
+`TransactionUploadController` is excluded because of its chunked binary upload endpoint;
+the separate anomaly controller remains documented.
+
+To generate frontend TypeScript contract types from the running backend, run from
+`frontend/`:
+
+```sh
+npm run api:types
+```
+
+This writes `src/shared/api/generated/openapi.ts`. Regenerate it after backend API/DTO
+changes and commit the generated output with the change.
+
 Open the web application and register an account to get started. The application uses the
 Supabase PostgreSQL database configured in `.env`.
 
@@ -90,9 +108,10 @@ the following order:
 4. `seed_reference_data.sql` inserts roles, card schemes, and 249 country mappings.
 5. `upload_tables.sql` creates the upload tables and the transaction-import staging table.
 6. `transaction_outliers.sql` creates the upload-scoped anomaly table used by outlier detection.
+7. `anomaly_detection_jobs.sql` creates the persistent queue and status table for asynchronous outlier detection.
 
-If the database already exists, run `transaction_outliers.sql` after deploying this
-feature. Both upload and outlier scripts are safe to rerun.
+If the database already exists, run `transaction_outliers.sql` and
+`anomaly_detection_jobs.sql` after deploying the anomaly feature. These scripts are safe to rerun.
 
 CSV rows are copied to the unlogged staging table while the file is validated. They are
 merged into the transaction tables only after the complete file succeeds, so a malformed
@@ -100,6 +119,17 @@ file or a cancellation cannot leave a partial transaction import.
 
 External transaction IDs are not treated as unique. The same identifier may appear multiple
 times in one upload or across different banking systems.
+
+### Recommendation assistant security boundary
+
+The recommendation endpoint checks that the authenticated user owns the upload and that
+the selected transaction belongs to that upload before loading transaction context. The
+assistant receives only that transaction's evaluated context and retrieved reference text.
+It has no tools or database/action interface, so model output cannot delete transactions or
+invoke backend operations. The backend remains the authorization boundary; prompt wording
+is an additional instruction to treat user text, transaction fields, and retrieved snippets
+as untrusted data, not a security control by itself. Recommendation messages are limited to
+2,000 characters.
 
 The backend uses `spring.jpa.hibernate.ddl-auto=validate`, so startup fails with a clear
 schema-validation error if these tables have not yet been created in Supabase.
