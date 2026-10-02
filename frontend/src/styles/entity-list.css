@@ -116,6 +116,58 @@
     max-width: 0;
 }
 
+.entity-list-data-row.is-expandable {
+    cursor: pointer;
+    transition: background-color 180ms ease, box-shadow 180ms ease;
+}
+
+.entity-list-data-row.is-expandable:hover,
+.entity-list-data-row.is-expandable:focus-visible {
+    outline: none;
+    background: #f4f9fa;
+}
+
+.entity-list-data-row.is-expandable:focus-visible {
+    box-shadow: inset 0 0 0 2px rgba(36, 135, 133, 0.48);
+}
+
+.entity-list-data-row.is-expanded {
+    background: #f4f9fa;
+}
+
+.entity-list-expanded-row > td {
+    padding: 0 !important;
+    background: #f7fafb;
+}
+
+.entity-list-expanded-transition {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transition: grid-template-rows 280ms cubic-bezier(0.2, 0.75, 0.25, 1), opacity 180ms ease;
+}
+
+.entity-list-expanded-row.is-expanded .entity-list-expanded-transition {
+    grid-template-rows: 1fr;
+    opacity: 1;
+}
+
+.entity-list-expanded-content {
+    min-height: 0;
+    overflow: hidden;
+}
+
+.entity-list-expanded-row:not(.is-expanded) .entity-list-expanded-content {
+    visibility: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .entity-list-data-row.is-expandable,
+    .entity-list-expanded-transition {
+        transition: none;
+    }
+}
+
 .transaction-details {
     box-sizing: border-box;
     width: 100%;
