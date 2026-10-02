@@ -32,6 +32,7 @@ interface EntityListProps<T> {
     expandedItemId?: string | null;
     onToggleExpanded?: (item: T) => void;
     renderExpanded?: (item: T) => ReactNode;
+    expandOnRowClick?: boolean;
 }
 
 const getSortState = (sort: string) => {
@@ -57,7 +58,8 @@ export function EntityList<T>({
     onResponse,
     expandedItemId = null,
     onToggleExpanded,
-    renderExpanded
+    renderExpanded,
+    expandOnRowClick = false
 }: EntityListProps<T>) {
     const {
         query,
@@ -196,7 +198,7 @@ export function EntityList<T>({
                                             ) : column.label}
                                         </th>
                                     ))}
-                                    {renderExpanded && <th scope="col">Qualification</th>}
+                                    {renderExpanded && !expandOnRowClick && <th scope="col">Qualification</th>}
                                     {visibleActionCount && <th scope="col">Actions</th>}
                                 </tr>
                             </thead>
@@ -206,25 +208,42 @@ export function EntityList<T>({
                                         !action.isVisible || action.isVisible(item, user)
                                     );
 
+                                    const itemId = (item as { id?: string }).id;
+                                    const isExpanded = expandedItemId === itemId;
+                                    const toggleExpanded = () => onToggleExpanded?.(item);
                                     return (
                                         <Fragment key={(item as { id?: string }).id || index}>
-                                        <tr>
+                                        <tr
+                                            className={renderExpanded ? `entity-list-data-row${isExpanded ? " is-expanded" : ""}${expandOnRowClick ? " is-expandable" : ""}` : undefined}
+                                            onClick={expandOnRowClick ? (event) => {
+                                                if ((event.target as HTMLElement).closest("button, a, input, select, textarea, label")) return;
+                                                toggleExpanded();
+                                            } : undefined}
+                                            onKeyDown={expandOnRowClick ? (event) => {
+                                                if (event.key === "Enter" || event.key === " ") {
+                                                    event.preventDefault();
+                                                    toggleExpanded();
+                                                }
+                                            } : undefined}
+                                            tabIndex={expandOnRowClick ? 0 : undefined}
+                                            aria-expanded={expandOnRowClick ? isExpanded : undefined}
+                                        >
                                             {columns.map((column) => (
                                                 <td key={column.key}>{displayValue(item, column)}</td>
                                             ))}
-                                            {renderExpanded && (
+                                            {renderExpanded && !expandOnRowClick && (
                                                 <td>
                                                     <button
                                                         type="button"
                                                         className="entity-list-expand-button"
-                                                        aria-expanded={expandedItemId === (item as { id?: string }).id}
-                                                        aria-label={expandedItemId === (item as { id?: string }).id
+                                                        aria-expanded={isExpanded}
+                                                        aria-label={isExpanded
                                                             ? "Collapse qualification details"
                                                             : "Expand qualification details"}
-                                                        onClick={() => onToggleExpanded?.(item)}
+                                                        onClick={toggleExpanded}
                                                     >
                                                         <span className="entity-list-expand-icon" aria-hidden="true">
-                                                            {expandedItemId === (item as { id?: string }).id ? "⌃" : "⌄"}
+                                                            {isExpanded ? "⌃" : "⌄"}
                                                         </span>
                                                     </button>
                                                 </td>
@@ -247,10 +266,14 @@ export function EntityList<T>({
                                                 </td>
                                             )}
                                         </tr>
-                                        {renderExpanded && expandedItemId === (item as { id?: string }).id && (
-                                            <tr>
-                                                <td colSpan={columns.length + 1 + (visibleActionCount ? 1 : 0)}>
-                                                    {renderExpanded(item)}
+                                        {renderExpanded && (
+                                            <tr className={`entity-list-expanded-row${isExpanded ? " is-expanded" : ""}`} aria-hidden={!isExpanded}>
+                                                <td colSpan={columns.length + (expandOnRowClick ? 0 : 1) + (visibleActionCount ? 1 : 0)}>
+                                                    <div className="entity-list-expanded-transition">
+                                                        <div className="entity-list-expanded-content">
+                                                            {renderExpanded(item)}
+                                                        </div>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         )}

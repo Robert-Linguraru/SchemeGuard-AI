@@ -441,6 +441,7 @@ export function DashboardPage({
                             onResponse={handleTransactionResponse}
                             expandedItemId={expandedTransactionId}
                             onToggleExpanded={toggleTransactionDetails}
+                            expandOnRowClick
                             renderExpanded={(transaction) => {
                                 const qualificationStatus = transaction.qualificationStatus?.toUpperCase();
                                 const isUnevaluated = transaction.status.toUpperCase() === "NEW"
