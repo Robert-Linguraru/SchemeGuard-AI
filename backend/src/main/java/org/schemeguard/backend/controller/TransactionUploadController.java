@@ -2,6 +2,7 @@ package org.schemeguard.backend.controller;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.Hidden;
 import org.schemeguard.backend.entity.User;
 import org.schemeguard.backend.dto.Upload.CompleteUploadResponse;
 import org.schemeguard.backend.dto.Upload.CreateUploadRequest;
@@ -39,6 +40,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 @RestController
+@Hidden // Multipart/chunked upload controller is intentionally excluded from generated OpenAPI.
 @RequestMapping("/api/uploads")
 public class TransactionUploadController {
 

@@ -221,6 +221,7 @@ export function RecommendationAssistant({
                 <form className="assistant-form" onSubmit={submit}>
                     <input
                         value={message}
+                        maxLength={2000}
                         onChange={(event) => setMessage(event.target.value)}
                         placeholder={canAsk ? "Ask about this transaction..." : "Evaluate this CSV first"}
                         disabled={!canAsk || isSending}

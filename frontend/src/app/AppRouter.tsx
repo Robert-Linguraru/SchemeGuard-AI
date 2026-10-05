@@ -105,6 +105,7 @@ export function AppRouter({
                     onOpenAssistant={onOpenAssistant}
                     onCloseAssistant={onCloseAssistant}
                     isAssistantOpen={isAssistantOpen}
+                    onOpenRule={onOpenRule}
                     selectedUploadId={selectedUploadId}
                     selectedUploadFileName={selectedUploadFileName}
                     selectedUploadImportStatus={selectedUploadImportStatus}

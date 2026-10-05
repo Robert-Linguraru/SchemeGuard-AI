@@ -1,19 +1,26 @@
-import { useCallback, useEffect, useState } from "react";
-import { getUploadStatistics, getUploadTransactions } from "../../uploads/api/uploadsApi";
-import type { UploadStatistics } from "../../uploads/types/upload";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
     confirmUploadOutlier,
     detectUploadOutliers,
     evaluateUpload,
-    getUploadOutlierIds
+    getUploadOutlierIds,
+    getUploadAnomalyJob,
+    getUploadStatistics,
+    getUploadTransactions
 } from "../../uploads/api/uploadsApi";
+import type { UploadStatistics } from "../../uploads/types/upload";
+import { isAbortError } from "../../../shared/api/httpClient";
+import { LoadingState } from "../../../shared/components/LoadingState";
 import { TransactionStats } from "../components/TransactionStats";
 import { RecommendationAssistant } from "../components/RecommendationAssistant";
+import { getTransactionExplanation, type TransactionExplanation } from "../api/transactionExplanationApi";
+import { TransactionDetails } from "../components/TransactionDetails";
 import { EntityList } from "../../../shared/components/EntityList/EntityList";
 import type { Transaction } from "../../../shared/types/transaction";
 import type {
     EntityListColumn,
-    EntityListQuery
+    EntityListQuery,
+    EntityListResponse
 } from "../../../shared/types/list";
 import { App as AntdApp, Button, Tooltip } from "antd";
 import { ExperimentOutlined } from "@ant-design/icons";
@@ -22,6 +29,7 @@ interface DashboardPageProps {
     onOpenAssistant: () => void;
     onCloseAssistant: () => void;
     isAssistantOpen: boolean;
+    onOpenRule: (ruleId: string) => void;
     selectedUploadId?: string | null;
     selectedUploadFileName?: string | null;
     selectedUploadImportStatus?: string | null;
@@ -33,6 +41,7 @@ export function DashboardPage({
     onOpenAssistant,
     onCloseAssistant,
     isAssistantOpen,
+    onOpenRule,
     selectedUploadId,
     selectedUploadFileName,
     selectedUploadImportStatus,
@@ -51,6 +60,12 @@ export function DashboardPage({
     const [isDetectingOutliers, setIsDetectingOutliers] = useState(false);
     const [anomalyError, setAnomalyError] = useState<string | null>(null);
     const [showTransactionFilters, setShowTransactionFilters] = useState(false);
+    const [expandedTransactionId, setExpandedTransactionId] = useState<string | null>(null);
+    const [transactionDetails, setTransactionDetails] = useState<Record<string, TransactionExplanation>>({});
+    const [detailErrors, setDetailErrors] = useState<Record<string, string>>({});
+    const [loadingDetailId, setLoadingDetailId] = useState<string | null>(null);
+    const detailRequest = useRef<AbortController | null>(null);
+    const detailCache = useRef(new Map<string, TransactionExplanation>());
 
     const canEvaluate = selectedUploadImportStatus === "COMPLETED"
         && !selectedUploadWasEvaluated;
@@ -109,6 +124,47 @@ export function DashboardPage({
         return () => { cancelled = true; };
     }, [selectedUploadId]);
 
+    useEffect(() => {
+        if (!selectedUploadId) return;
+        let cancelled = false;
+        void getUploadAnomalyJob(selectedUploadId).then((job) => {
+            if (cancelled) return;
+            setIsDetectingOutliers(job.status === "PENDING" || job.status === "RUNNING");
+            if (job.status === "FAILED") setAnomalyError(job.errorMessage ?? "Could not detect outliers.");
+        }).catch(() => {
+            // No job exists until anomaly detection is requested.
+        });
+        return () => { cancelled = true; };
+    }, [selectedUploadId]);
+
+    useEffect(() => {
+        if (!selectedUploadId || !isDetectingOutliers) return;
+        let cancelled = false;
+        const timer = window.setInterval(() => {
+            void getUploadAnomalyJob(selectedUploadId).then(async (job) => {
+                if (cancelled) return;
+                if (job.status === "COMPLETED") {
+                    window.clearInterval(timer);
+                    const ids = await getUploadOutlierIds(selectedUploadId);
+                    if (cancelled) return;
+                    setOutlierIds(new Set(ids));
+                    setConfirmedOutlierIds(new Set());
+                    setIsDetectingOutliers(false);
+                    setAnomalyMessage(ids.length === 0
+                        ? "Outlier detection completed. No outliers were found in this CSV."
+                        : `Outlier detection completed. ${ids.length} outlier${ids.length === 1 ? "" : "s"} found.`);
+                } else if (job.status === "FAILED") {
+                    window.clearInterval(timer);
+                    setIsDetectingOutliers(false);
+                    setAnomalyError(job.errorMessage ?? "Could not detect outliers.");
+                }
+            }).catch(() => {
+                // The next poll retries transient status endpoint errors.
+            });
+        }, 1500);
+        return () => { cancelled = true; window.clearInterval(timer); };
+    }, [selectedUploadId, isDetectingOutliers]);
+
     const runEvaluation = async () => {
         if (!selectedUploadId || !canEvaluate || isEvaluating) {
             return;
@@ -136,6 +192,97 @@ export function DashboardPage({
         }
     };
 
+    useEffect(() => {
+        detailRequest.current?.abort();
+        detailRequest.current = null;
+        detailCache.current.clear();
+        setExpandedTransactionId(null);
+        setTransactionDetails({});
+        setDetailErrors({});
+        setLoadingDetailId(null);
+    }, [selectedUploadId]);
+
+    useEffect(() => () => {
+        detailRequest.current?.abort();
+    }, []);
+
+    const loadTransactionDetails = useCallback(async (transaction: Transaction) => {
+        if (!selectedUploadId) {
+            return;
+        }
+
+        if (detailCache.current.has(transaction.id)) {
+            setExpandedTransactionId(transaction.id);
+            return;
+        }
+
+        const qualificationStatus = transaction.qualificationStatus?.toUpperCase();
+        const isUnevaluated = transaction.status.toUpperCase() === "NEW"
+            || qualificationStatus === "NOT_EVALUATED"
+            || qualificationStatus === "PENDING"
+            || qualificationStatus === "UNKNOWN";
+
+        if (isUnevaluated) {
+            setExpandedTransactionId(transaction.id);
+            setLoadingDetailId(null);
+            return;
+        }
+
+        detailRequest.current?.abort();
+        const controller = new AbortController();
+        detailRequest.current = controller;
+        setExpandedTransactionId(transaction.id);
+        setLoadingDetailId(transaction.id);
+        setDetailErrors((current) => {
+            const next = { ...current };
+            delete next[transaction.id];
+            return next;
+        });
+
+        try {
+            const details = await getTransactionExplanation(transaction.id, selectedUploadId, controller.signal);
+            if (controller.signal.aborted) {
+                return;
+            }
+            detailCache.current.set(transaction.id, details);
+            setTransactionDetails((current) => ({ ...current, [transaction.id]: details }));
+        } catch (requestError: unknown) {
+            if (controller.signal.aborted || isAbortError(requestError)) {
+                return;
+            }
+            setDetailErrors((current) => ({
+                ...current,
+                [transaction.id]: requestError instanceof Error
+                    ? requestError.message
+                    : "Could not load qualification details."
+            }));
+        } finally {
+            if (!controller.signal.aborted) {
+                setLoadingDetailId(null);
+            }
+        }
+    }, [selectedUploadId]);
+
+    const toggleTransactionDetails = (transaction: Transaction) => {
+        if (expandedTransactionId === transaction.id) {
+            setExpandedTransactionId(null);
+            return;
+        }
+        void loadTransactionDetails(transaction);
+    };
+
+    const handleTransactionResponse = useCallback(
+        (_response: EntityListResponse<Transaction>) => {
+            detailRequest.current?.abort();
+            detailCache.current.clear();
+            setExpandedTransactionId(null);
+            setTransactionDetails({});
+            setDetailErrors({});
+            setLoadingDetailId(null);
+        },
+        []
+    );
+
     const runOutlierDetection = async () => {
         if (!selectedUploadId || isDetectingOutliers) {
             return;
@@ -161,13 +308,14 @@ export function DashboardPage({
                     : `${count} outlier${count === 1 ? "" : "s"} found.`
             });
         } catch (requestError: unknown) {
+            setIsDetectingOutliers(false);
             setAnomalyError(
                 requestError instanceof Error
                     ? requestError.message
                     : "Could not detect outliers"
             );
         } finally {
-            setIsDetectingOutliers(false);
+            // Keep the indicator active while the background job is pending.
         }
     };
 
@@ -356,6 +504,36 @@ export function DashboardPage({
                             description="Transactions imported from this CSV upload."
                             columns={transactionColumns}
                             fetchData={fetchTransactions}
+                            onResponse={handleTransactionResponse}
+                            expandedItemId={expandedTransactionId}
+                            onToggleExpanded={toggleTransactionDetails}
+                            expandOnRowClick
+                            renderExpanded={(transaction) => {
+                                const qualificationStatus = transaction.qualificationStatus?.toUpperCase();
+                                const isUnevaluated = transaction.status.toUpperCase() === "NEW"
+                                    || qualificationStatus === "NOT_EVALUATED"
+                                    || qualificationStatus === "PENDING"
+                                    || qualificationStatus === "UNKNOWN";
+                                if (isUnevaluated) {
+                                    return <TransactionDetails unevaluated />;
+                                }
+                                if (loadingDetailId === transaction.id) {
+                                    return <LoadingState message="Loading qualification details..." />;
+                                }
+                                if (detailErrors[transaction.id]) {
+                                    return <div className="error-box" role="alert">{detailErrors[transaction.id]}</div>;
+                                }
+                                const details = transactionDetails[transaction.id];
+                                return details ? (
+                                    <TransactionDetails
+                                        details={details}
+                                        currency={transaction.currencyCode}
+                                        onViewRule={onOpenRule}
+                                    />
+                                ) : (
+                                    <LoadingState message="Loading qualification details..." />
+                                );
+                            }}
                             reloadKey={transactionReloadKey}
                             initialQuery={{ size: 50, sort: "createdAt,desc" }}
                             toolbar={({ query, updateQuery }) => (

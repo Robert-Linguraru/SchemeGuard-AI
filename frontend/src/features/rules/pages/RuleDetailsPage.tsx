@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useAuth } from "../../../app/AuthProvider";
 import { deleteRule, getRule } from "../api/rulesApi";
 import { getRuleErrorMessage } from "../api/ruleErrors";
 import type {
@@ -33,6 +34,8 @@ export function RuleDetailsPage({
                                     onDeleted
                                 }: RuleDetailsPageProps) {
     const { modal, notification } = AntdApp.useApp();
+    const { user } = useAuth();
+    const isAdmin = user?.role?.toUpperCase() === "ADMIN";
     const [rule, setRule] = useState<RuleDetailsResponse | null>(null);
     const [error, setError] = useState<string | null>(null);
 
@@ -72,6 +75,7 @@ export function RuleDetailsPage({
     return (
         <main className="dashboard rules-page">
             <section className="content">
+                {isAdmin && (
                 <Button
                     type="default"
                     className="page-nav-button"
@@ -79,6 +83,7 @@ export function RuleDetailsPage({
                 >
                     Back to rules
                 </Button>
+                )}
 
                 {error && (
                     <div className="form-error" role="alert">
@@ -203,16 +208,19 @@ export function RuleDetailsPage({
                             </div>
                         </section>
 
-                        <div className="detail-actions">
-                            <Button
-                                type="default"
-                                danger
-                                className="danger-button"
-                                onClick={handleDelete}
-                            >
+
+                        {isAdmin && (
+                            <div className="detail-actions">
+                                <Button
+                                    type="default"
+                                    danger
+                                    className="danger-button"
+                                    onClick={handleDelete}
+                                >
                                 Delete rule
-                            </Button>
-                        </div>
+                                </Button>
+                            </div>
+                        )}
                     </article>
                 )}
             </section>

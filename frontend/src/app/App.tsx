@@ -34,7 +34,7 @@ function AuthenticatedApp() {
     };
 
     useEffect(() => {
-        if (!isAdmin && (view === "rules" || view === "upload" || view === "details")) {
+        if (!isAdmin && (view === "rules" || view === "upload")) {
             setView("dashboard");
             setSelectedRuleId(null);
         }
