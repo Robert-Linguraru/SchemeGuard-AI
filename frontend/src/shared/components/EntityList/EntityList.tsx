@@ -34,6 +34,7 @@ interface EntityListProps<T> {
     expandedItemId?: string | null;
     onToggleExpanded?: (item: T) => void;
     renderExpanded?: (item: T) => ReactNode;
+    rowClassName?: (item: T) => string | undefined;
     expandOnRowClick?: boolean;
 }
 
@@ -61,6 +62,7 @@ export function EntityList<T>({
     expandedItemId = null,
     onToggleExpanded,
     renderExpanded,
+    rowClassName,
     expandOnRowClick = false
 }: EntityListProps<T>) {
     const {
@@ -305,7 +307,10 @@ export function EntityList<T>({
                                     return (
                                         <Fragment key={(item as { id?: string }).id || index}>
                                         <tr
-                                            className={renderExpanded ? `entity-list-data-row${isExpanded ? " is-expanded" : ""}${expandOnRowClick ? " is-expandable" : ""}` : undefined}
+                                            className={[
+                                                renderExpanded ? `entity-list-data-row${isExpanded ? " is-expanded" : ""}${expandOnRowClick ? " is-expandable" : ""}` : undefined,
+                                                rowClassName?.(item)
+                                            ].filter(Boolean).join(" ") || undefined}
                                             onClick={expandOnRowClick ? (event) => {
                                                 if ((event.target as HTMLElement).closest("button, a, input, select, textarea, label")) return;
                                                 toggleExpanded();

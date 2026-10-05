@@ -58,7 +58,9 @@ export function DashboardPage({
     const [outlierIds, setOutlierIds] = useState<Set<string>>(new Set());
     const [confirmedOutlierIds, setConfirmedOutlierIds] = useState<Set<string>>(new Set());
     const [isDetectingOutliers, setIsDetectingOutliers] = useState(false);
+    const [isQueuingDetection, setIsQueuingDetection] = useState(false);
     const [anomalyError, setAnomalyError] = useState<string | null>(null);
+    const [anomalyMessage, setAnomalyMessage] = useState<string | null>(null);
     const [showTransactionFilters, setShowTransactionFilters] = useState(false);
     const [expandedTransactionId, setExpandedTransactionId] = useState<string | null>(null);
     const [transactionDetails, setTransactionDetails] = useState<Record<string, TransactionExplanation>>({});
@@ -66,6 +68,7 @@ export function DashboardPage({
     const [loadingDetailId, setLoadingDetailId] = useState<string | null>(null);
     const detailRequest = useRef<AbortController | null>(null);
     const detailCache = useRef(new Map<string, TransactionExplanation>());
+    const detectionEpoch = useRef(0);
 
     const canEvaluate = selectedUploadImportStatus === "COMPLETED"
         && !selectedUploadWasEvaluated;
@@ -104,9 +107,13 @@ export function DashboardPage({
 
     useEffect(() => {
         let cancelled = false;
+        detectionEpoch.current += 1;
         setOutlierIds(new Set());
         setConfirmedOutlierIds(new Set());
         setAnomalyError(null);
+        setAnomalyMessage(null);
+        setIsDetectingOutliers(false);
+        setIsQueuingDetection(false);
         if (!selectedUploadId) {
             return () => { cancelled = true; };
         }
@@ -127,8 +134,9 @@ export function DashboardPage({
     useEffect(() => {
         if (!selectedUploadId) return;
         let cancelled = false;
+        const epoch = detectionEpoch.current;
         void getUploadAnomalyJob(selectedUploadId).then((job) => {
-            if (cancelled) return;
+            if (cancelled || epoch !== detectionEpoch.current) return;
             setIsDetectingOutliers(job.status === "PENDING" || job.status === "RUNNING");
             if (job.status === "FAILED") setAnomalyError(job.errorMessage ?? "Could not detect outliers.");
         }).catch(() => {
@@ -138,32 +146,38 @@ export function DashboardPage({
     }, [selectedUploadId]);
 
     useEffect(() => {
-        if (!selectedUploadId || !isDetectingOutliers) return;
+        if (!selectedUploadId || !isDetectingOutliers || isQueuingDetection) return;
         let cancelled = false;
-        const timer = window.setInterval(() => {
-            void getUploadAnomalyJob(selectedUploadId).then(async (job) => {
+        let timer: number | undefined;
+        const poll = async () => {
+            try {
+                const job = await getUploadAnomalyJob(selectedUploadId);
                 if (cancelled) return;
                 if (job.status === "COMPLETED") {
-                    window.clearInterval(timer);
                     const ids = await getUploadOutlierIds(selectedUploadId);
                     if (cancelled) return;
                     setOutlierIds(new Set(ids));
                     setConfirmedOutlierIds(new Set());
                     setIsDetectingOutliers(false);
+                    setTransactionReloadKey((key) => key + 1);
                     setAnomalyMessage(ids.length === 0
                         ? "Outlier detection completed. No outliers were found in this CSV."
                         : `Outlier detection completed. ${ids.length} outlier${ids.length === 1 ? "" : "s"} found.`);
                 } else if (job.status === "FAILED") {
-                    window.clearInterval(timer);
                     setIsDetectingOutliers(false);
                     setAnomalyError(job.errorMessage ?? "Could not detect outliers.");
+                } else {
+                    timer = window.setTimeout(() => void poll(), 1500);
                 }
-            }).catch(() => {
-                // The next poll retries transient status endpoint errors.
-            });
-        }, 1500);
-        return () => { cancelled = true; window.clearInterval(timer); };
-    }, [selectedUploadId, isDetectingOutliers]);
+            } catch (error: unknown) {
+                if (cancelled) return;
+                setIsDetectingOutliers(false);
+                setAnomalyError(error instanceof Error ? error.message : "Could not retrieve detection results. Try again.");
+            }
+        };
+        void poll();
+        return () => { cancelled = true; window.clearTimeout(timer); };
+    }, [selectedUploadId, isDetectingOutliers, isQueuingDetection]);
 
     const runEvaluation = async () => {
         if (!selectedUploadId || !canEvaluate || isEvaluating) {
@@ -294,20 +308,23 @@ export function DashboardPage({
         }
 
         setIsDetectingOutliers(true);
+        setIsQueuingDetection(true);
+        const epoch = ++detectionEpoch.current;
         setAnomalyError(null);
+        setAnomalyMessage(null);
         try {
             const result = await detectUploadOutliers(selectedUploadId);
-            setOutlierIds(new Set(result.outlierTransactionIds));
-            setConfirmedOutlierIds(new Set());
-            const count = result.outlierTransactionIds.length;
-            notification.success({
-                placement: "topRight",
-                message: "Outlier detection complete",
-                description: count === 0
-                    ? "No outliers were found in this CSV."
-                    : `${count} outlier${count === 1 ? "" : "s"} found.`
-            });
+            if (epoch !== detectionEpoch.current) return;
+            if (result.status === "FAILED") {
+                throw new Error(result.errorMessage ?? "Could not detect outliers.");
+            }
+            // The POST returns a job, including when cached results already exist.
+            // Polling retrieves IDs from the results endpoint after completion.
+            setAnomalyMessage(result.status === "COMPLETED"
+                ? "Loading detection results."
+                : "Outlier detection is queued. Results will appear when processing completes.");
         } catch (requestError: unknown) {
+            if (epoch !== detectionEpoch.current) return;
             setIsDetectingOutliers(false);
             setAnomalyError(
                 requestError instanceof Error
@@ -315,7 +332,7 @@ export function DashboardPage({
                     : "Could not detect outliers"
             );
         } finally {
-            // Keep the indicator active while the background job is pending.
+            if (epoch === detectionEpoch.current) setIsQueuingDetection(false);
         }
     };
 
@@ -603,6 +620,9 @@ export function DashboardPage({
                         <div className="error-box" role="alert">
                             {anomalyError}
                         </div>
+                    )}
+                    {anomalyMessage && (
+                        <div className="success-box" role="status">{anomalyMessage}</div>
                     )}
 
                 </section>
