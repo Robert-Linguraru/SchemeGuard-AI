@@ -35,7 +35,7 @@ public class RecommendationAgentService {
     private final UploadRepository uploadRepository;
     private final RagDocumentService ragDocumentService;
 
-    private final RestClient restClient;
+    private final String ollamaUrl;
     private final String model;
 
     public RecommendationAgentService(
@@ -52,17 +52,8 @@ public class RecommendationAgentService {
         this.transactionRepository = transactionRepository;
         this.uploadRepository = uploadRepository;
         this.ragDocumentService = ragDocumentService;
+        this.ollamaUrl = ollamaUrl;
         this.model = model;
-
-        HttpClient httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(10))
-                .build();
-        JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
-        requestFactory.setReadTimeout(Duration.ofSeconds(120));
-        this.restClient = RestClient.builder()
-                .baseUrl(ollamaUrl)
-                .requestFactory(requestFactory)
-                .build();
     }
 
     public RecommendationResponse recommend(
@@ -202,7 +193,7 @@ public class RecommendationAgentService {
                 answer questions about the selected transaction. For a direct factual question, answer only that.
                 """.formatted(promptSafe(context), promptSafe(knowledgeContext), promptSafe(userMessage));
 
-        OllamaResponse response = restClient.post()
+        OllamaResponse response = createRestClient().post()
                 .uri("/api/chat")
                 .body(new OllamaRequest(
                         model,
@@ -223,6 +214,18 @@ public class RecommendationAgentService {
         }
 
         return cleanResponse(response.message().content());
+    }
+
+    private RestClient createRestClient() {
+        HttpClient httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(10))
+                .build();
+        JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
+        requestFactory.setReadTimeout(Duration.ofSeconds(120));
+        return RestClient.builder()
+                .baseUrl(ollamaUrl)
+                .requestFactory(requestFactory)
+                .build();
     }
 
     /** Prevent prompt data from closing the delimiters; content remains untrusted text. */
