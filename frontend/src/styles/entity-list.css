@@ -140,9 +140,16 @@
     vertical-align: middle;
 }
 
+.entity-list-expand-heading,
+.entity-list-expand-cell {
+    width: 48px;
+    text-align: right;
+    white-space: nowrap;
+}
+
 .entity-list-table > tbody > tr > td[colspan] {
     padding: 0;
-    background: #f7fafb;
+    background: var(--surface-subtle);
     max-width: 0;
 }
 
@@ -167,7 +174,7 @@
 
 .entity-list-expanded-row > td {
     padding: 0 !important;
-    background: #f7fafb;
+    background: var(--surface-subtle);
 }
 
 .entity-list-expanded-transition {

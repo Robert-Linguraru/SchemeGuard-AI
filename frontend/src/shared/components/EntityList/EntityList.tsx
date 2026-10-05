@@ -2,6 +2,7 @@ import { useEffect, Fragment, useMemo, useRef, useState, type ReactNode } from "
 import { ErrorMessage } from "../ErrorMessage";
 import { LoadingState } from "../LoadingState";
 import { Button } from "antd";
+import { DownOutlined, RightOutlined } from "@ant-design/icons";
 import { useEntityList } from "../../hooks/useEntityList";
 import type { AuthenticatedUser } from "../../types/auth";
 import type {
@@ -282,7 +283,15 @@ export function EntityList<T>({
                                             ) : column.label}
                                         </th>
                                     ))}
-                                    {renderExpanded && !expandOnRowClick && <th scope="col">Qualification</th>}
+                                    {renderExpanded && (
+                                        <th
+                                            className="entity-list-expand-heading"
+                                            scope="col"
+                                            aria-label={expandOnRowClick ? "Transaction details" : undefined}
+                                        >
+                                            {expandOnRowClick ? null : "Qualification"}
+                                        </th>
+                                    )}
                                     {visibleActionCount && <th scope="col">Actions</th>}
                                 </tr>
                             </thead>
@@ -307,6 +316,7 @@ export function EntityList<T>({
                                                 toggleExpanded();
                                             } : undefined}
                                             onKeyDown={expandOnRowClick ? (event) => {
+                                                if (event.target !== event.currentTarget) return;
                                                 if (event.key === "Enter" || event.key === " ") {
                                                     event.preventDefault();
                                                     toggleExpanded();
@@ -320,21 +330,19 @@ export function EntityList<T>({
                                                     {displayValue(item, column)}
                                                 </td>
                                             ))}
-                                            {renderExpanded && !expandOnRowClick && (
-                                                <td>
-                                                    <button
-                                                        type="button"
+                                            {renderExpanded && (
+                                                <td className="entity-list-expand-cell">
+                                                    <Button
+                                                        type="default"
                                                         className="entity-list-expand-button"
                                                         aria-expanded={isExpanded}
                                                         aria-label={isExpanded
-                                                            ? "Collapse qualification details"
-                                                            : "Expand qualification details"}
+                                                            ? "Collapse details"
+                                                            : "Expand details"}
                                                         onClick={toggleExpanded}
                                                     >
-                                                        <span className="entity-list-expand-icon" aria-hidden="true">
-                                                            {isExpanded ? "⌃" : "⌄"}
-                                                        </span>
-                                                    </button>
+                                                        {isExpanded ? <DownOutlined /> : <RightOutlined />}
+                                                    </Button>
                                                 </td>
                                             )}
                                             {visibleActionCount && (
@@ -359,7 +367,7 @@ export function EntityList<T>({
                                         </tr>
                                         {renderExpanded && (
                                             <tr className={`entity-list-expanded-row${isExpanded ? " is-expanded" : ""}`} aria-hidden={!isExpanded}>
-                                                <td colSpan={columns.length + (expandOnRowClick ? 0 : 1) + (visibleActionCount ? 1 : 0)}>
+                                                <td colSpan={columns.length + 1 + (visibleActionCount ? 1 : 0)}>
                                                     <div className="entity-list-expanded-transition">
                                                         <div className="entity-list-expanded-content">
                                                             {renderExpanded(item)}
