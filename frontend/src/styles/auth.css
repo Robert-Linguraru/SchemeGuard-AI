@@ -66,8 +66,20 @@
 	color: var(--white);
 }
 
+.card .ant-btn {
+	min-height: 44px;
+	font-weight: 700;
+}
+
 @media (max-width: 600px) {
 	.card {
 		padding: 25px;
 	}
+}
+
+.auth-theme-toggle.ant-btn {
+	position: absolute;
+	top: 24px;
+	right: 24px;
+	z-index: 3;
 }
