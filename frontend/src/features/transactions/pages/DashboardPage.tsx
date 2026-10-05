@@ -4,6 +4,7 @@ import {
     detectUploadOutliers,
     evaluateUpload,
     getUploadOutlierIds,
+    getUploadAnomalyJob,
     getUploadStatistics,
     getUploadTransactions
 } from "../../uploads/api/uploadsApi";
@@ -122,6 +123,47 @@ export function DashboardPage({
             });
         return () => { cancelled = true; };
     }, [selectedUploadId]);
+
+    useEffect(() => {
+        if (!selectedUploadId) return;
+        let cancelled = false;
+        void getUploadAnomalyJob(selectedUploadId).then((job) => {
+            if (cancelled) return;
+            setIsDetectingOutliers(job.status === "PENDING" || job.status === "RUNNING");
+            if (job.status === "FAILED") setAnomalyError(job.errorMessage ?? "Could not detect outliers.");
+        }).catch(() => {
+            // No job exists until anomaly detection is requested.
+        });
+        return () => { cancelled = true; };
+    }, [selectedUploadId]);
+
+    useEffect(() => {
+        if (!selectedUploadId || !isDetectingOutliers) return;
+        let cancelled = false;
+        const timer = window.setInterval(() => {
+            void getUploadAnomalyJob(selectedUploadId).then(async (job) => {
+                if (cancelled) return;
+                if (job.status === "COMPLETED") {
+                    window.clearInterval(timer);
+                    const ids = await getUploadOutlierIds(selectedUploadId);
+                    if (cancelled) return;
+                    setOutlierIds(new Set(ids));
+                    setConfirmedOutlierIds(new Set());
+                    setIsDetectingOutliers(false);
+                    setAnomalyMessage(ids.length === 0
+                        ? "Outlier detection completed. No outliers were found in this CSV."
+                        : `Outlier detection completed. ${ids.length} outlier${ids.length === 1 ? "" : "s"} found.`);
+                } else if (job.status === "FAILED") {
+                    window.clearInterval(timer);
+                    setIsDetectingOutliers(false);
+                    setAnomalyError(job.errorMessage ?? "Could not detect outliers.");
+                }
+            }).catch(() => {
+                // The next poll retries transient status endpoint errors.
+            });
+        }, 1500);
+        return () => { cancelled = true; window.clearInterval(timer); };
+    }, [selectedUploadId, isDetectingOutliers]);
 
     const runEvaluation = async () => {
         if (!selectedUploadId || !canEvaluate || isEvaluating) {
@@ -253,23 +295,26 @@ export function DashboardPage({
         setAnomalyError(null);
         setAnomalyMessage(null);
         try {
-            const result = await detectUploadOutliers(selectedUploadId);
-            setOutlierIds(new Set(result.outlierTransactionIds));
-            setConfirmedOutlierIds(new Set());
-            const count = result.outlierTransactionIds.length;
-            setAnomalyMessage(
-                count === 0
+            const job = await detectUploadOutliers(selectedUploadId);
+            if (job.status === "COMPLETED") {
+                const ids = await getUploadOutlierIds(selectedUploadId);
+                setOutlierIds(new Set(ids));
+                setAnomalyMessage(ids.length === 0
                     ? "Outlier detection completed. No outliers were found in this CSV."
-                    : `Outlier detection completed. ${count} outlier${count === 1 ? "" : "s"} found.`
-            );
+                    : `Outlier detection completed. ${ids.length} outlier${ids.length === 1 ? "" : "s"} found.`);
+                setIsDetectingOutliers(false);
+            } else {
+                setAnomalyMessage("Outlier detection queued. Results will appear when processing finishes.");
+            }
         } catch (requestError: unknown) {
+            setIsDetectingOutliers(false);
             setAnomalyError(
                 requestError instanceof Error
                     ? requestError.message
                     : "Could not detect outliers"
             );
         } finally {
-            setIsDetectingOutliers(false);
+            // Keep the indicator active while the background job is pending.
         }
     };
 
