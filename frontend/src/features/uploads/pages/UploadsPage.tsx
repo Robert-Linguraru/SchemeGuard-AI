@@ -6,7 +6,9 @@ import { ErrorMessage } from "../../../shared/components/ErrorMessage";
 import { EntityList } from "../../../shared/components/EntityList/EntityList";
 import type { EntityListColumn, EntityListQuery } from "../../../shared/types/list";
 import {
+  App as AntdApp,
   Button,
+  Tooltip,
 } from "antd";
 import {
     DownloadOutlined,
@@ -30,8 +32,16 @@ const formatUploadedAt = (uploadedAt: string) => {
     return Number.isNaN(date.getTime()) ? uploadedAt : date.toLocaleString();
 };
 
-const statusClassName = (status: string) =>
-    status === "COMPLETED" ? "entity-list-status active" : "entity-list-status inactive";
+const statusClassName = (status: string) => {
+    const normalizedStatus = status.toUpperCase();
+    if (normalizedStatus === "COMPLETED" || normalizedStatus === "EVALUATED") {
+        return "entity-list-status active";
+    }
+    if (normalizedStatus === "NOT_EVALUATED" || normalizedStatus === "UPLOADING") {
+        return "entity-list-status not-evaluated";
+    }
+    return "entity-list-status inactive";
+};
 
 const getDownloadFileName = (contentDisposition: string | null): string | null => {
     if (!contentDisposition) {
@@ -72,6 +82,7 @@ const createColumns = (
     {
         key: "importStatus",
         label: "Import status",
+        align: "center",
         render: (upload) => (
             <span className={statusClassName(upload.importStatus)}>
                 {upload.importStatus}
@@ -81,15 +92,19 @@ const createColumns = (
     {
         key: "evaluationStatus",
         label: "Evaluation status",
+        align: "center",
         render: (upload) => (
-            <span className={statusClassName(upload.evaluationStatus)}>
-                {upload.evaluationStatus}
+            <span className={evaluatingUploadId === upload.id
+                ? "entity-list-status evaluating"
+                : statusClassName(upload.evaluationStatus)}>
+                {evaluatingUploadId === upload.id ? "EVALUATING" : upload.evaluationStatus}
             </span>
         )
     },
     {
         key: "transactionCount",
         label: "Transactions",
+        align: "center",
         sortable: true
     },
     {
@@ -97,43 +112,60 @@ const createColumns = (
         label: "Actions",
         render: (upload) => (
             <div className="entity-list-actions">
-                <Button
-                    type="default"
-                    icon={<RightOutlined />}
-                    iconPlacement ="end"
-                    //className="entity-list-action-button"
-                    onClick={() => onOpenUpload(
-                        upload.id,
-                        upload.fileName,
-                        upload.importStatus,
-                        upload.wasEvaluated
-                    )}
+                <Tooltip
+                    title={downloadingUploadId === upload.id ? "Downloading original CSV..." : "Download CSV"}
+                    color="#f05d53"
+                    styles={{ container: { color: "#ffffff" } }}
                 >
-                    Open
-                </Button>
-                <Button
-                    type="default"
-                    icon={<DownloadOutlined />}
-                    //className="entity-list-action-button"
-                    disabled={downloadingUploadId === upload.id}
-                    onClick={() => onDownloadUpload(upload.id, upload.fileName)}
-                >
-                    {downloadingUploadId === upload.id ? "Downloading..." : "Download"}
-                </Button>
+                    <span className="entity-list-action-tooltip">
+                        <Button
+                            type="default"
+                            className={`entity-list-action-button entity-list-action-icon-button${downloadingUploadId === upload.id ? " download-in-progress" : ""}`}
+                            icon={<DownloadOutlined />}
+                            disabled={downloadingUploadId === upload.id}
+                            onClick={() => onDownloadUpload(upload.id, upload.fileName)}
+                            aria-label={downloadingUploadId === upload.id ? "Downloading original CSV" : "Download original CSV"}
+                        />
+                    </span>
+                </Tooltip>
                 {upload.importStatus === "COMPLETED" && !upload.wasEvaluated && (
-                    <Button
-                        type="primary"
-                        icon={<ExperimentOutlined />}
-                        //className="entity-list-action-button"
-                        disabled={evaluatingUploadId === upload.id}
-                        onClick={() => onEvaluateUpload(upload.id)}
+                    <Tooltip
+                        title={evaluatingUploadId === upload.id ? "Evaluating upload..." : "Evaluate"}
+                        color="#f05d53"
+                        styles={{ container: { color: "#ffffff" } }}
                     >
-                        {evaluatingUploadId === upload.id ? "Evaluating..." : "Evaluate"}
-                    </Button>
+                        <span className="entity-list-action-tooltip">
+                            <Button
+                                type="primary"
+                                className="entity-list-action-icon-button"
+                                icon={<ExperimentOutlined />}
+                                disabled={evaluatingUploadId === upload.id}
+                                onClick={() => onEvaluateUpload(upload.id)}
+                                aria-label="Evaluate upload"
+                            />
+                        </span>
+                    </Tooltip>
                 )}
-                {upload.importStatus === "COMPLETED" && upload.wasEvaluated && (
-                    <span className="entity-list-status active">Evaluated</span>
-                )}
+                <Tooltip
+                    title="Open Details"
+                    color="#f05d53"
+                    styles={{ container: { color: "#ffffff" } }}
+                >
+                    <span className="entity-list-action-tooltip">
+                        <Button
+                            type="default"
+                            className="entity-list-action-button entity-list-action-icon-button"
+                            icon={<RightOutlined />}
+                            onClick={() => onOpenUpload(
+                                upload.id,
+                                upload.fileName,
+                                upload.importStatus,
+                                upload.wasEvaluated
+                            )}
+                            aria-label="Open upload details"
+                        />
+                    </span>
+                </Tooltip>
             </div>
         )
     }
@@ -143,6 +175,7 @@ export function UploadsPage({
     onOpenUpload,
     selectedUploadId
 }: UploadsPageProps) {
+    const { notification } = AntdApp.useApp();
     const [reloadKey, setReloadKey] = useState(0);
     const [evaluatingUploadId, setEvaluatingUploadId] = useState<string | null>(null);
     const [evaluationError, setEvaluationError] = useState<string | null>(null);
@@ -156,6 +189,11 @@ export function UploadsPage({
         setEvaluationError(null);
         try {
             await evaluateUpload(uploadId);
+            notification.success({
+                placement: "topRight",
+                message: "Evaluation complete",
+                description: "The upload has been evaluated successfully."
+            });
             setReloadKey((currentKey) => currentKey + 1);
         } catch (requestError: unknown) {
             setEvaluationError(

@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useAuth } from "../../../app/AuthProvider";
 import { ErrorMessage } from "../../../shared/components/ErrorMessage";
+import { Button } from "antd";
 
 export function LoginForm() {
     const { login, error } = useAuth();
@@ -28,9 +29,9 @@ export function LoginForm() {
                 Password
                 <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} minLength={8} required />
             </label>
-            <button type="submit" disabled={isSubmitting}>
+            <Button type="primary" htmlType="submit" disabled={isSubmitting}>
                 {isSubmitting ? "Please wait..." : "Login"}
-            </button>
+            </Button>
             {error && <ErrorMessage title="Unable to log in" message={error} />}
         </form>
     );

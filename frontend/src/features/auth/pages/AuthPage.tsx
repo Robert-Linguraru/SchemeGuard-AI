@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { LoginForm } from "../components/LoginForm";
 import { RegisterForm } from "../components/RegisterForm";
+import { Button } from "antd";
 
 export function AuthPage() {
     const [mode, setMode] = useState<"login" | "register">("login");
@@ -20,8 +21,8 @@ export function AuthPage() {
                 </div>
                 <p className="subtitle">Interchange qualification workspace</p>
                 <div className="tabs">
-                    <button className={mode === "login" ? "active" : ""} onClick={() => setMode("login")}>Login</button>
-                    <button className={mode === "register" ? "active" : ""} onClick={() => setMode("register")}>Create account</button>
+                    <Button type={mode === "login" ? "primary" : "text"} className={mode === "login" ? "active" : ""} onClick={() => setMode("login")}>Login</Button>
+                    <Button type={mode === "register" ? "primary" : "text"} className={mode === "register" ? "active" : ""} onClick={() => setMode("register")}>Create account</Button>
                 </div>
                 {mode === "login" ? <LoginForm /> : <RegisterForm />}
             </section>

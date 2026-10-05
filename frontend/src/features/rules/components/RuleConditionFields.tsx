@@ -1,4 +1,5 @@
 import type { RuleCondition } from "../types/rule";
+import { Button } from "antd";
 
 interface RuleConditionFieldsProps {
     conditions: RuleCondition[];
@@ -62,24 +63,25 @@ export function RuleConditionFields({ conditions, onChange }: RuleConditionField
                                 onChange={(event) => updateCondition(index, { value: event.target.value })}
                             />
                         </label>
-                        <button
-                            type="button"
+                        <Button
+                            type="default"
+                            danger
                             className="remove-condition"
                             aria-label={`Remove condition ${index + 1}`}
                             onClick={() => removeCondition(index)}
                         >
                             Remove
-                        </button>
+                        </Button>
                     </div>
                 ))}
             </div>
-            <button
-                type="button"
+            <Button
+                type="default"
                 className="secondary-button"
                 onClick={() => onChange([...conditions, { field: "", operator: "", value: "" }])}
             >
                 Add condition
-            </button>
+            </Button>
         </fieldset>
     );
 }

@@ -5,6 +5,7 @@ import type {
     RuleCondition,
     RuleDetailsResponse
 } from "../types/rule";
+import { App as AntdApp, Button } from "antd";
 
 interface RuleDetailsPageProps {
     ruleId: string;
@@ -31,6 +32,7 @@ export function RuleDetailsPage({
                                     onBack,
                                     onDeleted
                                 }: RuleDetailsPageProps) {
+    const { modal, notification } = AntdApp.useApp();
     const [rule, setRule] = useState<RuleDetailsResponse | null>(null);
     const [error, setError] = useState<string | null>(null);
 
@@ -42,17 +44,27 @@ export function RuleDetailsPage({
             });
     }, [ruleId]);
 
-    const handleDelete = async () => {
-        if (!window.confirm("Are you sure you want to delete this rule?")) {
-            return;
-        }
-
-        try {
-            await deleteRule(ruleId);
-            onDeleted();
-        } catch (error) {
-            setError(getRuleErrorMessage(error));
-        }
+    const handleDelete = () => {
+        modal.confirm({
+            title: "Delete rule?",
+            content: `Permanently delete ${rule?.ruleName ?? "this rule"}? This cannot be undone.`,
+            okText: "Delete rule",
+            cancelText: "Cancel",
+            okButtonProps: { danger: true },
+            onOk: async () => {
+                try {
+                    await deleteRule(ruleId);
+                    notification.success({
+                        placement: "topRight",
+                        message: "Rule deleted",
+                        description: `${rule?.ruleName ?? "The rule"} was deleted successfully.`
+                    });
+                    onDeleted();
+                } catch (requestError) {
+                    setError(getRuleErrorMessage(requestError));
+                }
+            }
+        });
     };
 
     const conditions: RuleCondition[] = rule?.conditions?.all ?? [];
@@ -60,12 +72,13 @@ export function RuleDetailsPage({
     return (
         <main className="dashboard rules-page">
             <section className="content">
-                <button
+                <Button
+                    type="default"
                     className="page-nav-button"
                     onClick={onBack}
                 >
                     Back to rules
-                </button>
+                </Button>
 
                 {error && (
                     <div className="form-error" role="alert">
@@ -191,12 +204,14 @@ export function RuleDetailsPage({
                         </section>
 
                         <div className="detail-actions">
-                            <button
+                            <Button
+                                type="default"
+                                danger
                                 className="danger-button"
                                 onClick={handleDelete}
                             >
                                 Delete rule
-                            </button>
+                            </Button>
                         </div>
                     </article>
                 )}

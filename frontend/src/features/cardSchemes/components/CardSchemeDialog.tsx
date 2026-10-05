@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { createCardScheme, updateCardScheme } from "../api/cardSchemeApi";
 import type { CardScheme } from "../types/cardScheme";
+import { Button } from "antd";
 
 interface CardSchemeDialogProps {
     scheme?: CardScheme;
@@ -65,15 +66,15 @@ export function CardSchemeDialog({
                         <p className="eyebrow">CARD SCHEME</p>
                         <h2 id="card-scheme-dialog-title">{scheme ? "Edit card scheme" : "Create card scheme"}</h2>
                     </div>
-                    <button
-                        type="button"
+                    <Button
+                        type="text"
                         className="entity-list-dialog-close"
                         onClick={onClose}
                         disabled={isSaving}
                         aria-label="Close dialog"
                     >
                         ×
-                    </button>
+                    </Button>
                 </div>
 
                 <form
@@ -107,17 +108,17 @@ export function CardSchemeDialog({
                     {error && <p className="form-error" role="alert">{error}</p>}
 
                     <div className="entity-list-dialog-actions">
-                        <button
-                            type="button"
+                        <Button
+                            type="default"
                             className="secondary-button"
                             onClick={onClose}
                             disabled={isSaving}
                         >
                             Cancel
-                        </button>
-                        <button type="submit" className="create-rule-button" disabled={isSaving}>
+                        </Button>
+                        <Button type="primary" htmlType="submit" className="create-rule-button" disabled={isSaving}>
                             {isSaving ? "Saving..." : scheme ? "Save changes" : "Create card scheme"}
-                        </button>
+                        </Button>
                     </div>
                 </form>
             </section>

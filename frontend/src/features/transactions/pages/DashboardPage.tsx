@@ -15,6 +15,8 @@ import type {
     EntityListColumn,
     EntityListQuery
 } from "../../../shared/types/list";
+import { App as AntdApp, Button, Tooltip } from "antd";
+import { ExperimentOutlined } from "@ant-design/icons";
 
 interface DashboardPageProps {
     onOpenAssistant: () => void;
@@ -37,18 +39,17 @@ export function DashboardPage({
     selectedUploadWasEvaluated = false,
     onUploadEvaluated
 }: DashboardPageProps) {
+    const { notification } = AntdApp.useApp();
     const [uploadStatistics, setUploadStatistics] = useState<UploadStatistics | null>(null);
     const [isLoadingStatistics, setIsLoadingStatistics] = useState(false);
     const [statisticsError, setStatisticsError] = useState<string | null>(null);
     const [isEvaluating, setIsEvaluating] = useState(false);
-    const [evaluationMessage, setEvaluationMessage] = useState<string | null>(null);
     const [evaluationError, setEvaluationError] = useState<string | null>(null);
     const [transactionReloadKey, setTransactionReloadKey] = useState(0);
     const [outlierIds, setOutlierIds] = useState<Set<string>>(new Set());
     const [confirmedOutlierIds, setConfirmedOutlierIds] = useState<Set<string>>(new Set());
     const [isDetectingOutliers, setIsDetectingOutliers] = useState(false);
     const [anomalyError, setAnomalyError] = useState<string | null>(null);
-    const [anomalyMessage, setAnomalyMessage] = useState<string | null>(null);
     const [showTransactionFilters, setShowTransactionFilters] = useState(false);
 
     const canEvaluate = selectedUploadImportStatus === "COMPLETED"
@@ -91,7 +92,6 @@ export function DashboardPage({
         setOutlierIds(new Set());
         setConfirmedOutlierIds(new Set());
         setAnomalyError(null);
-        setAnomalyMessage(null);
         if (!selectedUploadId) {
             return () => { cancelled = true; };
         }
@@ -115,11 +115,14 @@ export function DashboardPage({
         }
 
         setIsEvaluating(true);
-        setEvaluationMessage(null);
         setEvaluationError(null);
         try {
             const result = await evaluateUpload(selectedUploadId);
-            setEvaluationMessage(result.message);
+            notification.success({
+                placement: "topRight",
+                message: "Evaluation complete",
+                description: result.message
+            });
             onUploadEvaluated(result.wasEvaluated);
             setTransactionReloadKey((key) => key + 1);
         } catch (requestError: unknown) {
@@ -139,24 +142,24 @@ export function DashboardPage({
         }
 
         if (!canDetectOutliers) {
-            setAnomalyMessage(null);
             setAnomalyError("Evaluate this CSV before detecting outliers.");
             return;
         }
 
         setIsDetectingOutliers(true);
         setAnomalyError(null);
-        setAnomalyMessage(null);
         try {
             const result = await detectUploadOutliers(selectedUploadId);
             setOutlierIds(new Set(result.outlierTransactionIds));
             setConfirmedOutlierIds(new Set());
             const count = result.outlierTransactionIds.length;
-            setAnomalyMessage(
-                count === 0
-                    ? "Outlier detection completed. No outliers were found in this CSV."
-                    : `Outlier detection completed. ${count} outlier${count === 1 ? "" : "s"} found.`
-            );
+            notification.success({
+                placement: "topRight",
+                message: "Outlier detection complete",
+                description: count === 0
+                    ? "No outliers were found in this CSV."
+                    : `${count} outlier${count === 1 ? "" : "s"} found.`
+            });
         } catch (requestError: unknown) {
             setAnomalyError(
                 requestError instanceof Error
@@ -250,14 +253,14 @@ export function DashboardPage({
             render: (transaction) => outlierIds.has(transaction.id) ? (
                 <div className="transaction-anomaly-cell">
                     <span>Outlier</span>
-                    <button
-                        type="button"
+                    <Button
+                        type="default"
                         className="entity-list-action-button"
                         disabled={confirmedOutlierIds.has(transaction.id)}
                         onClick={() => void confirmOutlier(transaction.id)}
                     >
                         {confirmedOutlierIds.has(transaction.id) ? "Checked" : "Check off"}
-                    </button>
+                    </Button>
                 </div>
             ) : null
         }
@@ -291,25 +294,45 @@ export function DashboardPage({
 
                     <div className="page-heading-actions">
                         {selectedUploadId && canEvaluate && (
-                            <button
-                                type="button"
-                                className="dashboard-button"
-                                onClick={() => void runEvaluation()}
-                                disabled={isEvaluating}
+                            <Tooltip
+                                title={isEvaluating ? "Evaluating upload..." : "Evaluate this upload"}
+                                color="#f05d53"
+                                styles={{ container: { color: "#ffffff" } }}
                             >
-                                {isEvaluating ? "Evaluating..." : "Evaluate"}
-                            </button>
+                                <span className="action-tooltip-trigger">
+                                    <Button
+                                        type="primary"
+                                        size="large"
+                                        className="standard-action-size"
+                                        icon={<ExperimentOutlined />}
+                                        onClick={() => void runEvaluation()}
+                                        disabled={isEvaluating}
+                                    >
+                                        {isEvaluating ? "Evaluating..." : "Evaluate"}
+                                    </Button>
+                                </span>
+                            </Tooltip>
                         )}
 
-                        <button
-                            type="button"
-                            className="dashboard-button"
-                            onClick={() => void runOutlierDetection()}
-                            disabled={!selectedUploadId || isDetectingOutliers}
-                            title={!canDetectOutliers ? "Evaluate this upload before detecting outliers." : undefined}
-                        >
-                            {isDetectingOutliers ? "Detecting..." : "Detect outliers"}
-                        </button>
+                        {selectedUploadId && canDetectOutliers && (
+                            <Tooltip
+                                title={isDetectingOutliers ? "Detecting outliers..." : "Detect outliers in this upload"}
+                                color="#f05d53"
+                                styles={{ container: { color: "#ffffff" } }}
+                            >
+                                <span className="action-tooltip-trigger">
+                                    <Button
+                                        type="primary"
+                                        size="large"
+                                        className="standard-action-size"
+                                        onClick={() => void runOutlierDetection()}
+                                        disabled={isDetectingOutliers}
+                                    >
+                                        {isDetectingOutliers ? "Detecting..." : "Detect outliers"}
+                                    </Button>
+                                </span>
+                            </Tooltip>
+                        )}
 
                     </div>
                 </div>
@@ -326,7 +349,7 @@ export function DashboardPage({
                     />
                 )}
 
-            <section className="transactions-card">
+            <section className={`transactions-card${showTransactionFilters ? " transactions-card-filters-visible" : ""}`}>
                     {selectedUploadId ? (
                         <EntityList
                             title={selectedUploadFileName ?? "Transaction list"}
@@ -336,15 +359,15 @@ export function DashboardPage({
                             reloadKey={transactionReloadKey}
                             initialQuery={{ size: 50, sort: "createdAt,desc" }}
                             toolbar={({ query, updateQuery }) => (
-                                <>
-                                    <button
-                                        type="button"
+                                <div className="transaction-list-filters">
+                                    <Button
+                                        type="default"
                                         className="entity-list-filter-button"
                                         aria-expanded={showTransactionFilters}
                                         onClick={() => setShowTransactionFilters((visible) => !visible)}
                                     >
                                         {showTransactionFilters ? "Hide filters" : "Filter"}
-                                    </button>
+                                    </Button>
                                     {showTransactionFilters && <>
                                     <label className="entity-list-filter">
                                         <span>Show</span>
@@ -381,7 +404,7 @@ export function DashboardPage({
                                         </select>
                                     </label>
                                     </>}
-                                </>
+                                </div>
                             )}
                             emptyMessage="No transactions available in this CSV upload."
                             rowClassName={(transaction) => outlierIds.has(transaction.id) ? "transaction-anomaly-row" : undefined}
@@ -389,12 +412,6 @@ export function DashboardPage({
                     ) : (
                         <div className="empty-state">
                             <p>Select a CSV upload to view its transactions.</p>
-                        </div>
-                    )}
-
-                    {evaluationMessage && (
-                        <div className="success-box" role="status">
-                            {evaluationMessage}
                         </div>
                     )}
 
@@ -410,24 +427,18 @@ export function DashboardPage({
                         </div>
                     )}
 
-                    {anomalyMessage && (
-                        <div className="success-box" role="status">
-                            {anomalyMessage}
-                        </div>
-                    )}
-
                 </section>
             </section>
             {selectedUploadId && !isAssistantOpen && (
-                <button
-                    type="button"
+                <Button
+                    type="primary"
                     className="assistant-floating-button"
                     onClick={onOpenAssistant}
                     aria-label="Open AI recommendations"
                     title="AI recommendations"
                 >
                     AI
-                </button>
+                </Button>
             )}
             <RecommendationAssistant
                 uploadId={selectedUploadId ?? null}

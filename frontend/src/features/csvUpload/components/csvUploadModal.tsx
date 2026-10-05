@@ -239,6 +239,7 @@ export default function CsvTransactionUploadModal({
       <Button
         type="primary"
         size="large"
+        className="standard-action-size"
         icon={<CloudUploadOutlined />}
         onClick={openModal}
       >

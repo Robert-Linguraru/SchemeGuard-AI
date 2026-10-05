@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../../app/AuthProvider";
+import { Button } from "antd";
 
 interface AccountMenuProps {
     onEditProfile: () => void;
@@ -28,9 +29,9 @@ export function AccountMenu({ onEditProfile }: AccountMenuProps) {
 
     return (
         <div className="account-menu" ref={menuRef}>
-            <button
+            <Button
                 className="account-button"
-                type="button"
+                type="default"
                 aria-expanded={isOpen}
                 aria-haspopup="menu"
                 onClick={() => setIsOpen((open) => !open)}
@@ -40,7 +41,7 @@ export function AccountMenu({ onEditProfile }: AccountMenuProps) {
                 </span>
                 <span>Account</span>
                 <span className="account-chevron" aria-hidden="true" />
-            </button>
+            </Button>
 
             {isOpen && (
                 <div className="account-dropdown" role="menu">
@@ -48,12 +49,12 @@ export function AccountMenu({ onEditProfile }: AccountMenuProps) {
                         <strong>{user?.fullName}</strong>
                         <span>{user?.email}</span>
                     </div>
-                    <button type="button" role="menuitem" onClick={handleEditProfile}>
+                    <Button type="text" role="menuitem" onClick={handleEditProfile}>
                         Edit profile
-                    </button>
-                    <button type="button" role="menuitem" onClick={logout}>
+                    </Button>
+                    <Button type="text" role="menuitem" onClick={logout}>
                         Logout
-                    </button>
+                    </Button>
                 </div>
             )}
         </div>

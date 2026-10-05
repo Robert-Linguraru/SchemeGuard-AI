@@ -27,8 +27,38 @@
 .entity-list-toolbar {
     display: flex;
     align-items: flex-end;
+    flex-wrap: wrap;
     gap: 14px;
     margin: 24px 0 18px;
+}
+
+.entity-list-toolbar-extras {
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-end;
+    flex: 1 1 560px;
+    flex-wrap: wrap;
+    gap: 14px;
+    min-width: 0;
+}
+
+.entity-list-toolbar-extras:empty {
+    display: none;
+}
+
+.entity-list-toolbar-extras-no-pagination {
+    flex-basis: 0;
+    justify-content: flex-start;
+}
+
+.entity-list-pagination-top {
+    flex: 0 1 auto;
+    min-width: 0;
+    margin: 0 0 0 auto;
+}
+
+.entity-list-pagination-top > span {
+    white-space: nowrap;
 }
 
 .entity-list-search {
@@ -76,8 +106,8 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    min-height: 42px;
-    color: var(--navy);
+    min-height: 36px;
+    color: var(--text-muted);
     font-size: 13px;
 }
 
@@ -145,8 +175,23 @@
 
 .entity-list-actions {
     display: flex;
+    justify-content: flex-start;
     flex-wrap: wrap;
     gap: 7px;
+}
+
+.entity-list-action-tooltip,
+.entity-list-action-icon-button.ant-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.entity-list-action-icon-button.ant-btn {
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
+    padding: 0;
 }
 
 .entity-list-action-button {
@@ -286,6 +331,66 @@
     margin-top: 22px;
 }
 
+.transactions-card-filters-visible .entity-list-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 430px) minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    align-items: flex-end;
+}
+
+.transactions-card-filters-visible .entity-list-search {
+    grid-column: 1;
+    grid-row: 1;
+    width: 100%;
+}
+
+.transactions-card-filters-visible .entity-list-toolbar-extras {
+    display: contents;
+}
+
+.transactions-card-filters-visible .transaction-list-filters {
+    display: flex;
+    grid-column: 2;
+    grid-row: 1;
+    align-items: flex-end;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 14px;
+    min-width: 0;
+}
+
+.transactions-card-filters-visible .transaction-list-filters .entity-list-filter {
+    flex: 1 1 150px;
+    min-width: 150px;
+}
+
+.transactions-card-filters-visible .entity-list-pagination-top {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-content: flex-end;
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+}
+
+@media (max-width: 900px) {
+    .transactions-card-filters-visible .entity-list-toolbar {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: auto auto auto;
+    }
+
+    .transactions-card-filters-visible .transaction-list-filters {
+        grid-column: 1;
+        grid-row: 2;
+        justify-content: flex-start;
+    }
+
+    .transactions-card-filters-visible .entity-list-pagination-top {
+        grid-column: 1;
+        grid-row: 3;
+    }
+}
+
 @media (max-width: 760px) {
     .entity-list-toolbar,
     .entity-list-feedback,
@@ -294,12 +399,24 @@
         flex-direction: column;
     }
 
+    .entity-list-toolbar-extras {
+        align-items: stretch;
+        flex-direction: column;
+        flex-basis: 100%;
+    }
+
     .entity-list-search {
         width: 100%;
     }
 
     .entity-list-pagination-controls {
         flex-wrap: wrap;
+    }
+
+    .entity-list-pagination-top {
+        width: 100%;
+        min-width: 0;
+        margin: 0;
     }
 
     .entity-list-dialog-actions {

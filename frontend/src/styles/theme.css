@@ -1,0 +1,602 @@
+:root[data-theme="light"] {
+    color-scheme: light;
+    --page-bg: #eaf3f8;
+    --surface-card: #ffffff;
+    --surface-raised: #f7fbfd;
+    --surface-subtle: #edf4f8;
+    --surface-input: #fbfdfe;
+    --text-primary: #20384a;
+    --text-muted: #60778a;
+    --muted: #60778a;
+    --border: #d5e2ea;
+    --nav-surface: #ffffff;
+    --action-neutral: #e7f0f6;
+    --action-neutral-hover: #dceaf3;
+    --danger: #a8292d;
+    --danger-surface: #ffeded;
+    --status-evaluated-bg: #dcefff;
+    --status-evaluated-text: #176a9a;
+    --status-not-evaluated-bg: #fff0d2;
+    --status-not-evaluated-text: #855800;
+    --status-evaluating-bg: #ffe5bd;
+    --status-evaluating-text: #a65300;
+    --download-progress-bg: #f3c94f;
+    --download-progress-text: #4d3b05;
+    --danger-button-bg: #c63d45;
+    --danger-button-hover: #ad3039;
+}
+
+:root[data-theme="dark"] {
+    color-scheme: dark;
+    --page-bg: #172b3a;
+    --surface-card: #203d50;
+    --surface-raised: #27485d;
+    --surface-subtle: #29485b;
+    --surface-input: #1d394b;
+    --text-primary: #f4f7fa;
+    --text-muted: #a9bbc7;
+    --muted: #a9bbc7;
+    --border: #3d6378;
+    --nav-surface: #172b3a;
+    --action-neutral: #2d536b;
+    --action-neutral-hover: #386781;
+    --danger: #ff8b85;
+    --danger-surface: #542f37;
+    --status-evaluated-bg: #23536d;
+    --status-evaluated-text: #a8e1ff;
+    --status-not-evaluated-bg: #58451f;
+    --status-not-evaluated-text: #ffdc91;
+    --status-evaluating-bg: #674526;
+    --status-evaluating-text: #ffd09a;
+    --download-progress-bg: #8e6d19;
+    --download-progress-text: #fff2bc;
+    --danger-button-bg: #cb4d55;
+    --danger-button-hover: #b63e47;
+}
+
+html,
+body {
+    min-height: 100%;
+    background: var(--page-bg);
+}
+
+body {
+    color: var(--text-primary);
+}
+
+input,
+select,
+textarea {
+    border-color: var(--border);
+    background: var(--surface-input);
+    color: var(--text-primary);
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: var(--text-muted);
+}
+
+.app-navbar {
+    background: var(--nav-surface);
+    border-bottom-color: var(--border);
+}
+
+.app-navbar-brand,
+.app-navbar-link[aria-current="page"] {
+    color: var(--text-primary);
+}
+
+.app-navbar-welcome,
+.app-navbar-link {
+    color: var(--text-muted);
+}
+
+.app-navbar-link.ant-btn:hover,
+.app-navbar-link[aria-current="page"] {
+    background: color-mix(in srgb, #f05d53 12%, var(--nav-surface));
+    border-color: color-mix(in srgb, #f05d53 45%, transparent);
+}
+
+.app-navbar-link.ant-btn[aria-current="page"]::after {
+    background: #f05d53;
+}
+
+.app-navbar-link.ant-btn:hover {
+    color: var(--text-primary);
+}
+
+.account-button.ant-btn,
+.theme-toggle-button.ant-btn {
+    border-color: var(--border);
+    background: var(--surface-card);
+    color: var(--text-primary);
+}
+
+.account-button.ant-btn:hover,
+.theme-toggle-button.ant-btn:hover {
+    border-color: #f05d53;
+    color: #f05d53;
+}
+
+.account-avatar {
+    background: #f05d53;
+    color: #ffffff;
+}
+
+.account-dropdown {
+    border-color: var(--border);
+    background: var(--surface-card);
+    color: var(--text-primary);
+}
+
+.account-dropdown .ant-btn {
+    width: 100%;
+    justify-content: flex-start;
+    min-height: 48px;
+    padding: 15px 16px;
+    background: var(--surface-card);
+    color: var(--text-primary);
+}
+
+.account-summary {
+    padding-top: 19px;
+    padding-bottom: 19px;
+}
+
+.account-dropdown .ant-btn:hover {
+    background: var(--surface-raised);
+    color: var(--text-primary);
+}
+
+.dashboard {
+    background: var(--page-bg);
+    color: var(--text-primary);
+}
+
+.page-heading h2,
+.section-header h2,
+.welcome h1,
+.entity-list-heading h2,
+.rule-detail-card h2,
+.rule-card h3,
+.analysis-card h3 {
+    color: var(--text-primary);
+}
+
+.page-heading p:not(.eyebrow),
+.welcome p,
+.entity-list-heading p:not(.eyebrow),
+.rule-category,
+.rule-scheme,
+.rule-validity,
+.rule-card-meta span,
+.details-grid span,
+.condition-operator,
+.profile-heading > p:last-child,
+.profile-card-heading p,
+.account-summary span,
+.stat-label,
+.stat-description,
+.table-toolbar,
+.entity-list-pagination,
+.entity-list-pagination-controls label,
+.field-help,
+.optional {
+    color: var(--text-muted);
+}
+
+.entity-list-card,
+.rule-builder-card,
+.rule-detail-card,
+.profile-card,
+.transactions-card,
+.rule-card,
+.entity-list-dialog,
+.assistant-panel,
+.card-scheme-dialog {
+    border-color: var(--border);
+    background: var(--surface-card);
+    color: var(--text-primary);
+    box-shadow: 0 16px 44px rgba(7, 24, 38, 0.12);
+}
+
+.rule-card h3,
+.rule-card-meta strong,
+.details-grid strong,
+.rule-form label,
+.rule-detail-card,
+.profile-card,
+.assistant-panel {
+    color: var(--text-primary);
+}
+
+.details-grid div,
+.condition-row,
+.condition-detail-row,
+.rule-form input,
+.rule-form select,
+.entity-list-search input,
+.entity-list-filter select,
+.entity-list-pagination select,
+.profile-form input {
+    border-color: var(--border);
+    background: var(--surface-input);
+    color: var(--text-primary);
+}
+
+.entity-list-table th,
+.entity-list-table td,
+th,
+td {
+    border-bottom-color: var(--border);
+}
+
+.entity-list-table th,
+th,
+.entity-list-sort-button.ant-btn {
+    color: var(--text-muted);
+}
+
+:root[data-theme="dark"] .entity-list-table th,
+:root[data-theme="dark"] .entity-list-sort-button.ant-btn {
+    color: #ffffff;
+}
+
+:root[data-theme="dark"] .entity-list-search,
+:root[data-theme="dark"] .entity-list-search input,
+:root[data-theme="dark"] .entity-list-checkbox {
+    color: #ffffff;
+}
+
+.entity-list-sort-button.ant-btn:hover {
+    color: var(--text-primary);
+}
+
+.entity-list-table tbody tr:hover,
+tbody tr:hover {
+    background: var(--surface-raised);
+}
+
+.entity-list-status.inactive,
+.rule-status.inactive,
+.record-count {
+    background: var(--surface-subtle);
+    color: var(--text-muted);
+}
+
+.entity-list-status.evaluated {
+    font-weight: 800;
+}
+
+.entity-list-status.evaluated {
+    background: var(--status-evaluated-bg);
+    color: var(--status-evaluated-text);
+}
+
+.entity-list-status.not-evaluated {
+    background: var(--status-not-evaluated-bg);
+    color: var(--status-not-evaluated-text);
+}
+
+.entity-list-status.evaluating {
+    background: var(--status-evaluating-bg);
+    color: var(--status-evaluating-text);
+}
+
+.entity-list-actions .ant-btn.entity-list-action-button:not(.ant-btn-dangerous),
+.ant-btn.entity-list-action-button:not(.ant-btn-dangerous),
+.entity-list-pagination .ant-btn,
+.secondary-button.ant-btn,
+.page-nav-button.ant-btn,
+.view-rule-button.ant-btn,
+.entity-list-filter-button.ant-btn {
+    border-color: var(--border);
+    background: var(--action-neutral);
+    color: var(--text-primary);
+}
+
+.entity-list-actions .ant-btn.entity-list-action-button:not(.ant-btn-dangerous):hover,
+.ant-btn.entity-list-action-button:not(.ant-btn-dangerous):hover,
+.entity-list-pagination .ant-btn:hover,
+.secondary-button.ant-btn:hover,
+.page-nav-button.ant-btn:hover,
+.view-rule-button.ant-btn:hover,
+.entity-list-filter-button.ant-btn:hover {
+    border-color: var(--border);
+    background: var(--action-neutral-hover);
+    color: var(--text-primary);
+}
+
+.entity-list-actions .ant-btn.entity-list-action-danger,
+.danger-button.ant-btn,
+.remove-condition.ant-btn {
+    border-color: var(--danger-button-bg) !important;
+    background: var(--danger-button-bg) !important;
+    color: #ffffff !important;
+}
+
+.entity-list-actions .ant-btn.entity-list-action-danger:hover,
+.danger-button.ant-btn:hover,
+.remove-condition.ant-btn:hover {
+    border-color: var(--danger-button-hover) !important;
+    background: var(--danger-button-hover) !important;
+    color: #ffffff !important;
+}
+
+:root[data-theme="light"] .entity-list-actions .ant-btn.entity-list-action-button:not(.entity-list-action-danger) {
+    border-color: var(--border) !important;
+    background: var(--action-neutral) !important;
+    color: var(--text-primary) !important;
+}
+
+:root[data-theme="light"] .entity-list-actions .ant-btn.entity-list-action-button:not(.entity-list-action-danger):hover:not(:disabled) {
+    border-color: var(--border) !important;
+    background: var(--action-neutral-hover) !important;
+    color: var(--text-primary) !important;
+}
+
+.entity-list-actions .ant-btn,
+.entity-list-filter-button.ant-btn,
+.rule-card-actions .ant-btn,
+.detail-actions .ant-btn,
+.analysis-filter-actions .ant-btn,
+.page-heading-actions .ant-btn,
+.heading-actions .ant-btn,
+.form-actions .ant-btn,
+.entity-list-dialog-actions .ant-btn,
+.transaction-anomaly-cell .ant-btn {
+    transition: transform 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
+}
+
+.entity-list-actions .ant-btn:not(.entity-list-action-icon-button) {
+    min-width: 72px;
+    height: 36px;
+    padding: 0 12px;
+    border-radius: 7px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.entity-list-actions .ant-btn:hover:not(:disabled),
+.entity-list-filter-button.ant-btn:hover:not(:disabled),
+.rule-card-actions .ant-btn:hover:not(:disabled),
+.detail-actions .ant-btn:hover:not(:disabled),
+.analysis-filter-actions .ant-btn:hover:not(:disabled),
+.page-heading-actions .ant-btn:hover:not(:disabled),
+.heading-actions .ant-btn:hover:not(:disabled),
+.form-actions .ant-btn:hover:not(:disabled),
+.entity-list-dialog-actions .ant-btn:hover:not(:disabled),
+.transaction-anomaly-cell .ant-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(5, 25, 40, 0.18);
+}
+
+.entity-list-actions .ant-btn.entity-list-action-danger,
+.danger-button.ant-btn,
+.entity-list-actions .ant-btn.entity-list-action-danger:hover:not(:disabled),
+.danger-button.ant-btn:hover:not(:disabled),
+.entity-list-actions .ant-btn.entity-list-action-danger:focus,
+.danger-button.ant-btn:focus,
+.entity-list-actions .ant-btn.entity-list-action-danger:active,
+.danger-button.ant-btn:active {
+    box-shadow: none !important;
+}
+
+.entity-list-actions .ant-btn:not(.ant-btn-primary):not(.ant-btn-dangerous):not(.entity-list-action-warning):hover:not(:disabled),
+.entity-list-filter-button.ant-btn:hover:not(:disabled),
+.rule-card-actions .ant-btn:not(.ant-btn-primary):not(.ant-btn-dangerous):hover:not(:disabled),
+.detail-actions .ant-btn:not(.ant-btn-primary):not(.ant-btn-dangerous):hover:not(:disabled),
+.analysis-filter-actions .ant-btn:not(.ant-btn-primary):not(.ant-btn-dangerous):hover:not(:disabled),
+.page-heading-actions .ant-btn:not(.ant-btn-primary):not(.ant-btn-dangerous):hover:not(:disabled),
+.heading-actions .ant-btn:not(.ant-btn-primary):not(.ant-btn-dangerous):hover:not(:disabled),
+.form-actions .ant-btn:not(.ant-btn-primary):not(.ant-btn-dangerous):hover:not(:disabled),
+.entity-list-dialog-actions .ant-btn:not(.ant-btn-primary):not(.ant-btn-dangerous):hover:not(:disabled),
+.transaction-anomaly-cell .ant-btn.entity-list-action-button:not(.ant-btn-primary):not(.ant-btn-dangerous):hover:not(:disabled),
+.entity-list-pagination .ant-btn:hover:not(:disabled),
+.secondary-button.ant-btn:hover:not(:disabled),
+.page-nav-button.ant-btn:hover:not(:disabled),
+.view-rule-button.ant-btn:hover:not(:disabled) {
+    border-color: #f05d53 !important;
+    color: #f05d53 !important;
+    filter: none !important;
+    box-shadow: 0 0 0 1px rgba(240, 93, 83, 0.72), 0 4px 10px rgba(5, 25, 40, 0.18);
+}
+
+.entity-list-actions .ant-btn.entity-list-action-warning,
+.entity-list-actions .ant-btn.entity-list-action-warning:hover:not(:disabled) {
+    border-color: #f05d53 !important;
+    background: #f05d53 !important;
+    color: #ffffff !important;
+    filter: none !important;
+}
+
+.entity-list-actions .ant-btn.entity-list-action-warning:hover:not(:disabled) {
+    border-color: #dd5149 !important;
+    background: #dd5149 !important;
+    box-shadow: 0 4px 10px rgba(5, 25, 40, 0.18);
+}
+
+:root[data-theme="dark"] .entity-list-actions .ant-btn.entity-list-action-danger:hover:not(:disabled),
+:root[data-theme="dark"] .danger-button.ant-btn:hover:not(:disabled) {
+    box-shadow: none !important;
+}
+
+.entity-list-actions .ant-btn.download-in-progress:disabled {
+    border-color: var(--download-progress-bg) !important;
+    background: var(--download-progress-bg) !important;
+    color: var(--download-progress-text) !important;
+    cursor: progress;
+    opacity: 1;
+}
+
+.analysis-dashboard {
+    --analysis-surface: var(--surface-card);
+}
+
+.analysis-filter-panel,
+.analysis-kpi-card.ant-card,
+.analysis-card.ant-card,
+.stat-card {
+    border-color: var(--border);
+    background: var(--surface-card);
+    color: var(--text-primary);
+}
+
+.analysis-filter-panel {
+    border-color: var(--border);
+}
+
+.analysis-kpi-card.ant-card,
+.analysis-card.ant-card {
+    color: var(--text-primary);
+}
+
+.analysis-kpi-copy span,
+.analysis-kpi-copy small,
+.analysis-card-heading span,
+.analysis-chart-caption,
+.analysis-table-heading,
+.analysis-empty,
+.analysis-loading,
+.analysis-filter-field > span {
+    color: var(--text-muted);
+}
+
+.analysis-filter-field .ant-picker,
+.analysis-filter-field .ant-select .ant-select-selector {
+    border-color: var(--border) !important;
+    background: var(--surface-input) !important;
+    color: var(--text-primary) !important;
+}
+
+.analysis-filter-field .ant-picker-input > input,
+.analysis-filter-field .ant-select-selection-item,
+.analysis-filter-field .ant-select-selection-placeholder,
+.analysis-filter-field .ant-select-placeholder {
+    color: var(--text-primary) !important;
+}
+
+.analysis-filter-field .ant-picker-input > input::placeholder {
+    color: var(--text-primary) !important;
+    opacity: 1 !important;
+}
+
+.analysis-filter-field .ant-picker-suffix,
+.analysis-filter-field .ant-select-arrow {
+    color: var(--text-muted) !important;
+}
+
+.analysis-filter-field .ant-select-focused .ant-select-selector,
+.analysis-filter-field .ant-select-open .ant-select-selector,
+.analysis-filter-field .ant-picker-focused {
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+.analysis-bar-track,
+.analysis-bar-row .ant-progress-inner {
+    background: var(--surface-subtle);
+}
+
+.analysis-export-button.ant-btn,
+.create-rule-button.ant-btn,
+.save-profile-button.ant-btn,
+.assistant-floating-button.ant-btn,
+.assistant-launcher.ant-btn,
+.assistant-form .ant-btn {
+    border-color: #f05d53;
+    background: #f05d53;
+    color: #ffffff;
+}
+
+.standard-action-size.ant-btn {
+    min-width: 140px;
+    height: 40px;
+    padding: 0 16px;
+    border-radius: 9px;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.action-tooltip-trigger {
+    display: inline-flex;
+}
+
+.add-scheme-button.ant-btn,
+.create-rule-submit-button.ant-btn {
+    font-weight: 700;
+}
+
+.create-rule-button.ant-btn:hover,
+.save-profile-button.ant-btn:hover,
+.analysis-export-button.ant-btn:hover,
+.assistant-floating-button.ant-btn:hover,
+.assistant-launcher.ant-btn:hover,
+.assistant-form .ant-btn:hover {
+    border-color: #dd5149;
+    background: #dd5149;
+    color: #ffffff;
+}
+
+.assistant-messages {
+    background: var(--surface-raised);
+}
+
+.assistant-message.assistant {
+    background: var(--surface-subtle);
+}
+
+.assistant-message.user {
+    background: var(--navy);
+    color: #ffffff;
+}
+
+.condition-value,
+.scheme {
+    color: var(--text-primary);
+}
+
+.assistant-context select {
+    border-color: var(--border);
+    background: var(--surface-input);
+    color: var(--text-primary);
+}
+
+.assistant-clear {
+    color: var(--text-muted);
+}
+
+.auth-card,
+.auth-panel,
+.auth-form-card,
+.card {
+    border-color: var(--border);
+    background: var(--surface-card);
+    color: var(--text-primary);
+}
+
+.card .brand-name,
+.card h1,
+.card label {
+    color: var(--text-primary);
+}
+
+.card .subtitle {
+    color: var(--text-muted);
+}
+
+.tabs .ant-btn:not(.ant-btn-primary) {
+    background: var(--action-neutral);
+    color: var(--text-primary);
+}
+
+@media (max-width: 600px) {
+    .app-navbar-actions {
+        gap: 8px;
+    }
+
+    .app-navbar-welcome {
+        display: none;
+    }
+}

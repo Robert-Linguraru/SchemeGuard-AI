@@ -11,14 +11,15 @@ import {
 import { createCardSchemeActions, cardSchemeColumns } from "../config/cardSchemeListConfig";
 import { CardSchemeDialog } from "../components/CardSchemeDialog";
 import type { CardScheme } from "../types/cardScheme";
-import { Button } from "antd";
+import { App as AntdApp, Button } from "antd";
+import { PlusOutlined } from "@ant-design/icons";
 
 export function CardSchemesPage() {
+    const { modal, notification } = AntdApp.useApp();
     const { user } = useAuth();
     const [editingScheme, setEditingScheme] = useState<CardScheme | null>(null);
     const [isCreating, setIsCreating] = useState(false);
     const [actionError, setActionError] = useState<string | null>(null);
-    const [actionSuccess, setActionSuccess] = useState<string | null>(null);
     const [pendingAction, setPendingAction] = useState<string | null>(null);
     const [reloadKey, setReloadKey] = useState(0);
 
@@ -33,11 +34,13 @@ export function CardSchemesPage() {
     ) => {
         setPendingAction(actionKey);
         setActionError(null);
-        setActionSuccess(null);
 
         try {
             await action();
-            setActionSuccess(successMessage);
+            notification.success({
+                placement: "topRight",
+                message: successMessage
+            });
             setReloadKey((currentKey) => currentKey + 1);
         } catch (requestError) {
             setActionError(
@@ -53,45 +56,56 @@ export function CardSchemesPage() {
     const actions = useMemo(() => createCardSchemeActions({
         onEdit: (scheme) => {
             setActionError(null);
-            setActionSuccess(null);
             setEditingScheme(scheme);
         },
         onActivate: (scheme) => {
-            const cascade = window.confirm(
-                "Activate the card scheme and all associated rules, transactions and results?\n\nChoose Cancel if you only want to activate the scheme."
-            );
-
-            return runAction(
-                `activate-${scheme.id}`,
-                () => activateCardScheme(scheme.id, cascade),
-                cascade ? "Card scheme and associated entities activated." : "Card scheme activated."
-            );
+            modal.confirm({
+                title: `Activate ${scheme.name}?`,
+                content: "Choose whether to activate associated rules, transactions and results too.",
+                okText: "Activate all",
+                cancelText: "Only this scheme",
+                closable: false,
+                keyboard: false,
+                mask: { closable: false },
+                onOk: () => runAction(
+                    `activate-${scheme.id}`,
+                    () => activateCardScheme(scheme.id, true),
+                    "Card scheme and associated entities activated."
+                ),
+                onCancel: () => runAction(
+                    `activate-${scheme.id}`,
+                    () => activateCardScheme(scheme.id, false),
+                    "Card scheme activated."
+                )
+            });
         },
         onDeactivate: (scheme) => {
-            const confirmed = window.confirm(
-                "Deactivate this card scheme and all associated rules, transactions and results?"
-            );
-
-            return confirmed
-                ? runAction(
+            modal.confirm({
+                title: `Deactivate ${scheme.name}?`,
+                content: "This also deactivates its associated rules, transactions and results.",
+                okText: "Deactivate",
+                cancelText: "Cancel",
+                okButtonProps: { danger: true },
+                onOk: () => runAction(
                     `deactivate-${scheme.id}`,
                     () => deactivateCardScheme(scheme.id),
                     "Card scheme and associated entities deactivated."
                 )
-                : Promise.resolve();
+            });
         },
         onDelete: (scheme) => {
-            const confirmed = window.confirm(
-                `Permanently delete ${scheme.name} and all associated data? This cannot be undone.`
-            );
-
-            return confirmed
-                ? runAction(
+            modal.confirm({
+                title: `Delete ${scheme.name}?`,
+                content: "This permanently deletes the card scheme and all associated data. This cannot be undone.",
+                okText: "Delete permanently",
+                cancelText: "Cancel",
+                okButtonProps: { danger: true },
+                onOk: () => runAction(
                     `delete-${scheme.id}`,
                     () => deleteCardScheme(scheme.id),
                     "Card scheme and associated data deleted."
                 )
-                : Promise.resolve();
+            });
         },
         isBusy: () => pendingAction !== null
     }), [pendingAction]);
@@ -109,24 +123,23 @@ export function CardSchemesPage() {
                         <div className="heading-actions">
                             <Button
                                 type="primary"
+                                className="add-scheme-button"
+                                icon={<PlusOutlined />}
                                 //className="create-rule-button"
                                 size="large"
                                 disabled={pendingAction !== null}
                                 onClick={() => {
                                     setActionError(null);
-                                    setActionSuccess(null);
                                     setIsCreating(true);
                                 }}
                             >
-                                Create card scheme
+                                Add New Scheme
                             </Button>
                         </div>
                     )}
                 </div>
 
                 {actionError && <div className="form-error" role="alert">{actionError}</div>}
-                {actionSuccess && <div className="entity-list-success" role="status">{actionSuccess}</div>}
-
                 <EntityList
                     title="All card schemes"
                     description="Active schemes are shown by default. Administrators can include inactive schemes."
@@ -165,7 +178,11 @@ export function CardSchemesPage() {
                     onSaved={(savedScheme) => {
                         setEditingScheme(null);
                         setIsCreating(false);
-                        setActionSuccess(`${savedScheme.name} was ${isCreating ? "created" : "updated"}.`);
+                        notification.success({
+                            placement: "topRight",
+                            message: isCreating ? "Card scheme added" : "Card scheme updated",
+                            description: `${savedScheme.name} was ${isCreating ? "added" : "updated"} successfully.`
+                        });
                         setReloadKey((currentKey) => currentKey + 1);
                     }}
                 />
