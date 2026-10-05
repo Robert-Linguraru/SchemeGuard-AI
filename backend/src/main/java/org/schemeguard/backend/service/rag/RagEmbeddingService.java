@@ -12,27 +12,19 @@ import java.util.List;
 @Service
 public class RagEmbeddingService {
 
-    private final RestClient restClient;
+    private final String ollamaUrl;
     private final String model;
 
     public RagEmbeddingService(
             @Value("${app.llm.ollama-url}") String ollamaUrl,
             @Value("${app.rag.embedding-model:embeddinggemma}") String model
     ) {
+        this.ollamaUrl = ollamaUrl;
         this.model = model;
-        HttpClient httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(10))
-                .build();
-        JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
-        requestFactory.setReadTimeout(Duration.ofSeconds(120));
-        this.restClient = RestClient.builder()
-                .baseUrl(ollamaUrl)
-                .requestFactory(requestFactory)
-                .build();
     }
 
     public List<Double> embed(String text) {
-        EmbedResponse response = restClient.post()
+        EmbedResponse response = createRestClient().post()
                 .uri("/api/embed")
                 .body(new EmbedRequest(model, text))
                 .retrieve()
@@ -43,6 +35,18 @@ public class RagEmbeddingService {
             throw new IllegalStateException("Ollama did not return an embedding");
         }
         return response.embeddings().get(0);
+    }
+
+    private RestClient createRestClient() {
+        HttpClient httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(10))
+                .build();
+        JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
+        requestFactory.setReadTimeout(Duration.ofSeconds(120));
+        return RestClient.builder()
+                .baseUrl(ollamaUrl)
+                .requestFactory(requestFactory)
+                .build();
     }
 
     private record EmbedRequest(String model, String input) {
