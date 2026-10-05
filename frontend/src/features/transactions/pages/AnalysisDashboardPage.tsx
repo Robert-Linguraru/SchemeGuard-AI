@@ -315,7 +315,11 @@ export function AnalysisDashboardPage() {
             <section className="content">
                 <div className="page-heading analysis-heading">
                     <div><p className="eyebrow">ANALYSIS DASHBOARD</p><h2>Descriptive statistics</h2><p>Explore qualification results, fees and transaction distribution.</p></div>
-                    <Tooltip title="Export CSV">
+                    <Tooltip
+                        title="Export CSV"
+                        color="#f05d53"
+                        styles={{ container: { color: "#ffffff" } }}
+                    >
                         <Button
                             type="primary"
                             shape="circle"

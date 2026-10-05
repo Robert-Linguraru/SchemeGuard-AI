@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useAuth } from "../../../app/AuthProvider";
 import { ErrorMessage } from "../../../shared/components/ErrorMessage";
+import { Button } from "antd";
 
 export function RegisterForm() {
     const { register, error } = useAuth();
@@ -33,9 +34,9 @@ export function RegisterForm() {
                 Password
                 <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} minLength={8} required />
             </label>
-            <button type="submit" disabled={isSubmitting}>
+            <Button type="primary" htmlType="submit" disabled={isSubmitting}>
                 {isSubmitting ? "Please wait..." : "Create account"}
-            </button>
+            </Button>
             {error && <ErrorMessage title="Unable to create account" message={error} />}
         </form>
     );

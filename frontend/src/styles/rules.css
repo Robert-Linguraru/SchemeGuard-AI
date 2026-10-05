@@ -77,6 +77,12 @@
     font-size: 13px;
 }
 
+.form-field-label {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+}
+
 .rule-form input,
 .rule-form select {
     min-height: 44px;
@@ -127,6 +133,8 @@
 }
 
 .remove-condition {
+    align-self: end;
+    margin-bottom: 6px;
     padding: 10px 8px;
     background: transparent;
     color: var(--red);
@@ -196,6 +204,11 @@
     .form-grid,
     .condition-row {
         grid-template-columns: 1fr;
+    }
+
+    .condition-row .remove-condition {
+        justify-self: start;
+        margin-bottom: 0;
     }
 
     .success-box button {
@@ -389,6 +402,20 @@
     font-size: 12px;
 }
 
+.rule-card-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 22px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+}
+
+.rule-card-actions .ant-btn {
+    min-width: 118px;
+}
+
 .rule-status.inactive {
     background: #edf3f6;
     color: #65738b;
@@ -539,5 +566,15 @@
 
     .detail-wide {
         grid-column: span 1;
+    }
+}
+
+@media (max-width: 600px) {
+    .rule-card-actions {
+        align-items: stretch;
+    }
+
+    .rule-card-actions .ant-btn {
+        width: 100%;
     }
 }

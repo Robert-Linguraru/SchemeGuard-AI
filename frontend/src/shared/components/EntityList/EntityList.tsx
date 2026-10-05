@@ -1,6 +1,7 @@
-import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, Fragment, useMemo, useRef, useState, type ReactNode } from "react";
 import { ErrorMessage } from "../ErrorMessage";
 import { LoadingState } from "../LoadingState";
+import { Button } from "antd";
 import { useEntityList } from "../../hooks/useEntityList";
 import type { AuthenticatedUser } from "../../types/auth";
 import type {
@@ -74,6 +75,9 @@ export function EntityList<T>({
         reload
     } = useEntityList({ fetchData, initialQuery, reloadKey });
     const [searchValue, setSearchValue] = useState(query.search);
+    const [showTopPagination, setShowTopPagination] = useState(false);
+    const listCardRef = useRef<HTMLElement>(null);
+    const bottomPaginationRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         setSearchValue(query.search);
@@ -94,6 +98,38 @@ export function EntityList<T>({
 
         return () => window.clearTimeout(timeout);
     }, [query.search, searchValue, setSearch]);
+
+    useEffect(() => {
+        const updateTopPaginationVisibility = () => {
+            const listCard = listCardRef.current;
+            const bottomPagination = bottomPaginationRef.current;
+
+            if (!listCard || !bottomPagination || !response?.items.length) {
+                setShowTopPagination(false);
+                return;
+            }
+
+            setShowTopPagination(
+                bottomPagination.getBoundingClientRect().top >= window.innerHeight
+            );
+        };
+
+        updateTopPaginationVisibility();
+        window.addEventListener("resize", updateTopPaginationVisibility);
+        window.addEventListener("scroll", updateTopPaginationVisibility, { passive: true });
+        const resizeObserver = typeof ResizeObserver === "undefined"
+            ? null
+            : new ResizeObserver(updateTopPaginationVisibility);
+        if (listCardRef.current) {
+            resizeObserver?.observe(listCardRef.current);
+        }
+
+        return () => {
+            window.removeEventListener("resize", updateTopPaginationVisibility);
+            window.removeEventListener("scroll", updateTopPaginationVisibility);
+            resizeObserver?.disconnect();
+        };
+    }, [isLoading, response, query.size]);
 
     const sortState = getSortState(query.sort);
     const visibleActionCount = useMemo(
@@ -132,9 +168,43 @@ export function EntityList<T>({
     const pageSize = response?.size || query.size;
     const firstItem = totalElements === 0 ? 0 : currentPage * pageSize + 1;
     const lastItem = Math.min((currentPage + 1) * pageSize, totalElements);
+    const renderPaginationControls = () => (
+        <div className="entity-list-pagination-controls">
+            <label>
+                <span>Rows</span>
+                <select
+                    value={query.size}
+                    onChange={(event) => setPageSize(Number(event.target.value))}
+                >
+                    {[10, 20, 50, 100].map((size) => (
+                        <option value={size} key={size}>{size}</option>
+                    ))}
+                </select>
+            </label>
+            <Button
+                type="default"
+                className="secondary-button"
+                disabled={currentPage <= 0}
+                onClick={() => setPage(currentPage - 1)}
+            >
+                Previous
+            </Button>
+            <span className="entity-list-page-number">
+                Page {currentPage + 1} of {Math.max(totalPages, 1)}
+            </span>
+            <Button
+                type="default"
+                className="secondary-button"
+                disabled={totalPages === 0 || currentPage >= totalPages - 1}
+                onClick={() => setPage(currentPage + 1)}
+            >
+                Next
+            </Button>
+        </div>
+    );
 
     return (
-        <section className="entity-list-card">
+        <section className="entity-list-card" ref={listCardRef}>
             <div className="entity-list-heading">
                 <div>
                     <p className="eyebrow">LIST VIEW</p>
@@ -156,15 +226,27 @@ export function EntityList<T>({
                         onChange={(event) => setSearchValue(event.target.value)}
                     />
                 </label>
-                {toolbar?.({ query, updateQuery })}
+                <div className={`entity-list-toolbar-extras${showTopPagination ? "" : " entity-list-toolbar-extras-no-pagination"}`}>
+                    {toolbar?.({ query, updateQuery })}
+                    {!isLoading && showTopPagination && response && response.items.length > 0 && (
+                        <div
+                            className="entity-list-pagination entity-list-pagination-top"
+                        >
+                            <span>
+                                Showing {firstItem}-{lastItem} of {totalElements}
+                            </span>
+                            {renderPaginationControls()}
+                        </div>
+                    )}
+                </div>
             </div>
 
             {error && (
                 <div className="entity-list-feedback">
                     <ErrorMessage title="Unable to load records" message={error} />
-                    <button type="button" className="secondary-button" onClick={reload}>
+                    <Button className="secondary-button" onClick={reload}>
                         Try again
-                    </button>
+                    </Button>
                 </div>
             )}
 
@@ -181,10 +263,10 @@ export function EntityList<T>({
                             <thead>
                                 <tr>
                                     {columns.map((column) => (
-                                        <th key={column.key} scope="col">
+                                        <th key={column.key} scope="col" style={{ textAlign: column.align ?? "left" }}>
                                             {column.sortable ? (
-                                                <button
-                                                    type="button"
+                                                <Button
+                                                    type="text"
                                                     className="entity-list-sort-button"
                                                     onClick={() => toggleSort(column)}
                                                 >
@@ -194,7 +276,7 @@ export function EntityList<T>({
                                                             ? sortState.direction === "asc" ? " ↑" : " ↓"
                                                             : " ↕"}
                                                     </span>
-                                                </button>
+                                                </Button>
                                             ) : column.label}
                                         </th>
                                     ))}
@@ -229,7 +311,9 @@ export function EntityList<T>({
                                             aria-expanded={expandOnRowClick ? isExpanded : undefined}
                                         >
                                             {columns.map((column) => (
-                                                <td key={column.key}>{displayValue(item, column)}</td>
+                                                <td key={column.key} style={{ textAlign: column.align ?? "left" }}>
+                                                    {displayValue(item, column)}
+                                                </td>
                                             ))}
                                             {renderExpanded && !expandOnRowClick && (
                                                 <td>
@@ -249,18 +333,20 @@ export function EntityList<T>({
                                                 </td>
                                             )}
                                             {visibleActionCount && (
-                                                <td>
+                                                <td className="entity-list-action-cell">
                                                     <div className="entity-list-actions">
                                                         {rowActions.map((action) => (
-                                                            <button
+                                                            <Button
                                                                 key={action.key}
-                                                                type="button"
+                                                                type="default"
                                                                 className={action.className || "entity-list-action-button"}
+                                                                icon={action.icon}
+                                                                danger={action.className?.includes("entity-list-action-danger")}
                                                                 disabled={action.isDisabled?.(item, user)}
                                                                 onClick={() => void action.onClick(item)}
                                                             >
                                                                 {action.label}
-                                                            </button>
+                                                            </Button>
                                                         ))}
                                                     </div>
                                                 </td>
@@ -284,42 +370,11 @@ export function EntityList<T>({
                         </table>
                     </div>
 
-                    <div className="entity-list-pagination">
+                    <div className="entity-list-pagination" ref={bottomPaginationRef}>
                         <span>
                             Showing {firstItem}–{lastItem} of {totalElements}
                         </span>
-                        <div className="entity-list-pagination-controls">
-                            <label>
-                                <span>Rows</span>
-                                <select
-                                    value={query.size}
-                                    onChange={(event) => setPageSize(Number(event.target.value))}
-                                >
-                                    {[10, 20, 50, 100].map((size) => (
-                                        <option value={size} key={size}>{size}</option>
-                                    ))}
-                                </select>
-                            </label>
-                            <button
-                                type="button"
-                                className="secondary-button"
-                                disabled={currentPage <= 0}
-                                onClick={() => setPage(currentPage - 1)}
-                            >
-                                Previous
-                            </button>
-                            <span className="entity-list-page-number">
-                                Page {currentPage + 1} of {Math.max(totalPages, 1)}
-                            </span>
-                            <button
-                                type="button"
-                                className="secondary-button"
-                                disabled={totalPages === 0 || currentPage >= totalPages - 1}
-                                onClick={() => setPage(currentPage + 1)}
-                            >
-                                Next
-                            </button>
-                        </div>
+                        {renderPaginationControls()}
                     </div>
                 </>
             )}

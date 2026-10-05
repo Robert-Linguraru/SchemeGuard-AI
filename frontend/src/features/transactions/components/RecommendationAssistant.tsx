@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { getAllUploadTransactions } from "../../uploads/api/uploadsApi";
 import { askRecommendationAgent } from "../api/recommendationApi";
 import type { Transaction } from "../../../shared/types/transaction";
+import { Button } from "antd";
 
 interface RecommendationAssistantProps {
     uploadId: string | null;
@@ -162,14 +163,14 @@ export function RecommendationAssistant({
                         <strong>AI recommendations</strong>
                         <small>{fileName ?? "Current CSV file"}</small>
                     </div>
-                    <button
-                        type="button"
+                    <Button
+                        type="text"
                         className="assistant-close"
                         onClick={onClose}
                         aria-label="Close assistant"
                     >
                         ×
-                    </button>
+                    </Button>
                 </header>
 
                 <div className="assistant-context">
@@ -226,12 +227,13 @@ export function RecommendationAssistant({
                         disabled={!canAsk || isSending}
                         aria-label="Ask recommendation assistant"
                     />
-                    <button
-                        type="submit"
+                    <Button
+                        type="primary"
+                        htmlType="submit"
                         disabled={!canAsk || !message.trim() || isSending}
                     >
                         Send
-                    </button>
+                    </Button>
                 </form>
             </section>
         </aside>

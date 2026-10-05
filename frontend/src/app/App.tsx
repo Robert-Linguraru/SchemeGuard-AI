@@ -4,10 +4,12 @@ import { AuthPage } from "../features/auth/pages/AuthPage";
 import { LoadingState } from "../shared/components/LoadingState";
 import NavBar from "../shared/components/NavBar";
 import { AppRouter } from "./AppRouter";
+import { useTheme } from "./ThemeProvider";
 import type { View } from "../shared/types/navigation";
 
 function AuthenticatedApp() {
     const { user } = useAuth();
+    const { theme, toggleTheme } = useTheme();
     const [view, setView] = useState<View>("dashboard");
 
     const [selectedRuleId, setSelectedRuleId] =
@@ -20,6 +22,7 @@ function AuthenticatedApp() {
         useState<string | null>(null);
     const [selectedUploadWasEvaluated, setSelectedUploadWasEvaluated] =
         useState(false);
+    const [ruleCreationNotice, setRuleCreationNotice] = useState<string | null>(null);
     const [isAssistantOpen, setIsAssistantOpen] = useState(false);
     const isAdmin = user?.role?.toUpperCase() === "ADMIN";
 
@@ -44,6 +47,8 @@ function AuthenticatedApp() {
                 isAdmin={isAdmin}
                 onViewChange={navigate}
                 onEditProfile={() => setView("profile")}
+                theme={theme}
+                onToggleTheme={toggleTheme}
             />
             <AppRouter
                 view={view}
@@ -52,6 +57,12 @@ function AuthenticatedApp() {
                 selectedUploadFileName={selectedUploadFileName}
                 selectedUploadImportStatus={selectedUploadImportStatus}
                 selectedUploadWasEvaluated={selectedUploadWasEvaluated}
+                ruleCreationNotice={ruleCreationNotice}
+                onRuleCreationNoticeShown={() => setRuleCreationNotice(null)}
+                onRuleCreated={() => {
+                    setRuleCreationNotice("Rule created successfully.");
+                    navigate("rules");
+                }}
                 onNavigate={navigate}
                 onOpenRule={(id) => {
                     setSelectedRuleId(id);

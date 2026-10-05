@@ -4,6 +4,7 @@ import type {
     EntityListColumn
 } from "../../../shared/types/list";
 import type { CardScheme } from "../types/cardScheme";
+import { CheckCircleOutlined, DeleteOutlined, EditOutlined, PoweroffOutlined } from "@ant-design/icons";
 
 const isAdmin = (user: AuthenticatedUser | null) => user?.role === "ADMIN";
 
@@ -49,6 +50,7 @@ export const createCardSchemeActions = ({
     {
         key: "edit",
         label: "Edit",
+        icon: <EditOutlined />,
         className: "entity-list-action-button",
         onClick: onEdit,
         isVisible: (_, user) => isAdmin(user),
@@ -57,7 +59,8 @@ export const createCardSchemeActions = ({
     {
         key: "activate",
         label: "Activate",
-        className: "entity-list-action-button entity-list-action-success",
+        icon: <CheckCircleOutlined />,
+        className: "entity-list-action-button entity-list-action-warning",
         onClick: onActivate,
         isVisible: (scheme, user) => isAdmin(user) && !scheme.active,
         isDisabled: () => isBusy()
@@ -65,7 +68,8 @@ export const createCardSchemeActions = ({
     {
         key: "deactivate",
         label: "Deactivate",
-        className: "entity-list-action-button entity-list-action-warning",
+        icon: <PoweroffOutlined />,
+        className: "entity-list-action-button entity-list-action-danger",
         onClick: onDeactivate,
         isVisible: (scheme, user) => isAdmin(user) && scheme.active,
         isDisabled: () => isBusy()
@@ -73,6 +77,7 @@ export const createCardSchemeActions = ({
     {
         key: "delete",
         label: "Delete",
+        icon: <DeleteOutlined />,
         className: "entity-list-action-button entity-list-action-danger",
         onClick: onDelete,
         isVisible: (_, user) => isAdmin(user),

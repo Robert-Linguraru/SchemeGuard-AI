@@ -1,17 +1,25 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { deleteRule, getRules } from "../api/rulesApi";
 import { getRuleErrorMessage } from "../api/ruleErrors";
 import type { RuleListResponse } from "../types/rule";
+import { App as AntdApp, Button } from "antd";
+import { DeleteOutlined, PlusOutlined, SearchOutlined } from "@ant-design/icons";
 
 interface RulesPageProps {
     onCreateRule: () => void;
     onOpenRule: (id: string) => void;
+    successMessage?: string | null;
+    onSuccessMessageShown?: () => void;
 }
 
 export function RulesPage({
                               onCreateRule,
-                              onOpenRule
+                              onOpenRule,
+                              successMessage,
+                              onSuccessMessageShown
                           }: RulesPageProps) {
+    const { modal, notification } = AntdApp.useApp();
+    const shownSuccessMessage = useRef<string | null>(null);
     const [rules, setRules] = useState<RuleListResponse[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -33,21 +41,39 @@ export function RulesPage({
         loadRules();
     }, []);
 
-    const handleDelete = async (id: string) => {
-        const confirmed = window.confirm(
-            "Are you sure you want to delete this rule?"
-        );
+    useEffect(() => {
+        if (!successMessage || shownSuccessMessage.current === successMessage) return;
+        shownSuccessMessage.current = successMessage;
+        notification.success({
+            placement: "topRight",
+            message: successMessage
+        });
+        onSuccessMessageShown?.();
+    }, [successMessage, notification, onSuccessMessageShown]);
 
-        if (!confirmed) return;
-
-        try {
-            await deleteRule(id);
-            setRules((currentRules) =>
-                currentRules.filter((rule) => rule.id !== id)
-            );
-        } catch (error) {
-            setError(getRuleErrorMessage(error));
-        }
+    const handleDelete = (rule: RuleListResponse) => {
+        modal.confirm({
+            title: "Delete rule?",
+            content: `Permanently delete ${rule.ruleName}? This cannot be undone.`,
+            okText: "Delete rule",
+            cancelText: "Cancel",
+            okButtonProps: { danger: true },
+            onOk: async () => {
+                try {
+                    await deleteRule(rule.id);
+                    setRules((currentRules) =>
+                        currentRules.filter((currentRule) => currentRule.id !== rule.id)
+                    );
+                    notification.success({
+                        placement: "topRight",
+                        message: "Rule deleted",
+                        description: `${rule.ruleName} was deleted successfully.`
+                    });
+                } catch (requestError) {
+                    setError(getRuleErrorMessage(requestError));
+                }
+            }
+        });
     };
 
     return (
@@ -61,12 +87,15 @@ export function RulesPage({
                     </div>
 
                     <div className="heading-actions">
-                        <button
-                            className="create-rule-button"
+                        <Button
+                            type="primary"
+                            size="large"
+                            className="create-rule-button standard-action-size"
+                            icon={<PlusOutlined />}
                             onClick={onCreateRule}
                         >
                             Create rule
-                        </button>
+                        </Button>
                     </div>
                 </div>
 
@@ -146,19 +175,24 @@ export function RulesPage({
                             </div>
 
                             <div className="rule-card-actions">
-                                <button
+                                <Button
+                                    type="default"
                                     className="view-rule-button"
+                                    icon={<SearchOutlined />}
                                     onClick={() => onOpenRule(rule.id)}
                                 >
                                     View details
-                                </button>
+                                </Button>
 
-                                <button
+                                <Button
+                                    type="default"
+                                    danger
                                     className="danger-button"
-                                    onClick={() => handleDelete(rule.id)}
+                                    icon={<DeleteOutlined />}
+                                    onClick={() => handleDelete(rule)}
                                 >
                                     Delete
-                                </button>
+                                </Button>
                             </div>
                         </article>
                     ))}

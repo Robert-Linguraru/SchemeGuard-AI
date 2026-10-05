@@ -3,6 +3,7 @@ import { uploadRule } from "../api/rulesApi";
 import { getRuleErrorMessage } from "../api/ruleErrors";
 import { RuleConditionFields } from "./RuleConditionFields";
 import type { RuleCondition, RuleFormValues, RuleUploadResponse } from "../types/rule";
+import { Button } from "antd";
 
 interface RuleFormProps {
     onSuccess: (response: RuleUploadResponse) => void;
@@ -123,13 +124,13 @@ export function RuleForm({ onSuccess }: RuleFormProps) {
                     <label>Fee type<input value={values.feeType} onChange={(event) => updateValue("feeType", event.target.value)} /></label>
                     <label>Version<input type="number" min="1" step="1" value={values.version} onChange={(event) => updateValue("version", event.target.value)} /></label>
                     <label>Effective from<input type="date" value={values.effectiveFrom} onChange={(event) => updateValue("effectiveFrom", event.target.value)} /></label>
-                    <label>Effective to <span className="optional">(optional)</span><input type="date" value={values.effectiveTo} onChange={(event) => updateValue("effectiveTo", event.target.value)} /></label>
+                    <label><span className="form-field-label">Effective to <span className="optional">(optional)</span></span><input type="date" value={values.effectiveTo} onChange={(event) => updateValue("effectiveTo", event.target.value)} /></label>
                 </div>
                 <label className="checkbox-label"><input type="checkbox" checked={values.active} onChange={(event) => updateValue("active", event.target.checked)} /> Active</label>
             </section>
             {errors.length > 0 && <div className="form-error" role="alert"><strong>Check the form</strong><ul>{errors.map((error) => <li key={error}>{error}</li>)}</ul></div>}
             {requestError && <div className="form-error" role="alert"><strong>Could not create rule</strong><span>{requestError}</span></div>}
-            <div className="form-actions"><button type="submit" disabled={isSubmitting}>{isSubmitting ? "Creating rule..." : "Create rule"}</button><button type="button" className="secondary-button" onClick={reset} disabled={isSubmitting}>Reset</button></div>
+            <div className="form-actions"><Button type="primary" className="create-rule-submit-button" htmlType="submit" disabled={isSubmitting}>{isSubmitting ? "Creating rule..." : "Create rule"}</Button><Button className="secondary-button" onClick={reset} disabled={isSubmitting}>Reset</Button></div>
         </form>
     );
 }

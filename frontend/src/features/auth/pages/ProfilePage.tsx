@@ -1,5 +1,6 @@
 import { type FormEvent, useState } from "react";
 import { useAuth } from "../../../app/AuthProvider";
+import { App as AntdApp, Button } from "antd";
 
 interface ProfilePageProps {
     onBack: () => void;
@@ -7,17 +8,16 @@ interface ProfilePageProps {
 
 export function ProfilePage({ onBack }: ProfilePageProps) {
     const { user, updateProfile } = useAuth();
+    const { notification } = AntdApp.useApp();
     const [fullName, setFullName] = useState(user?.fullName ?? "");
     const [email, setEmail] = useState(user?.email ?? "");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
-    const [saved, setSaved] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        setSaved(false);
         setError(null);
         setIsSaving(true);
         try {
@@ -27,7 +27,11 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
                 ...(password ? { password } : {})
             });
             setPassword("");
-            setSaved(true);
+            notification.success({
+                placement: "topRight",
+                message: "Profile updated",
+                description: "Your account details were saved successfully."
+            });
         } catch (profileError) {
             setError(profileError instanceof Error ? profileError.message : "Could not update profile");
         } finally {
@@ -96,22 +100,21 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
                                 minLength={8}
                                 placeholder="Leave blank to keep your current password"
                             />
-                            <button
+                            <Button
+                                type="text"
                                 className="password-toggle"
-                                type="button"
                                 onClick={() => setShowPassword((shown) => !shown)}
                                 aria-label={showPassword ? "Hide password" : "Show password"}
                             >
                                 {showPassword ? "Hide" : "Show"}
-                            </button>
+                            </Button>
                         </div>
                     </label>
 
                     <div className="profile-form-footer">
-                        {saved && <span className="profile-saved">Profile updated</span>}
-                        <button className="save-profile-button" type="submit" disabled={isSaving}>
+                        <Button type="primary" htmlType="submit" className="save-profile-button" disabled={isSaving}>
                             {isSaving ? "Saving..." : "Save changes"}
-                        </button>
+                        </Button>
                     </div>
                 </form>
             </section>

@@ -27,12 +27,14 @@ export interface EntityListColumn<T> {
     label: string;
     sortable?: boolean;
     sortKey?: string;
+    align?: "left" | "center" | "right";
     render?: (item: T) => ReactNode;
 }
 
 export interface EntityListAction<T> {
     key: string;
     label: string;
+    icon?: ReactNode;
     className?: string;
     onClick: (item: T) => void | Promise<void>;
     isVisible?: (item: T, user: AuthenticatedUser | null) => boolean;

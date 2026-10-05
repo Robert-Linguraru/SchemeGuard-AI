@@ -24,17 +24,26 @@
 	align-items: center;
 	gap: 22px;
 	max-width: 1240px;
-	min-height: 78px;
+	min-height: 70px;
 	margin: 0 auto;
 }
 
 .app-navbar-brand {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
 	flex: 0 0 auto;
 	color: var(--white);
-	font-size: 22px;
+	font-size: 20px;
 	font-weight: 800;
 	letter-spacing: -0.02em;
 	white-space: nowrap;
+}
+
+.app-navbar-logo {
+	width: 34px;
+	height: 34px;
+	flex: 0 0 auto;
 }
 
 .app-navbar-links {
@@ -171,18 +180,6 @@
 
 .dashboard:not(.rules-page) .page-heading > .heading-actions {
 	display: contents;
-}
-
-.dashboard-button {
-	padding: 12px 18px;
-	border-radius: 8px;
-	background: var(--white);
-	color: var(--navy);
-	font-weight: 700;
-}
-
-.dashboard-button:hover {
-	background: #edf3f6;
 }
 
 .assistant-floating-button {

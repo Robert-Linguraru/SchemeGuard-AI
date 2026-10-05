@@ -25,6 +25,7 @@
     display: grid;
     width: 28px;
     height: 28px;
+    margin: 2px;
     place-items: center;
     border-radius: 50%;
     background: var(--coral);
