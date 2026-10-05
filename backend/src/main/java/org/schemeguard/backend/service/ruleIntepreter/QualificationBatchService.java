@@ -40,14 +40,13 @@ public class QualificationBatchService {
     private record EvaluationDecision(
             Transaction transaction,
             String region,
-            Rule selectedRule,
+            Rule candidateRule,
+            boolean qualified,
             BigDecimal rate,
             List<Map<String, Object>> passedConditions,
             List<Map<String, Object>> failedConditions
-    ) {
-        private boolean qualified() {
-            return selectedRule != null;
-        }
+        ) {
+        public boolean qualified() { return qualified; }
     }
 
     private record BatchCache(
@@ -64,8 +63,8 @@ public class QualificationBatchService {
 
     @Transactional
     public BatchResult evaluateBatch(Instant cutoff, int batchSize, UUID file_id) {
-        logger.info("[Q BATCH S] started batch");
-        long start = System.currentTimeMillis();
+//        logger.info("[Q BATCH S] started batch");
+//        long start = System.currentTimeMillis();
         var batch = transactions.lockUnevaluated(cutoff, batchSize, file_id);
         var cache = new BatchCache();
         var decisions = new ArrayList<EvaluationDecision>(batch.size());
@@ -78,8 +77,8 @@ public class QualificationBatchService {
         }
 
         decisions.forEach(this::persist);
-        long end = System.currentTimeMillis();
-        logger.info("[Q BATCH S] finished batch. time elapsed: " + (end - start));
+//        long end = System.currentTimeMillis();
+//        logger.info("[Q BATCH S] finished batch. time elapsed: " + (end - start));
         return new BatchResult(batch.size(), qualified, batch.size() - qualified);
     }
 
@@ -93,7 +92,8 @@ public class QualificationBatchService {
                 key -> rules.filterApplicableRules(key.schemeId(), key.region(), key.date()));
         List<Map<String, Object>> passed = new ArrayList<>();
         List<Map<String, Object>> failed = new ArrayList<>();
-        Rule selected = null;
+        Rule candidateRule = null;
+        boolean qualified = false;
         for (Rule candidate : candidates) {
             ConditionEvaluator.Evaluation evaluation;
             try {
@@ -103,36 +103,41 @@ public class QualificationBatchService {
             }
             appendTrace(passed, candidate, evaluation.passed());
             appendTrace(failed, candidate, evaluation.failed());
+
+            candidateRule = candidate;
             if (evaluation.matches()) {
-                selected = candidate;
+                qualified = true;
                 break;
             }
         }
-        BigDecimal rate = selected == null
+        BigDecimal rate = !qualified
                 ? cache.fallbackRates().computeIfAbsent(
                         new FallbackLookupKey(schemeId, region),
                         key -> fallbackRates.getRate(key.schemeId(), key.region()))
-                : selected.getInterchangeRate();
+                : candidateRule.getInterchangeRate();
 
-        return new EvaluationDecision(transaction, region, selected, rate, passed, failed);
+        return new EvaluationDecision(transaction, region, candidateRule, qualified, rate, passed, failed);
     }
 
     private void persist(EvaluationDecision decision) {
         Transaction transaction = decision.transaction();
-        Rule selected = decision.selectedRule();
+        Rule candidate = decision.candidateRule();
         BigDecimal rate = decision.rate();
 
         QualificationResult result = new QualificationResult();
         result.setTransaction(transaction);
-        result.setRule(selected);
-        result.setRuleVersion(selected == null ? null : selected.getVersion());
-        result.setQualificationStatus(selected == null ? QualificationStatus.NOT_QUALIFIED : QualificationStatus.QUALIFIED);
-        result.setQualificationCategory(selected == null ? "FALLBACK" : selected.getQualificationCategory());
+        result.setRule(candidate);
+        result.setRuleVersion(candidate == null ? null : candidate.getVersion());
+        result.setQualificationStatus(decision.qualified() ? QualificationStatus.QUALIFIED : QualificationStatus.NOT_QUALIFIED);
+        result.setQualificationCategory(decision.qualified() ? candidate.getQualificationCategory() : "FALLBACK");
         result.setPassedConditions(mapper.valueToTree(decision.passedConditions()));
         result.setFailedConditions(mapper.valueToTree(decision.failedConditions()));
-        result.setExplanation(selected == null
-                ? "No applicable rule satisfied every condition in merchant region " + decision.region() + "; fallback rate " + rate + " applied."
-                : "Rule " + selected.getRuleCode() + " version " + selected.getVersion()
+        result.setExplanation(!decision.qualified()
+                ? "No applicable rule satisfied every condition in merchant region " + decision.region()
+                    + (candidate == null ? "; no candidate rule was available." : "; candidate rule "
+                    + candidate.getRuleCode() + " version " + candidate.getVersion()
+                    + " was evaluated; fallback rate " + rate + " applied.")
+                : "Rule " + candidate.getRuleCode() + " version " + candidate.getVersion()
                     + " satisfied every condition; selected by priority, creation time, then rate.");
         results.save(result);
 
@@ -141,6 +146,18 @@ public class QualificationBatchService {
         fee.setInterchangeRate(rate);
         fee.setInterchangeFee(transaction.getAmount().multiply(rate).setScale(4, RoundingMode.HALF_UP));
         fee.setTotalFee(fee.getInterchangeFee());
+        if (candidate != null) {
+            BigDecimal optimizedRate = candidate.getInterchangeRate();
+            BigDecimal optimizedFee = transaction.getAmount()
+                    .multiply(optimizedRate)
+                    .setScale(4, RoundingMode.HALF_UP);
+            BigDecimal potentialSaving = fee.getInterchangeFee()
+                    .subtract(optimizedFee)
+                    .max(BigDecimal.ZERO);
+            fee.setOptimizedRate(optimizedRate);
+            fee.setOptimizedFee(optimizedFee);
+            fee.setPotentialSaving(potentialSaving);
+        }
         fees.save(fee);
         transaction.setStatus(TransactionStatus.PROCESSED);
     }

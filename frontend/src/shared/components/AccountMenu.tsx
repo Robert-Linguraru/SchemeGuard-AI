@@ -39,7 +39,7 @@ export function AccountMenu({ onEditProfile }: AccountMenuProps) {
                     {(user?.fullName?.trim().charAt(0) || "A").toUpperCase()}
                 </span>
                 <span>Account</span>
-                <span className="account-chevron" aria-hidden="true">⌄</span>
+                <span className="account-chevron" aria-hidden="true" />
             </button>
 
             {isOpen && (

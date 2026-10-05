@@ -9,8 +9,6 @@ import {
     ReloadOutlined
 } from "@ant-design/icons";
 import { Button, Card, DatePicker, Progress, Select, Spin, Tooltip } from "antd";
-import { useAuth } from "../../../app/AuthProvider";
-import { AccountMenu } from "../../../shared/components/AccountMenu";
 import { ErrorMessage } from "../../../shared/components/ErrorMessage";
 import {
     getAnalytics,
@@ -18,10 +16,6 @@ import {
     type AnalyticsMetric,
     type AnalyticsResponse
 } from "../api/analyticsApi";
-
-interface AnalysisDashboardPageProps {
-    onEditProfile: () => void;
-}
 
 type Filters = AnalyticsFilters;
 
@@ -37,8 +31,7 @@ const emptyFilters: Filters = {
     scheme: "",
     country: "",
     merchant: "",
-    qualification: "",
-    status: ""
+    qualification: ""
 };
 
 const filterKeys = Object.keys(emptyFilters) as Array<keyof Filters>;
@@ -174,8 +167,7 @@ function BarList({
     );
 }
 
-export function AnalysisDashboardPage({ onEditProfile }: AnalysisDashboardPageProps) {
-    const { user } = useAuth();
+export function AnalysisDashboardPage() {
     const [analytics, setAnalytics] = useState<AnalyticsResponse | null>(null);
     const [filters, setFilters] = useState<Filters>(emptyFilters);
     const [appliedFilters, setAppliedFilters] = useState<Filters>(emptyFilters);
@@ -320,10 +312,6 @@ export function AnalysisDashboardPage({ onEditProfile }: AnalysisDashboardPagePr
     return (
         <main className="dashboard analysis-dashboard">
             <div className="brand-decoration" aria-hidden="true"><span className="orb orb-blue orb-one"></span><span className="orb orb-coral orb-two"></span><span className="orb orb-white orb-three"></span><span className="orb orb-blue orb-four"></span></div>
-            <header className="dashboard-header">
-                <div className="welcome"><h1>SchemeGuard AI</h1><p>Welcome, {user?.fullName}</p></div>
-                <div className="dashboard-account-actions"><AccountMenu onEditProfile={onEditProfile} /></div>
-            </header>
             <section className="content">
                 <div className="page-heading analysis-heading">
                     <div><p className="eyebrow">ANALYSIS DASHBOARD</p><h2>Descriptive statistics</h2><p>Explore qualification results, fees and transaction distribution.</p></div>
@@ -331,7 +319,7 @@ export function AnalysisDashboardPage({ onEditProfile }: AnalysisDashboardPagePr
                         <Button
                             type="primary"
                             shape="circle"
-                            className="analysis-export-button"
+                            //className="analysis-export-button"
                             icon={<DownloadOutlined />}
                             onClick={exportCsv}
                             disabled={!analytics?.totalTransactions}
@@ -408,21 +396,6 @@ export function AnalysisDashboardPage({ onEditProfile }: AnalysisDashboardPagePr
                                     { value: "PENDING", label: "Pending" }
                                 ]}
                                 onChange={(value) => setFilter("qualification", value ?? "")}
-                            />
-                        </div>
-                        <div className="analysis-filter-field">
-                            <span>Status</span>
-                            <Select
-                                className="analysis-filter-control"
-                                allowClear
-                                value={filters.status || undefined}
-                                placeholder="All statuses"
-                                options={[
-                                    { value: "NEW", label: "New" },
-                                    { value: "PROCESSED", label: "Processed" },
-                                    { value: "FAILED", label: "Failed" }
-                                ]}
-                                onChange={(value) => setFilter("status", value ?? "")}
                             />
                         </div>
                         <div className="analysis-filter-actions">

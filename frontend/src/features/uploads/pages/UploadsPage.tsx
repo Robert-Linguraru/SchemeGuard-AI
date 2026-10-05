@@ -1,15 +1,21 @@
 import { useCallback, useState } from "react";
-import { useAuth } from "../../../app/AuthProvider";
 import CsvTransactionUploadModal from "../../csvUpload/components/csvUploadModal";
 import { downloadUpload, evaluateUpload, getUploads } from "../api/uploadsApi";
 import type { UploadSummary } from "../types/upload";
-import { AccountMenu } from "../../../shared/components/AccountMenu";
 import { ErrorMessage } from "../../../shared/components/ErrorMessage";
 import { EntityList } from "../../../shared/components/EntityList/EntityList";
 import type { EntityListColumn, EntityListQuery } from "../../../shared/types/list";
+import {
+  Button,
+} from "antd";
+import {
+    DownloadOutlined,
+    ExperimentOutlined,
+    RightOutlined,
+
+} from "@ant-design/icons";
 
 interface UploadsPageProps {
-    onEditProfile: () => void;
     onOpenUpload: (
         uploadId: string,
         fileName: string,
@@ -91,9 +97,11 @@ const createColumns = (
         label: "Actions",
         render: (upload) => (
             <div className="entity-list-actions">
-                <button
-                    type="button"
-                    className="entity-list-action-button"
+                <Button
+                    type="default"
+                    icon={<RightOutlined />}
+                    iconPlacement ="end"
+                    //className="entity-list-action-button"
                     onClick={() => onOpenUpload(
                         upload.id,
                         upload.fileName,
@@ -102,24 +110,26 @@ const createColumns = (
                     )}
                 >
                     Open
-                </button>
-                <button
-                    type="button"
-                    className="entity-list-action-button"
+                </Button>
+                <Button
+                    type="default"
+                    icon={<DownloadOutlined />}
+                    //className="entity-list-action-button"
                     disabled={downloadingUploadId === upload.id}
                     onClick={() => onDownloadUpload(upload.id, upload.fileName)}
                 >
                     {downloadingUploadId === upload.id ? "Downloading..." : "Download"}
-                </button>
+                </Button>
                 {upload.importStatus === "COMPLETED" && !upload.wasEvaluated && (
-                    <button
-                        type="button"
-                        className="entity-list-action-button"
+                    <Button
+                        type="primary"
+                        icon={<ExperimentOutlined />}
+                        //className="entity-list-action-button"
                         disabled={evaluatingUploadId === upload.id}
                         onClick={() => onEvaluateUpload(upload.id)}
                     >
                         {evaluatingUploadId === upload.id ? "Evaluating..." : "Evaluate"}
-                    </button>
+                    </Button>
                 )}
                 {upload.importStatus === "COMPLETED" && upload.wasEvaluated && (
                     <span className="entity-list-status active">Evaluated</span>
@@ -130,11 +140,9 @@ const createColumns = (
 ];
 
 export function UploadsPage({
-    onEditProfile,
     onOpenUpload,
     selectedUploadId
 }: UploadsPageProps) {
-    const { user } = useAuth();
     const [reloadKey, setReloadKey] = useState(0);
     const [evaluatingUploadId, setEvaluatingUploadId] = useState<string | null>(null);
     const [evaluationError, setEvaluationError] = useState<string | null>(null);
@@ -207,17 +215,6 @@ export function UploadsPage({
                 <span className="orb orb-white orb-three"></span>
                 <span className="orb orb-blue orb-four"></span>
             </div>
-
-            <header className="dashboard-header">
-                <div className="welcome">
-                    <h1>SchemeGuard AI</h1>
-                    <p>Welcome, {user?.fullName}</p>
-                </div>
-
-                <div className="dashboard-account-actions">
-                    <AccountMenu onEditProfile={onEditProfile} />
-                </div>
-            </header>
 
             <section className="content">
                 <div className="page-heading">

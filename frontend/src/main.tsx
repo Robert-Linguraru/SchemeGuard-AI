@@ -16,7 +16,7 @@ createRoot(document.getElementById("root")!).render(
             theme={{
                 algorithm: antdTheme.darkAlgorithm,
                 token: {
-                    colorPrimary: "#68b3e7",
+                    colorPrimary: "ff7168", //"#68b3e7",
                     colorInfo: "#68b3e7",
                     colorBgBase: "#172b3a",
                     colorBgContainer: "#203d50",
@@ -26,6 +26,7 @@ createRoot(document.getElementById("root")!).render(
                     colorTextSecondary: "#a9bbc7",
                     borderRadius: 10,
                     fontFamily: "Arial, sans-serif",
+                    //ff7168
                 },
             }}
         >

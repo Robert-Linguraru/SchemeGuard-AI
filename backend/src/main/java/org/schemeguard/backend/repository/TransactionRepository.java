@@ -133,8 +133,6 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
 
     List<Transaction> findAllByUpload_IdAndExternalId(UUID uploadId, String externalId);
 
-    boolean existsByIdAndUpload_Id(UUID transactionId, UUID uploadId);
-
     @Query(value = """
             SELECT DISTINCT ON (t.id)
                    t.id AS id,
@@ -166,6 +164,8 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
             ORDER BY t.id, qr.evaluated_at DESC, qr.id DESC
             """, nativeQuery = true)
     List<MlTransactionProjection> findMlTransactionsForUpload(@Param("uploadId") UUID uploadId);
+
+        boolean existsByIdAndUpload_Id(UUID transactionId, UUID uploadId);
 
         long countByUpload_IdAndStatus(UUID uploadId, TransactionStatus status);
 

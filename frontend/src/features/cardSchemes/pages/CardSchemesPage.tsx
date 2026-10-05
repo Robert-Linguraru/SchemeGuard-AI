@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
 import { useAuth } from "../../../app/AuthProvider";
-import { AccountMenu } from "../../../shared/components/AccountMenu";
 import { EntityList } from "../../../shared/components/EntityList/EntityList";
 import type { EntityListQuery } from "../../../shared/types/list";
 import {
@@ -12,12 +11,9 @@ import {
 import { createCardSchemeActions, cardSchemeColumns } from "../config/cardSchemeListConfig";
 import { CardSchemeDialog } from "../components/CardSchemeDialog";
 import type { CardScheme } from "../types/cardScheme";
+import { Button } from "antd";
 
-interface CardSchemesPageProps {
-    onEditProfile: () => void;
-}
-
-export function CardSchemesPage({ onEditProfile }: CardSchemesPageProps) {
+export function CardSchemesPage() {
     const { user } = useAuth();
     const [editingScheme, setEditingScheme] = useState<CardScheme | null>(null);
     const [isCreating, setIsCreating] = useState(false);
@@ -102,16 +98,6 @@ export function CardSchemesPage({ onEditProfile }: CardSchemesPageProps) {
 
     return (
         <main className="dashboard card-scheme-page">
-            <header className="dashboard-header">
-                <div className="welcome">
-                    <h1>SchemeGuard AI</h1>
-                    <p>Welcome, {user?.fullName}</p>
-                </div>
-                <div className="dashboard-account-actions">
-                    <AccountMenu onEditProfile={onEditProfile} />
-                </div>
-            </header>
-
             <section className="content">
                 <div className="page-heading">
                     <div>
@@ -121,9 +107,10 @@ export function CardSchemesPage({ onEditProfile }: CardSchemesPageProps) {
                     </div>
                     {user?.role === "ADMIN" && (
                         <div className="heading-actions">
-                            <button
-                                type="button"
-                                className="create-rule-button"
+                            <Button
+                                type="primary"
+                                //className="create-rule-button"
+                                size="large"
                                 disabled={pendingAction !== null}
                                 onClick={() => {
                                     setActionError(null);
@@ -132,7 +119,7 @@ export function CardSchemesPage({ onEditProfile }: CardSchemesPageProps) {
                                 }}
                             >
                                 Create card scheme
-                            </button>
+                            </Button>
                         </div>
                     )}
                 </div>
