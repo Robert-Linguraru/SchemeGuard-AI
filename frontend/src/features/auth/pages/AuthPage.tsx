@@ -1,13 +1,24 @@
 import { useState } from "react";
 import { LoginForm } from "../components/LoginForm";
 import { RegisterForm } from "../components/RegisterForm";
+import { useTheme } from "../../../app/ThemeProvider";
 import { Button } from "antd";
+import { MoonOutlined, SunOutlined } from "@ant-design/icons";
 
 export function AuthPage() {
     const [mode, setMode] = useState<"login" | "register">("login");
+    const { theme, toggleTheme } = useTheme();
 
     return (
         <main className="page">
+            <Button
+                className="theme-toggle-button auth-theme-toggle"
+                type="default"
+                icon={theme === "dark" ? <SunOutlined /> : <MoonOutlined />}
+                aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
+                title={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
+                onClick={toggleTheme}
+            />
             <div className="brand-decoration" aria-hidden="true">
                 <span className="orb orb-blue orb-one"></span>
                 <span className="orb orb-coral orb-two"></span>

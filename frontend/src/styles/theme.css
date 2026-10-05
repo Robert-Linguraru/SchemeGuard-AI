@@ -225,6 +225,23 @@ textarea::placeholder {
     color: var(--text-primary);
 }
 
+.entity-list-filter {
+    color: var(--text-primary);
+}
+
+.entity-list-filter select option {
+    background: var(--surface-input);
+    color: var(--text-primary);
+}
+
+:root[data-theme="light"] .entity-list-filter select {
+    color-scheme: light;
+}
+
+:root[data-theme="dark"] .entity-list-filter select {
+    color-scheme: dark;
+}
+
 .entity-list-table th,
 .entity-list-table td,
 th,
@@ -258,6 +275,65 @@ tbody tr:hover {
     background: var(--surface-raised);
 }
 
+.entity-list-table .entity-list-data-row.is-expandable:hover > td,
+.entity-list-table .entity-list-data-row.is-expandable:focus-visible > td,
+.entity-list-table .entity-list-data-row.is-expanded > td {
+    background: var(--surface-raised);
+    color: var(--text-primary);
+}
+
+.entity-list-table > tbody > tr.entity-list-expanded-row > td[colspan] {
+    background: var(--surface-subtle);
+}
+
+.entity-list-expanded-row .empty-state {
+    background: transparent;
+    color: var(--text-muted);
+}
+
+.transaction-details {
+    background: var(--surface-subtle);
+    color: var(--text-primary);
+}
+
+.transaction-rule-summary strong,
+.transaction-rule-summary span {
+    color: var(--text-muted);
+}
+
+.transaction-rule-summary strong {
+    color: var(--text-primary);
+}
+
+.transaction-details-section {
+    border-top-color: var(--border);
+}
+
+.transaction-details-section h4 {
+    color: var(--text-primary);
+}
+
+.transaction-details-section ul,
+.transaction-details-empty-state p,
+.transaction-details-empty,
+.transaction-details-original {
+    color: var(--text-muted);
+}
+
+.transaction-fee-grid div {
+    border-color: var(--border);
+    background: var(--surface-card);
+    color: var(--text-primary);
+}
+
+.transaction-fee-grid dt {
+    color: var(--text-muted);
+}
+
+.transaction-fee-grid dd {
+    color: var(--text-primary);
+}
+
 .entity-list-status.inactive,
 .rule-status.inactive,
 .record-count {
@@ -286,6 +362,7 @@ tbody tr:hover {
 
 .entity-list-actions .ant-btn.entity-list-action-button:not(.ant-btn-dangerous),
 .ant-btn.entity-list-action-button:not(.ant-btn-dangerous),
+.entity-list-expand-button.ant-btn,
 .entity-list-pagination .ant-btn,
 .secondary-button.ant-btn,
 .page-nav-button.ant-btn,
@@ -298,6 +375,7 @@ tbody tr:hover {
 
 .entity-list-actions .ant-btn.entity-list-action-button:not(.ant-btn-dangerous):hover,
 .ant-btn.entity-list-action-button:not(.ant-btn-dangerous):hover,
+.entity-list-expand-button.ant-btn:hover,
 .entity-list-pagination .ant-btn:hover,
 .secondary-button.ant-btn:hover,
 .page-nav-button.ant-btn:hover,
@@ -359,6 +437,7 @@ tbody tr:hover {
 }
 
 .entity-list-actions .ant-btn:hover:not(:disabled),
+.entity-list-expand-button.ant-btn:hover:not(:disabled),
 .entity-list-filter-button.ant-btn:hover:not(:disabled),
 .rule-card-actions .ant-btn:hover:not(:disabled),
 .detail-actions .ant-btn:hover:not(:disabled),
