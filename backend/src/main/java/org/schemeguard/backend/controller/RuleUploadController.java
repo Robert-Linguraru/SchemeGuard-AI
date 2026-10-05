@@ -5,6 +5,7 @@ import org.schemeguard.backend.dto.Rule.RuleDetailsResponseDto;
 import org.schemeguard.backend.dto.Rule.RuleListResponseDto;
 import org.schemeguard.backend.dto.Rule.RuleRequestDto;
 import org.schemeguard.backend.entity.Rule;
+import org.schemeguard.backend.mapper.RuleMapper;
 import org.schemeguard.backend.service.RuleService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -14,56 +15,19 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.UUID;
 import java.util.logging.Logger;
-import java.util.stream.StreamSupport;
 
 @RestController
 @RequestMapping("/api/rule")
 public class RuleUploadController {
 
-    private final Logger logger = Logger.getLogger(RuleUploadController.class.getName());
     private final RuleService ruleService;
+    private final RuleMapper ruleMapper;
 
     @Autowired
-    public RuleUploadController(RuleService ruleService) {
+    public RuleUploadController(RuleService ruleService,
+                                RuleMapper ruleMapper) {
         this.ruleService = ruleService;
-    }
-
-    private RuleListResponseDto toRuleListResponseDto(Rule rule) {
-        return new RuleListResponseDto(
-                rule.getId(),
-                rule.getRuleCode(),
-                rule.getRuleName(),
-                rule.getScheme().getCode(),
-                rule.getScheme().getName(),
-                rule.getRegion(),
-                rule.getQualificationCategory(),
-                rule.getInterchangeRate(),
-                rule.getPriority(),
-                rule.getVersion(),
-                rule.getActive(),
-                rule.getEffectiveFrom(),
-                rule.getEffectiveTo()
-        );
-    }
-
-    private RuleDetailsResponseDto toRuleDetailsResponseDto(Rule rule) {
-        return new RuleDetailsResponseDto(
-                rule.getId(),
-                rule.getRuleCode(),
-                rule.getRuleName(),
-                rule.getScheme().getCode(),
-                rule.getScheme().getName(),
-                rule.getRegion(),
-                rule.getPriority(),
-                rule.getConditions(),
-                rule.getQualificationCategory(),
-                rule.getInterchangeRate(),
-                rule.getEffectiveFrom(),
-                rule.getEffectiveTo(),
-                rule.getVersion(),
-                rule.getActive(),
-                rule.getCreatedAt()
-        );
+        this.ruleMapper = ruleMapper;
     }
 
     @PostMapping("/upload")
@@ -74,7 +38,7 @@ public class RuleUploadController {
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(toRuleListResponseDto(response));
+                .body(ruleMapper.toListResponseDto(response));
     }
 
     @GetMapping("/getRule")
@@ -83,17 +47,14 @@ public class RuleUploadController {
     ) {
         Rule response = ruleService.getRuleById(id);
 
-        return ResponseEntity.ok(toRuleDetailsResponseDto(response));
+        return ResponseEntity.ok(ruleMapper.toDetailsResponseDto(response));
     }
 
     @GetMapping("/getRules")
     public ResponseEntity<List<RuleListResponseDto>> getRules() {
         var rules = ruleService.getAllRules();
 
-        List<RuleListResponseDto> response = StreamSupport
-                .stream(rules.spliterator(), false)
-                .map(this::toRuleListResponseDto)
-                .toList();
+        List<RuleListResponseDto> response = ruleMapper.toListResponseDtos(rules);
 
         return ResponseEntity.ok(response);
     }
