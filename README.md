@@ -109,9 +109,25 @@ the following order:
 5. `upload_tables.sql` creates the upload tables and the transaction-import staging table.
 6. `transaction_outliers.sql` creates the upload-scoped anomaly table used by outlier detection.
 7. `anomaly_detection_jobs.sql` creates the persistent queue and status table for asynchronous outlier detection.
+8. `anomaly_detection_inputs.sql` creates the cache identity table used to invalidate older detector results.
 
 If the database already exists, run `transaction_outliers.sql` and
-`anomaly_detection_jobs.sql` after deploying the anomaly feature. These scripts are safe to rerun.
+`anomaly_detection_jobs.sql` and `anomaly_detection_inputs.sql` after deploying the anomaly feature. These scripts are safe to rerun.
+
+Detection returns a job from `POST /api/uploads/{uploadId}/anomalies/detect` (HTTP 202).
+Poll `/anomalies/status`, then retrieve transaction IDs from `/anomalies` when the job
+is completed. The scheduler applies Java rules in the background; there are no model
+or token calls for this computation. Unchanged completed jobs are reused, while changes
+to evaluated inputs or the detector version queue a new run. Older jobs are recalculated
+on the next Detect outliers request after this migration.
+
+The detector flags two kinds of review candidates: incomplete merchant data combined
+with clearing delays over two days, and unusual interchange rates within the same
+qualification/rule and card context. The former are operational anomalies, not proof
+of an incorrect fee. Valid qualified rates and fallback rates remain separate. The CSV
+generator injects operational anomalies; an ordinary upload with consistent evaluated
+rates can legitimately have no rate outliers. Missing evaluations fail explicitly rather
+than silently producing an empty result.
 
 CSV rows are copied to the unlogged staging table while the file is validated. They are
 merged into the transaction tables only after the complete file succeeds, so a malformed

@@ -15,6 +15,10 @@ import java.util.UUID;
 
 public interface UploadRepository extends JpaRepository<Upload, UUID> {
 
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select u from Upload u where u.id = :uploadId and u.user.id = :userId")
+    Optional<Upload> lockForAnomalyDetection(@Param("uploadId") UUID uploadId, @Param("userId") UUID userId);
+
     @Query(value = """
         SELECT u.id AS id,
            s.original_file_name AS fileName,
