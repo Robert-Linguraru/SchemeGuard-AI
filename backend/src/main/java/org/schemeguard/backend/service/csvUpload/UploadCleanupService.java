@@ -4,6 +4,7 @@ import org.schemeguard.backend.config.UploadProperties;
 import org.schemeguard.backend.entity.UploadSession;
 import org.schemeguard.backend.entity.enums.UploadStatus;
 import org.schemeguard.backend.repository.ProcessingJobRepository;
+import org.schemeguard.backend.repository.UploadRepository;
 import org.schemeguard.backend.repository.UploadSessionRepository;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -20,17 +21,20 @@ public class UploadCleanupService {
     private final ProcessingJobRepository processingJobRepository;
     private final StorageService storageService;
     private final UploadProperties properties;
+    private final UploadRepository uploadRepository;
 
     public UploadCleanupService(
             UploadSessionRepository sessionRepository,
             ProcessingJobRepository processingJobRepository,
             StorageService storageService,
-            UploadProperties properties
+            UploadProperties properties,
+            UploadRepository uploadRepository
     ) {
         this.sessionRepository = sessionRepository;
         this.processingJobRepository = processingJobRepository;
         this.storageService = storageService;
         this.properties = properties;
+        this.uploadRepository = uploadRepository;
     }
 
     @Scheduled(fixedDelayString = "${app.upload.cleanup-interval-ms:3600000}")
@@ -48,10 +52,15 @@ public class UploadCleanupService {
         );
         for (UploadSession session : staleSessions) {
             storageService.deleteUpload(session.getId());
+
+            uploadRepository.findBySession_Id(session.getId())
+                    .ifPresent(uploadRepository::delete);
+
             if (session.getProcessingJobId() != null) {
                 processingJobRepository.findById(session.getProcessingJobId())
                         .ifPresent(processingJobRepository::delete);
             }
+
             sessionRepository.delete(session);
         }
     }
