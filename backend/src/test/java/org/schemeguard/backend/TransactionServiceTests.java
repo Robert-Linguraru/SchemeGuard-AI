@@ -18,7 +18,7 @@ import org.schemeguard.backend.dto.TransactionStatisticsResponse;
 import org.schemeguard.backend.repository.QualificationResultRepository;
 import org.schemeguard.backend.repository.FeeCalculationRepository;
 import org.schemeguard.backend.repository.TransactionRepository;
-import org.schemeguard.backend.repository.UploadRepository;
+import org.schemeguard.backend.repository.csvuploads.UploadRepository;
 import org.schemeguard.backend.service.TransactionService;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;

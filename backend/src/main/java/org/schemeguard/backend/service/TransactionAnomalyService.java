@@ -9,6 +9,7 @@ import org.schemeguard.backend.entity.enums.AnomalyJobStatus;
 import org.schemeguard.backend.exception.ConflictException;
 import org.schemeguard.backend.exception.ResourceNotFoundException;
 import org.schemeguard.backend.exception.UploadException;
+import org.schemeguard.backend.repository.csvuploads.UploadRepository;
 import org.schemeguard.backend.repository.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -165,7 +166,7 @@ public class TransactionAnomalyService {
         return AnomalyRulesEngine.VERSION + ":" + transactionRepository.anomalyInputFingerprint(uploadId);
     }
 
-    private org.schemeguard.backend.entity.Upload ownedUpload(User user, UUID id) {
+    private org.schemeguard.backend.entity.csvuploads.Upload ownedUpload(User user, UUID id) {
         return uploadRepository.findById(id).filter(u -> u.getUser().getId().equals(user.getId()))
                 .orElseThrow(() -> new UploadException(org.springframework.http.HttpStatus.NOT_FOUND,
                         "UPLOAD_NOT_FOUND", "Upload not found."));

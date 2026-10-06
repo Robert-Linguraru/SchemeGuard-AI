@@ -15,6 +15,13 @@ export class UploadImportError extends Error {
   }
 }
 
+export class DuplicateUploadError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "DuplicateUploadError";
+  }
+}
+
 function authorizationHeaders(): Record<string, string> {
   const token = localStorage.getItem("accessToken");
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -209,6 +216,12 @@ export async function uploadCsv(
       status = await getStatus(session.uploadId, signal);
     }
 
+    if (status.status === "DUPLICATE") {
+      throw new DuplicateUploadError(
+        status.errorMessage ?? "This file has already been imported by your account.",
+      );
+    }
+
     if (status.status !== "COMPLETED") {
       throw new UploadImportError(
         status.errorMessage ?? "The CSV import failed.",
@@ -225,8 +238,12 @@ export async function uploadCsv(
     });
     return status;
   } catch (error) {
-    // Best effort cleanup. The backend refuses cancellation after processing starts.
-    await cancelUpload(session.uploadId).catch(() => undefined);
+    // Import errors already have a terminal backend status; cancel only an
+    // upload that failed before it reached a terminal import result.
+    if (!(error instanceof UploadImportError)
+      && !(error instanceof DuplicateUploadError)) {
+      await cancelUpload(session.uploadId).catch(() => undefined);
+    }
     throw error;
   }
 }

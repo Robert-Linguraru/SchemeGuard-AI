@@ -1,7 +1,7 @@
 package org.schemeguard.backend.service.ruleIntepreter;
 
 import lombok.RequiredArgsConstructor;
-import org.schemeguard.backend.repository.UploadRepository;
+import org.schemeguard.backend.repository.csvuploads.UploadRepository;
 import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.util.UUID;

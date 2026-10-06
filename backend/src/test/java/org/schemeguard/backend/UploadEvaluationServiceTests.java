@@ -4,7 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.schemeguard.backend.entity.User;
 import org.schemeguard.backend.entity.enums.TransactionStatus;
 import org.schemeguard.backend.repository.TransactionRepository;
-import org.schemeguard.backend.repository.UploadRepository;
+import org.schemeguard.backend.repository.csvuploads.UploadRepository;
 import org.schemeguard.backend.service.ruleIntepreter.RuleEngine;
 import org.schemeguard.backend.service.ruleIntepreter.UploadEvaluationService;
 

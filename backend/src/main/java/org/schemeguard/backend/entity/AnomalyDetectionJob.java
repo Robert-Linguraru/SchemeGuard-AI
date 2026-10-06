@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.schemeguard.backend.entity.csvuploads.Upload;
 import org.schemeguard.backend.entity.enums.AnomalyJobStatus;
 import java.time.Instant;
 import java.util.UUID;

@@ -1,12 +1,12 @@
 package org.schemeguard.backend;
 
 import org.junit.jupiter.api.Test;
-import org.schemeguard.backend.entity.Upload;
-import org.schemeguard.backend.entity.UploadSession;
+import org.schemeguard.backend.entity.csvuploads.Upload;
+import org.schemeguard.backend.entity.csvuploads.UploadSession;
 import org.schemeguard.backend.entity.User;
 import org.schemeguard.backend.exception.UploadException;
-import org.schemeguard.backend.repository.UploadRepository;
-import org.schemeguard.backend.service.csvUpload.UploadDownloadService;
+import org.schemeguard.backend.repository.csvuploads.UploadRepository;
+import org.schemeguard.backend.service.csvuploads.UploadDownloadService;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
