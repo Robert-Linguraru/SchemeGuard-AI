@@ -35,6 +35,7 @@ interface EntityListProps<T> {
     onToggleExpanded?: (item: T) => void;
     renderExpanded?: (item: T) => ReactNode;
     expandOnRowClick?: boolean;
+    rowClassName?: (item: T) => string | undefined;
 }
 
 const getSortState = (sort: string) => {
@@ -61,7 +62,8 @@ export function EntityList<T>({
     expandedItemId = null,
     onToggleExpanded,
     renderExpanded,
-    expandOnRowClick = false
+    expandOnRowClick = false,
+    rowClassName
 }: EntityListProps<T>) {
     const {
         query,
@@ -302,10 +304,16 @@ export function EntityList<T>({
                                     const itemId = (item as { id?: string }).id;
                                     const isExpanded = expandedItemId === itemId;
                                     const toggleExpanded = () => onToggleExpanded?.(item);
+                                    const dataRowClassName = [
+                                        renderExpanded
+                                            ? `entity-list-data-row${isExpanded ? " is-expanded" : ""}${expandOnRowClick ? " is-expandable" : ""}`
+                                            : undefined,
+                                        rowClassName?.(item)
+                                    ].filter(Boolean).join(" ") || undefined;
                                     return (
                                         <Fragment key={(item as { id?: string }).id || index}>
                                         <tr
-                                            className={renderExpanded ? `entity-list-data-row${isExpanded ? " is-expanded" : ""}${expandOnRowClick ? " is-expandable" : ""}` : undefined}
+                                            className={dataRowClassName}
                                             onClick={expandOnRowClick ? (event) => {
                                                 if ((event.target as HTMLElement).closest("button, a, input, select, textarea, label")) return;
                                                 toggleExpanded();

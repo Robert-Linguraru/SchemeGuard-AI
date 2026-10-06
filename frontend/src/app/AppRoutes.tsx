@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useParams } from "react-router-dom";
 import type { ReactNode } from "react";
 import { useAuth } from "./AuthProvider";
 import { App } from "./App";
@@ -33,20 +33,33 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
     return user ? <>{children}</> : <Navigate to="/login" replace />;
 }
 
+function UploadRoute() {
+    const { uploadId } = useParams<{ uploadId: string }>();
+
+    return (
+        <ProtectedRoute>
+            <App routeUploadId={uploadId ?? null} />
+        </ProtectedRoute>
+    );
+}
+
+function AnalyticsRoute() {
+    return (
+        <ProtectedRoute>
+            <App routeView="analysis-dashboard" />
+        </ProtectedRoute>
+    );
+}
+
 export function AppRoutes() {
     return (
         <Routes>
             <Route path="/" element={<App />} />
             <Route path="/login" element={<PublicAuthRoute mode="login" />} />
             <Route path="/register" element={<PublicAuthRoute mode="register" />} />
-            <Route
-                path="/uploads"
-                element={
-                    <ProtectedRoute>
-                        <App />
-                    </ProtectedRoute>
-                }
-            />
+            <Route path="/uploads" element={<UploadRoute />} />
+            <Route path="/uploads/:uploadId" element={<UploadRoute />} />
+            <Route path="/analytics" element={<AnalyticsRoute />} />
             <Route path="*" element={<NotFoundPage />} />
         </Routes>
     );
