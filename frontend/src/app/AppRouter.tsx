@@ -15,9 +15,6 @@ type AppRouterProps = {
     selectedUploadFileName: string | null;
     selectedUploadImportStatus: string | null;
     selectedUploadWasEvaluated: boolean;
-    ruleCreationNotice: string | null;
-    onRuleCreationNoticeShown: () => void;
-    onRuleCreated: () => void;
     onNavigate: (view: View) => void;
     onOpenRule: (id: string) => void;
     onOpenUpload: (
@@ -39,9 +36,6 @@ export function AppRouter({
     selectedUploadFileName,
     selectedUploadImportStatus,
     selectedUploadWasEvaluated,
-    ruleCreationNotice,
-    onRuleCreationNoticeShown,
-    onRuleCreated,
     onNavigate,
     onOpenRule,
     onOpenUpload,
@@ -63,7 +57,6 @@ export function AppRouter({
             return (
                 <RuleUploadPage
                     onBack={() => onNavigate("rules")}
-                    onRuleCreated={onRuleCreated}
                 />
             );
 
@@ -94,8 +87,6 @@ export function AppRouter({
                 <RulesPage
                     onCreateRule={() => onNavigate("upload")}
                     onOpenRule={onOpenRule}
-                    successMessage={ruleCreationNotice}
-                    onSuccessMessageShown={onRuleCreationNoticeShown}
                 />
             );
 
