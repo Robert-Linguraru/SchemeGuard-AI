@@ -107,12 +107,13 @@ the following order:
 3. `rule_interpreter.sql` creates fallback rates and evaluation indexes.
 4. `seed_reference_data.sql` inserts roles, card schemes, and 249 country mappings.
 5. `upload_tables.sql` creates the upload tables and the transaction-import staging table.
-6. `transaction_outliers.sql` creates the upload-scoped anomaly table used by outlier detection.
-7. `anomaly_detection_jobs.sql` creates the persistent queue and status table for asynchronous outlier detection.
-8. `anomaly_detection_inputs.sql` creates the cache identity table used to invalidate older detector results.
+6. `upload_content_hash.sql` adds per-user exact-file deduplication and removes stored document rows for duplicate attempts. Existing documents are not hashed retroactively.
+7. `transaction_outliers.sql` creates the upload-scoped anomaly table used by outlier detection.
+8. `anomaly_detection_jobs.sql` creates the persistent queue and status table for asynchronous outlier detection.
+9. `anomaly_detection_inputs.sql` creates the cache identity table used to invalidate older detector results.
 
-If the database already exists, run `transaction_outliers.sql` and
-`anomaly_detection_jobs.sql` and `anomaly_detection_inputs.sql` after deploying the anomaly feature. These scripts are safe to rerun.
+If the database already exists, run `upload_content_hash.sql` before deploying or restarting the backend with file deduplication. It also removes duplicate-attempt rows already present in upload history while leaving their sessions for normal cleanup. Existing uploads keep a `NULL` content hash and are not checked as prior files. Run
+`transaction_outliers.sql`, `anomaly_detection_jobs.sql`, and `anomaly_detection_inputs.sql` after deploying the anomaly feature. These scripts are safe to rerun.
 
 Detection returns a job from `POST /api/uploads/{uploadId}/anomalies/detect` (HTTP 202).
 Poll `/anomalies/status`, then retrieve transaction IDs from `/anomalies` when the job

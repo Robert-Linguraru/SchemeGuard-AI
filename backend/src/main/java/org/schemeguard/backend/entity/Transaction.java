@@ -6,6 +6,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import org.schemeguard.backend.entity.csvuploads.Upload;
 import org.schemeguard.backend.entity.enums.CardCategory;
 import org.schemeguard.backend.entity.enums.CardType;
 import org.schemeguard.backend.entity.enums.TransactionChannel;

@@ -112,22 +112,24 @@ const createColumns = (
         label: "Actions",
         render: (upload) => (
             <div className="entity-list-actions">
-                <Tooltip
-                    title={downloadingUploadId === upload.id ? "Downloading original CSV..." : "Download CSV"}
-                    color="#f05d53"
-                    styles={{ container: { color: "#ffffff" } }}
-                >
-                    <span className="entity-list-action-tooltip">
-                        <Button
-                            type="default"
-                            className={`entity-list-action-button entity-list-action-icon-button${downloadingUploadId === upload.id ? " download-in-progress" : ""}`}
-                            icon={<DownloadOutlined />}
-                            disabled={downloadingUploadId === upload.id}
-                            onClick={() => onDownloadUpload(upload.id, upload.fileName)}
-                            aria-label={downloadingUploadId === upload.id ? "Downloading original CSV" : "Download original CSV"}
-                        />
-                    </span>
-                </Tooltip>
+                {upload.importStatus !== "DUPLICATE" && (
+                    <Tooltip
+                        title={downloadingUploadId === upload.id ? "Downloading original CSV..." : "Download CSV"}
+                        color="#f05d53"
+                        styles={{ container: { color: "#ffffff" } }}
+                    >
+                        <span className="entity-list-action-tooltip">
+                            <Button
+                                type="default"
+                                className={`entity-list-action-button entity-list-action-icon-button${downloadingUploadId === upload.id ? " download-in-progress" : ""}`}
+                                icon={<DownloadOutlined />}
+                                disabled={downloadingUploadId === upload.id}
+                                onClick={() => onDownloadUpload(upload.id, upload.fileName)}
+                                aria-label={downloadingUploadId === upload.id ? "Downloading original CSV" : "Download original CSV"}
+                            />
+                        </span>
+                    </Tooltip>
+                )}
                 {upload.importStatus === "COMPLETED" && !upload.wasEvaluated && (
                     <Tooltip
                         title={evaluatingUploadId === upload.id ? "Evaluating upload..." : "Evaluate"}

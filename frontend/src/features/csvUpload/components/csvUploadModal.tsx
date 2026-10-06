@@ -21,7 +21,11 @@ import {
   LoadingOutlined,
   StopOutlined,
 } from "@ant-design/icons";
-import { UploadImportError, uploadCsv } from "../api/csvUploadApi";
+import {
+  DuplicateUploadError,
+  UploadImportError,
+  uploadCsv,
+} from "../api/csvUploadApi";
 import type {
   UploadProgress,
   UploadStatusResponse,
@@ -46,10 +50,6 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
 }
 
-function fileIdentity(file: File): string {
-  return [file.name, file.size, file.lastModified, file.type].join(":");
-}
-
 export default function CsvTransactionUploadModal({
   onCompleted,
 }: TransactionUploadModalProps) {
@@ -57,7 +57,6 @@ export default function CsvTransactionUploadModal({
   const [file, setFile] = useState<File | null>(null);
   const [progress, setProgress] = useState<UploadProgress | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [lastUploadedFileIdentity, setLastUploadedFileIdentity] = useState<string | null>(null);
   const [filePickerKey, setFilePickerKey] = useState(0);
   const [notificationApi, notificationContextHolder] = antdNotification.useNotification();
   const abortController = useRef<AbortController | null>(null);
@@ -115,15 +114,7 @@ export default function CsvTransactionUploadModal({
 
     setFile(candidate);
     setProgress(null);
-    if (fileIdentity(candidate) === lastUploadedFileIdentity) {
-      showNotification({
-        kind: "warning",
-        title: "File already imported",
-        message: "Change the file before starting another import.",
-      });
-    } else {
-      notificationApi.destroy();
-    }
+    notificationApi.destroy();
     return false;
   };
 
@@ -137,9 +128,6 @@ export default function CsvTransactionUploadModal({
     return true;
   };
 
-  const isFileAlreadyUploaded = file !== null
-    && fileIdentity(file) === lastUploadedFileIdentity;
-
   const startUpload = async () => {
     if (!file) {
       showNotification({
@@ -150,16 +138,6 @@ export default function CsvTransactionUploadModal({
       return;
     }
 
-    if (isFileAlreadyUploaded) {
-      showNotification({
-        kind: "warning",
-        title: "File already imported",
-        message: "Change the file before starting another import.",
-      });
-      return;
-    }
-
-    const uploadedFileIdentity = fileIdentity(file);
     const controller = new AbortController();
     abortController.current = controller;
     setIsUploading(true);
@@ -168,7 +146,6 @@ export default function CsvTransactionUploadModal({
 
     try {
       const result = await uploadCsv(file, setProgress, controller.signal);
-      setLastUploadedFileIdentity(uploadedFileIdentity);
       const importedMessage = `Imported ${result.processedRows.toLocaleString()} transactions.`;
       showNotification({
         kind: "success",
@@ -187,6 +164,13 @@ export default function CsvTransactionUploadModal({
           kind: "warning",
           title: "Upload cancelled",
           message: "The upload was cancelled.",
+        });
+      } else if (error instanceof DuplicateUploadError) {
+        setProgress(null);
+        showNotification({
+          kind: "warning",
+          title: "File already imported",
+          message: error.message,
         });
       } else {
         const processedRows = error instanceof UploadImportError
@@ -272,9 +256,7 @@ export default function CsvTransactionUploadModal({
             <Typography.Text type="secondary">
               {isUploading
                 ? "Please keep this window open."
-                : isFileAlreadyUploaded
-                  ? "Choose a different file to continue."
-                  : "CSV files only"}
+                : "CSV files only"}
             </Typography.Text>
             <Space>
               <Button onClick={closeModal} disabled={isUploading}>
@@ -289,7 +271,7 @@ export default function CsvTransactionUploadModal({
                   type="primary"
                   icon={<CloudUploadOutlined />}
                   onClick={() => void startUpload()}
-                  disabled={!file || isFileAlreadyUploaded}
+                  disabled={!file}
                 >
                   Start import
                 </Button>

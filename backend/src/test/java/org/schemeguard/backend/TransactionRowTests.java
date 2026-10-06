@@ -2,7 +2,7 @@ package org.schemeguard.backend;
 
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
-import org.schemeguard.backend.service.csvUpload.TransactionRow;
+import org.schemeguard.backend.service.csvuploads.TransactionRow;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;

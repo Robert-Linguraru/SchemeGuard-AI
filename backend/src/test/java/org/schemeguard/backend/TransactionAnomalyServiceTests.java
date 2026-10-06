@@ -2,8 +2,10 @@ package org.schemeguard.backend;
 
 import org.junit.jupiter.api.Test;
 import org.schemeguard.backend.entity.*;
+import org.schemeguard.backend.entity.csvuploads.Upload;
 import org.schemeguard.backend.entity.enums.AnomalyJobStatus;
 import org.schemeguard.backend.repository.*;
+import org.schemeguard.backend.repository.csvuploads.UploadRepository;
 import org.schemeguard.backend.service.*;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.SimpleTransactionStatus;
