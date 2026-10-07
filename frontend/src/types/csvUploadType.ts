@@ -3,6 +3,7 @@ export type UploadStatus =
   | "QUEUED"
   | "PROCESSING"
   | "COMPLETED"
+  | "DUPLICATE"
   | "FAILED"
   | "CANCELLED";
 
@@ -16,7 +17,7 @@ export type CreateUploadResponse = {
 
 export type UploadStatusResponse = {
   uploadId: string;
-  uploadRecordId: string;
+  uploadRecordId: string | null;
   fileName: string;
   status: UploadStatus;
   expectedFileSizeBytes: number;

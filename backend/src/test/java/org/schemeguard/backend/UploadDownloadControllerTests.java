@@ -2,11 +2,11 @@ package org.schemeguard.backend;
 
 import org.junit.jupiter.api.Test;
 import org.schemeguard.backend.entity.User;
-import org.schemeguard.backend.repository.UploadRepository;
+import org.schemeguard.backend.repository.csvuploads.UploadRepository;
 import org.schemeguard.backend.service.TransactionService;
-import org.schemeguard.backend.service.csvUpload.UploadDownloadService;
-import org.schemeguard.backend.service.csvUpload.UploadStatisticsService;
-import org.schemeguard.backend.service.csvUpload.UploadService;
+import org.schemeguard.backend.service.csvuploads.UploadDownloadService;
+import org.schemeguard.backend.service.csvuploads.UploadStatisticsService;
+import org.schemeguard.backend.service.csvuploads.UploadService;
 import org.schemeguard.backend.service.ruleIntepreter.RuleEngine;
 import org.schemeguard.backend.service.ruleIntepreter.UploadEvaluationService;
 import org.schemeguard.backend.controller.TransactionUploadController;

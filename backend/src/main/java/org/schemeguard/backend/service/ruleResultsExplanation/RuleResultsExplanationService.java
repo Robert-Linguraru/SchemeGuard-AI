@@ -11,7 +11,7 @@ import org.schemeguard.backend.exception.UploadException;
 import org.schemeguard.backend.repository.FeeCalculationRepository;
 import org.schemeguard.backend.repository.QualificationResultRepository;
 import org.schemeguard.backend.repository.TransactionRepository;
-import org.schemeguard.backend.repository.UploadRepository;
+import org.schemeguard.backend.repository.csvuploads.UploadRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;

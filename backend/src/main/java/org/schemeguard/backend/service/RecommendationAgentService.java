@@ -9,7 +9,7 @@ import org.schemeguard.backend.exception.ResourceNotFoundException;
 import org.schemeguard.backend.repository.FeeCalculationRepository;
 import org.schemeguard.backend.repository.QualificationResultRepository;
 import org.schemeguard.backend.repository.TransactionRepository;
-import org.schemeguard.backend.repository.UploadRepository;
+import org.schemeguard.backend.repository.csvuploads.UploadRepository;
 import org.schemeguard.backend.service.rag.RagDocumentService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
