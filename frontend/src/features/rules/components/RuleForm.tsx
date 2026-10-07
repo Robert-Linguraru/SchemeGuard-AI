@@ -1,8 +1,10 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { uploadRule } from "../api/rulesApi";
 import { getRuleErrorMessage } from "../api/ruleErrors";
 import { RuleConditionFields } from "./RuleConditionFields";
 import type { RuleCondition, RuleFormValues, RuleUploadResponse } from "../types/rule";
+import { getAllActiveCardSchemes } from "../../cardSchemes/api/cardSchemeApi";
+import type { CardScheme } from "../../cardSchemes/types/cardScheme";
 import { Button } from "antd";
 
 interface RuleFormProps {
@@ -26,7 +28,6 @@ const initialValues: RuleFormValues = {
 };
 
 const initialConditions: RuleCondition[] = [{ field: "", operator: "", value: "" }];
-const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const booleanFields = new Set(["merchantDataComplete", "threeDsUsed", "cvvPresent"]);
 const numericFields = new Set(["clearingDelayDays"]);
 
@@ -36,6 +37,35 @@ export function RuleForm({ onSuccess }: RuleFormProps) {
     const [errors, setErrors] = useState<string[]>([]);
     const [requestError, setRequestError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [cardSchemes, setCardSchemes] = useState<CardScheme[]>([]);
+    const [isLoadingCardSchemes, setIsLoadingCardSchemes] = useState(true);
+    const [cardSchemeError, setCardSchemeError] = useState<string | null>(null);
+    const [cardSchemeReloadKey, setCardSchemeReloadKey] = useState(0);
+
+    useEffect(() => {
+        const controller = new AbortController();
+        setIsLoadingCardSchemes(true);
+        setCardSchemeError(null);
+
+        void getAllActiveCardSchemes(controller.signal)
+            .then(setCardSchemes)
+            .catch((error: unknown) => {
+                if (!controller.signal.aborted) {
+                    setCardSchemeError(
+                        error instanceof Error
+                            ? error.message
+                            : "Could not load active card schemes."
+                    );
+                }
+            })
+            .finally(() => {
+                if (!controller.signal.aborted) {
+                    setIsLoadingCardSchemes(false);
+                }
+            });
+
+        return () => controller.abort();
+    }, [cardSchemeReloadKey]);
 
     const updateValue = <Key extends keyof RuleFormValues>(key: Key, value: RuleFormValues[Key]) => {
         setValues((currentValues) => ({ ...currentValues, [key]: value }));
@@ -54,7 +84,7 @@ export function RuleForm({ onSuccess }: RuleFormProps) {
         const interchangeRate = Number(values.interchangeRate);
         const version = Number(values.version);
 
-        if (!uuidPattern.test(values.schemeId.trim())) validationErrors.push("Card scheme ID must be a valid UUID.");
+        if (!values.schemeId) validationErrors.push("Select a card scheme.");
         if (!values.ruleCode.trim()) validationErrors.push("Rule code is required.");
         if (!values.ruleName.trim()) validationErrors.push("Rule name is required.");
         if (!["EU", "US", "UK"].includes(values.region)) validationErrors.push("Region must be EU, US or UK.");
@@ -104,9 +134,37 @@ export function RuleForm({ onSuccess }: RuleFormProps) {
         <form className="rule-form" onSubmit={submit}>
             <section className="form-section">
                 <div className="form-section-heading"><p className="eyebrow">IDENTITY</p><h3>Rule details</h3></div>
-                <label>Card scheme ID
-                    <input value={values.schemeId} onChange={(event) => updateValue("schemeId", event.target.value)} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
-                    <span className="field-help">Temporary input: use a valid UUID from the card_schemes table. This will become a scheme dropdown after a card-scheme lookup endpoint is available.</span>
+                <label>Card scheme
+                    <select
+                        value={values.schemeId}
+                        onChange={(event) => updateValue("schemeId", event.target.value)}
+                        disabled={isLoadingCardSchemes || cardSchemes.length === 0}
+                        required
+                    >
+                        <option value="">
+                            {isLoadingCardSchemes
+                                ? "Loading card schemes..."
+                                : cardSchemes.length === 0
+                                    ? "No active card schemes available"
+                                    : "Select a card scheme"}
+                        </option>
+                        {cardSchemes.map((scheme) => (
+                            <option key={scheme.id} value={scheme.id}>
+                                {scheme.name} ({scheme.code})
+                            </option>
+                        ))}
+                    </select>
+                    {cardSchemeError && (
+                        <span className="field-help" role="alert">
+                            Could not load card schemes: {cardSchemeError}{" "}
+                            <button type="button" onClick={() => setCardSchemeReloadKey((key) => key + 1)}>
+                                Retry
+                            </button>
+                        </span>
+                    )}
+                    {!isLoadingCardSchemes && !cardSchemeError && cardSchemes.length === 0 && (
+                        <span className="field-help">Create or activate a card scheme before adding a rule.</span>
+                    )}
                 </label>
                 <div className="form-grid">
                     <label>Rule code<input value={values.ruleCode} onChange={(event) => updateValue("ruleCode", event.target.value)} /></label>

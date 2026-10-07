@@ -38,6 +38,11 @@
     background: #fff0b5;
 }
 
+.account-avatar.account-avatar--flower {
+    overflow: hidden;
+    background: #fff0f5;
+}
+
 .account-avatar-image {
     display: block;
     width: 100%;

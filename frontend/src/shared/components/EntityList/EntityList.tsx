@@ -31,6 +31,7 @@ interface EntityListProps<T> {
     emptyMessage?: string;
     toolbar?: (context: EntityListToolbarContext) => ReactNode;
     onResponse?: (response: EntityListResponse<T>) => void;
+    onLoadingChange?: (isLoading: boolean) => void;
     expandedItemId?: string | null;
     onToggleExpanded?: (item: T) => void;
     renderExpanded?: (item: T) => ReactNode;
@@ -59,6 +60,7 @@ export function EntityList<T>({
     emptyMessage = "No records found.",
     toolbar,
     onResponse,
+    onLoadingChange,
     expandedItemId = null,
     onToggleExpanded,
     renderExpanded,
@@ -91,6 +93,10 @@ export function EntityList<T>({
             onResponse?.(response);
         }
     }, [onResponse, response]);
+
+    useEffect(() => {
+        onLoadingChange?.(isLoading);
+    }, [isLoading, onLoadingChange]);
 
     useEffect(() => {
         const timeout = window.setTimeout(() => {
