@@ -115,7 +115,7 @@ const createColumns = (
                 {upload.importStatus !== "DUPLICATE" && (
                     <Tooltip
                         title={downloadingUploadId === upload.id ? "Downloading original CSV..." : "Download CSV"}
-                        color="#f05d53"
+                        color="#FF5640"
                         styles={{ container: { color: "#ffffff" } }}
                     >
                         <span className="entity-list-action-tooltip">
@@ -133,7 +133,7 @@ const createColumns = (
                 {upload.importStatus === "COMPLETED" && !upload.wasEvaluated && (
                     <Tooltip
                         title={evaluatingUploadId === upload.id ? "Evaluating upload..." : "Evaluate"}
-                        color="#f05d53"
+                        color="#FF5640"
                         styles={{ container: { color: "#ffffff" } }}
                     >
                         <span className="entity-list-action-tooltip">
@@ -150,7 +150,7 @@ const createColumns = (
                 )}
                 <Tooltip
                     title="Open Details"
-                    color="#f05d53"
+                    color="#FF5640"
                     styles={{ container: { color: "#ffffff" } }}
                 >
                     <span className="entity-list-action-tooltip">

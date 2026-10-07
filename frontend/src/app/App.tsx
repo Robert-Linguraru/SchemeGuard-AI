@@ -7,6 +7,8 @@ import { AppRouter } from "./AppRouter";
 import { useTheme } from "./ThemeProvider";
 import type { View } from "../shared/types/navigation";
 import type { AgentOpenContext, AgentTransactionContext } from "../shared/types/agent";
+import type { UploadSummary } from "../features/uploads/types/upload";
+import type { Transaction } from "../shared/types/transaction";
 
 function AuthenticatedApp() {
     const { user } = useAuth();
@@ -25,6 +27,7 @@ function AuthenticatedApp() {
         useState(false);
     const [ruleCreationNotice, setRuleCreationNotice] = useState<string | null>(null);
     const [agentOpenContext, setAgentOpenContext] = useState<AgentOpenContext | null>(null);
+    const [focusedAnalyticsTransaction, setFocusedAnalyticsTransaction] = useState<{ id: string; externalId: string } | null>(null);
     const isAdmin = user?.role?.toUpperCase() === "ADMIN";
 
     const navigate = (nextView: View) => {
@@ -62,6 +65,15 @@ function AuthenticatedApp() {
                 selectedUploadFileName={selectedUploadFileName}
                 selectedUploadImportStatus={selectedUploadImportStatus}
                 selectedUploadWasEvaluated={selectedUploadWasEvaluated}
+                focusedAnalyticsTransaction={focusedAnalyticsTransaction}
+                onOpenAnalyticsTransaction={(upload: UploadSummary, transaction: Transaction) => {
+                    setSelectedUploadId(upload.id);
+                    setSelectedUploadFileName(upload.fileName);
+                    setSelectedUploadImportStatus(upload.importStatus);
+                    setSelectedUploadWasEvaluated(upload.wasEvaluated);
+                    setFocusedAnalyticsTransaction({ id: transaction.id, externalId: transaction.externalId });
+                    navigate("upload-details");
+                }}
                 ruleCreationNotice={ruleCreationNotice}
                 onRuleCreationNoticeShown={() => setRuleCreationNotice(null)}
                 onRuleCreated={() => {
@@ -78,6 +90,7 @@ function AuthenticatedApp() {
                     setSelectedUploadFileName(fileName);
                     setSelectedUploadImportStatus(importStatus);
                     setSelectedUploadWasEvaluated(wasEvaluated);
+                    setFocusedAnalyticsTransaction(null);
                     navigate("upload-details");
                 }}
                 onUploadEvaluated={(wasEvaluated) => setSelectedUploadWasEvaluated(wasEvaluated)}

@@ -9,6 +9,8 @@ import { UploadsPage } from "../features/uploads/pages/UploadsPage";
 import { MyAgentPage } from "../features/agent/pages/MyAgentPage";
 import type { View } from "../shared/types/navigation";
 import type { AgentOpenContext, AgentTransactionContext } from "../shared/types/agent";
+import type { Transaction } from "../shared/types/transaction";
+import type { UploadSummary } from "../features/uploads/types/upload";
 
 type AppRouterProps = {
     view: View;
@@ -21,6 +23,8 @@ type AppRouterProps = {
     selectedUploadFileName: string | null;
     selectedUploadImportStatus: string | null;
     selectedUploadWasEvaluated: boolean;
+    focusedAnalyticsTransaction: { id: string; externalId: string } | null;
+    onOpenAnalyticsTransaction: (upload: UploadSummary, transaction: Transaction) => void;
     ruleCreationNotice: string | null;
     onRuleCreationNoticeShown: () => void;
     onRuleCreated: () => void;
@@ -46,6 +50,8 @@ export function AppRouter({
     selectedUploadFileName,
     selectedUploadImportStatus,
     selectedUploadWasEvaluated,
+    focusedAnalyticsTransaction,
+    onOpenAnalyticsTransaction,
     ruleCreationNotice,
     onRuleCreationNoticeShown,
     onRuleCreated,
@@ -79,7 +85,7 @@ export function AppRouter({
             );
 
         case "analysis-dashboard":
-            return <AnalysisDashboardPage />;
+            return <AnalysisDashboardPage onOpenTransaction={onOpenAnalyticsTransaction} />;
 
         case "card-schemes":
             return <CardSchemesPage />;
@@ -121,6 +127,7 @@ export function AppRouter({
                     selectedUploadFileName={selectedUploadFileName}
                     selectedUploadImportStatus={selectedUploadImportStatus}
                     selectedUploadWasEvaluated={selectedUploadWasEvaluated}
+                    focusedAnalyticsTransaction={focusedAnalyticsTransaction}
                     onUploadEvaluated={onUploadEvaluated}
                 />
             );

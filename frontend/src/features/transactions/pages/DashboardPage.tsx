@@ -32,6 +32,7 @@ interface DashboardPageProps {
     selectedUploadFileName?: string | null;
     selectedUploadImportStatus?: string | null;
     selectedUploadWasEvaluated?: boolean;
+    focusedAnalyticsTransaction?: { id: string; externalId: string } | null;
     onUploadEvaluated: (wasEvaluated: boolean) => void;
 }
 
@@ -42,6 +43,7 @@ export function DashboardPage({
     selectedUploadFileName,
     selectedUploadImportStatus,
     selectedUploadWasEvaluated = false,
+    focusedAnalyticsTransaction = null,
     onUploadEvaluated
 }: DashboardPageProps) {
     const { notification } = AntdApp.useApp();
@@ -65,6 +67,7 @@ export function DashboardPage({
     const detailRequest = useRef<AbortController | null>(null);
     const detailCache = useRef(new Map<string, TransactionExplanation>());
     const detectionEpoch = useRef(0);
+    const focusedTransactionHandled = useRef<string | null>(null);
 
     const canEvaluate = selectedUploadImportStatus === "COMPLETED"
         && !selectedUploadWasEvaluated;
@@ -282,15 +285,23 @@ export function DashboardPage({
     };
 
     const handleTransactionResponse = useCallback(
-        (_response: EntityListResponse<Transaction>) => {
+        (response: EntityListResponse<Transaction>) => {
             detailRequest.current?.abort();
             detailCache.current.clear();
             setExpandedTransactionId(null);
             setTransactionDetails({});
             setDetailErrors({});
             setLoadingDetailId(null);
+            const target = focusedAnalyticsTransaction;
+            if (target && focusedTransactionHandled.current !== target.id) {
+                const transaction = response.items.find((item) => item.id === target.id || item.externalId === target.externalId);
+                if (transaction) {
+                    focusedTransactionHandled.current = target.id;
+                    void loadTransactionDetails(transaction);
+                }
+            }
         },
-        []
+        [focusedAnalyticsTransaction, loadTransactionDetails]
     );
 
     const runOutlierDetection = async () => {
@@ -457,7 +468,7 @@ export function DashboardPage({
                         {selectedUploadId && canEvaluate && (
                             <Tooltip
                                 title={isEvaluating ? "Evaluating upload..." : "Evaluate this upload"}
-                                color="#f05d53"
+                                color="#FF5640"
                                 styles={{ container: { color: "#ffffff" } }}
                             >
                                 <span className="action-tooltip-trigger">
@@ -478,7 +489,7 @@ export function DashboardPage({
                         {selectedUploadId && canDetectOutliers && (
                             <Tooltip
                                 title={isDetectingOutliers ? "Detecting outliers..." : "Detect outliers in this upload"}
-                                color="#f05d53"
+                                color="#FF5640"
                                 styles={{ container: { color: "#ffffff" } }}
                             >
                                 <span className="action-tooltip-trigger">
@@ -558,7 +569,7 @@ export function DashboardPage({
                                 );
                             }}
                             reloadKey={transactionReloadKey}
-                            initialQuery={{ size: 50, sort: "createdAt,desc" }}
+                            initialQuery={{ size: 50, sort: "createdAt,desc", search: focusedAnalyticsTransaction?.externalId ?? "" }}
                             toolbar={({ query, updateQuery }) => (
                                 <div className="transaction-list-filters">
                                     <Button

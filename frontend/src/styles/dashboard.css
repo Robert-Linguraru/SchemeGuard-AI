@@ -104,7 +104,7 @@
 }
 
 .app-navbar-link:focus-visible {
-	outline: 2px solid var(--blue);
+    outline: 2px solid var(--coral);
 	outline-offset: 3px;
 }
 
@@ -339,13 +339,13 @@
 }
 
 .my-agent-qualification.qualified {
-	background: #dff5e9;
-	color: #17653a;
+    background: var(--green-bg);
+    color: var(--green);
 }
 
 .my-agent-qualification.not-qualified {
-	background: #fde8e7;
-	color: #9e302a;
+    background: var(--red-bg);
+    color: var(--red);
 }
 
 .my-agent-add-transaction {
@@ -729,7 +729,7 @@ button.my-agent-transaction-button {
 
 .my-agent-error {
 	margin: 8px 0;
-	color: #ffaba5;
+	color: var(--danger);
 }
 
 .my-agent-footnote {
@@ -866,11 +866,11 @@ button.my-agent-transaction-button {
 
 /* .analysis-export-button.ant-btn:hover,
 .analysis-export-button.ant-btn:focus {
-	background: #ff7168 !important;
+	background: color-mix(in srgb, var(--coral) 86%, var(--navy)) !important;
 } */
 
 .action-button{
-	background: #ff7168 !important;
+	background: color-mix(in srgb, var(--coral) 86%, var(--navy)) !important;
 }
 
 .analysis-filter-panel {
@@ -914,7 +914,7 @@ button.my-agent-transaction-button {
 
 .analysis-filter-field .ant-picker,
 .analysis-filter-field .ant-select .ant-select-selector {
-	border-color: #4d748b !important;
+	border-color: #5E6A73 !important;
 	background: var(--navy-light) !important;
 	color: var(--white) !important;
 }
@@ -923,7 +923,7 @@ button.my-agent-transaction-button {
 .analysis-filter-field .ant-picker-focused,
 .analysis-filter-field .ant-select:hover .ant-select-selector,
 .analysis-filter-field .ant-select-focused .ant-select-selector {
-	border-color: var(--blue) !important;
+    border-color: var(--coral) !important;
 }
 
 .analysis-filter-field .ant-picker-input > input,
@@ -934,13 +934,13 @@ button.my-agent-transaction-button {
 .analysis-filter-field .ant-picker-input > input::placeholder,
 .analysis-filter-field .ant-select-selection-placeholder,
 .analysis-filter-field .ant-select-placeholder {
-	color: #d3e0e6 !important;
+	color: #D1D5D7 !important;
 	opacity: 1 !important;
 }
 
 .analysis-filter-field .ant-picker-suffix,
 .analysis-filter-field .ant-select-arrow {
-	color: #d3e0e6 !important;
+	color: #D1D5D7 !important;
 }
 
 .analysis-filter-actions {
@@ -1054,13 +1054,13 @@ button.my-agent-transaction-button {
 }
 
 .analysis-kpi-icon-green {
-	background: rgba(25, 183, 157, .28);
-	color: #42e0bd;
+	background: var(--green-bg);
+	color: var(--green);
 }
 
 .analysis-kpi-icon-purple {
-	background: rgba(177, 140, 255, .28);
-	color: #b18cff;
+	background: color-mix(in srgb, var(--coral) 14%, var(--surface-card));
+	color: var(--coral);
 }
 
 .analysis-card.ant-card .ant-card-body {
@@ -1138,7 +1138,7 @@ button.my-agent-transaction-button {
 	display: block;
 	height: 100%;
 	border-radius: inherit;
-	background: var(--blue);
+	background: var(--data-blue);
 }
 
 .analysis-bar-row .ant-progress {
@@ -1182,7 +1182,7 @@ button.my-agent-transaction-button {
 }
 
 .analysis-loading .ant-spin {
-	color: var(--blue);
+	color: var(--coral);
 }
 
 .welcome h1 {
@@ -1269,7 +1269,7 @@ button.my-agent-transaction-button {
 }
 
 .stat-description {
-	color: #d3e0e6;
+	color: #D1D5D7;
 	font-size: 12px;
 }
 
@@ -1282,23 +1282,23 @@ button.my-agent-transaction-button {
 }
 
 .entity-list-table tr.transaction-anomaly-row td {
-	background: rgba(250, 204, 21, 0.12);
-	box-shadow: inset 0 2px 0 #facc15, inset 0 -2px 0 #facc15;
+	background: color-mix(in srgb, var(--status-not-evaluated-text) 12%, var(--surface-card));
+	box-shadow: inset 0 2px 0 var(--status-not-evaluated-text), inset 0 -2px 0 var(--status-not-evaluated-text);
 }
 
 .entity-list-table tr.transaction-anomaly-row td:first-child {
-	box-shadow: inset 2px 0 0 #facc15, inset 0 2px 0 #facc15, inset 0 -2px 0 #facc15;
+	box-shadow: inset 2px 0 0 var(--status-not-evaluated-text), inset 0 2px 0 var(--status-not-evaluated-text), inset 0 -2px 0 var(--status-not-evaluated-text);
 }
 
 .entity-list-table tr.transaction-anomaly-row td:last-child {
-	box-shadow: inset -2px 0 0 #facc15, inset 0 2px 0 #facc15, inset 0 -2px 0 #facc15;
+	box-shadow: inset -2px 0 0 var(--status-not-evaluated-text), inset 0 2px 0 var(--status-not-evaluated-text), inset 0 -2px 0 var(--status-not-evaluated-text);
 }
 
 .transaction-anomaly-cell {
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	color: #facc15;
+	color: var(--status-not-evaluated-text);
 	font-weight: 700;
 }
 
@@ -1308,8 +1308,8 @@ button.my-agent-transaction-button {
 }
 
 .record-count {
-	background: #edf3f6;
-	color: #526078;
+	background: #E8EAEB;
+	color: #47555F;
 }
 
 .table-container {
@@ -1326,7 +1326,7 @@ button.my-agent-transaction-button {
 	align-items: center;
 	justify-content: space-between;
 	gap: 12px;
-	color: #65738b;
+	color: #5E6A73;
 	font-size: 12px;
 }
 
@@ -1356,7 +1356,7 @@ button.my-agent-transaction-button {
 	padding: 0;
 	border: 0;
 	background: transparent;
-	color: #65738b;
+	color: #5E6A73;
 	text-transform: uppercase;
 	letter-spacing: 0.5px;
 }
@@ -1375,7 +1375,7 @@ td {
 }
 
 th {
-	color: #65738b;
+	color: #5E6A73;
 	font-size: 12px;
 	text-transform: uppercase;
 	letter-spacing: 0.5px;
@@ -1386,7 +1386,7 @@ td {
 }
 
 tbody tr:hover {
-	background: #f6f9fb;
+	background: #E8EAEB;
 }
 
 .scheme {
@@ -1409,8 +1409,8 @@ tbody tr:hover {
 }
 
 .badge.not-qualified {
-	background: var(--orange-bg);
-	color: var(--orange);
+    background: var(--red-bg);
+    color: var(--red);
 }
 
 @media (max-width: 900px) {

@@ -8,7 +8,7 @@ import {
     PercentageOutlined,
     ReloadOutlined
 } from "@ant-design/icons";
-import { Button, Card, DatePicker, Progress, Select, Spin, Tooltip } from "antd";
+import { Button, Card, DatePicker, Input, Modal, Progress, Select, Spin, Tooltip } from "antd";
 import { ErrorMessage } from "../../../shared/components/ErrorMessage";
 import {
     getAnalytics,
@@ -16,6 +16,9 @@ import {
     type AnalyticsMetric,
     type AnalyticsResponse
 } from "../api/analyticsApi";
+import { getAllUploadTransactions, getUploads } from "../../uploads/api/uploadsApi";
+import type { UploadSummary } from "../../uploads/types/upload";
+import type { Transaction } from "../../../shared/types/transaction";
 
 type Filters = AnalyticsFilters;
 
@@ -24,6 +27,10 @@ interface DonutSegment {
     value: number;
     color: string;
 }
+
+type DrilldownDimension = "qualification" | "merchant" | "country" | "scheme";
+interface DrilldownConfig { title: string; dimension: DrilldownDimension; category?: string; }
+interface DrilldownTransaction extends Transaction { uploadId: string; uploadFileName: string; }
 
 const emptyFilters: Filters = {
     from: "",
@@ -36,18 +43,21 @@ const emptyFilters: Filters = {
 
 const filterKeys = Object.keys(emptyFilters) as Array<keyof Filters>;
 const barColors = [
-    "#38a6ff",
-    "#ff6b62",
-    "#36d6a2",
-    "#b18cff",
-    "#f6c85f",
-    "#55d6d2",
-    "#f28fca",
-    "#8dd35f",
-    "#ff9f43",
-    "#7b8cff"
+    "#5899C4",
+    "#FF5641",
+    "#CF820E",
+    "#30A661",
+    "#8684BF",
+    "#7B9922",
+    "#998F63",
+    "#7C94A6",
+    "#3E9C8F"
 ];
 const label = (value: string) => value.replaceAll("_", " ");
+const normalizedQualification = (value: string | null | undefined) => {
+    const normalized = value?.toUpperCase();
+    return !normalized || normalized === "NOT_EVALUATED" || normalized === "UNKNOWN" ? "PENDING" : normalized;
+};
 const formatInteger = (value: number | string | null | undefined) =>
     new Intl.NumberFormat("en-US").format(Number(value || 0));
 const formatPercent = (value: number) => `${value.toFixed(1)}%`;
@@ -123,12 +133,14 @@ function BarList({
     items,
     useFees = false,
     currency,
-    denominator
+    denominator,
+    onSelectItem
 }: {
     items: AnalyticsMetric[];
     useFees?: boolean;
     currency?: string;
     denominator?: number;
+    onSelectItem?: (item: AnalyticsMetric) => void;
 }) {
     const values = items.map((item) => (useFees ? Number(item.fees || 0) : item.transactions));
     const max = Math.max(...values, 1);
@@ -150,7 +162,21 @@ function BarList({
                 const color = barColors[index % barColors.length];
 
                 return (
-                    <div className="analysis-bar-row" key={item.name}>
+                    <div
+                        className={`analysis-bar-row${onSelectItem ? " analysis-bar-row-clickable" : ""}`}
+                        key={item.name}
+                        onClick={(event) => { event.stopPropagation(); onSelectItem?.(item); }}
+                        onKeyDown={(event) => {
+                            if (onSelectItem && (event.key === "Enter" || event.key === " ")) {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                onSelectItem(item);
+                            }
+                        }}
+                        role={onSelectItem ? "button" : undefined}
+                        tabIndex={onSelectItem ? 0 : undefined}
+                        aria-label={onSelectItem ? `View ${label(item.name)} transactions` : undefined}
+                    >
                         <span title={label(item.name)}>{label(item.name)}</span>
                         <Progress
                             percent={(value / max) * 100}
@@ -167,7 +193,182 @@ function BarList({
     );
 }
 
-export function AnalysisDashboardPage() {
+function AnalyticsDrilldown({
+    config,
+    appliedFilters,
+    onClose,
+    onOpenTransaction
+}: {
+    config: DrilldownConfig;
+    appliedFilters: Filters;
+    onClose: () => void;
+    onOpenTransaction: (upload: UploadSummary, transaction: Transaction) => void;
+}) {
+    const [uploads, setUploads] = useState<UploadSummary[]>([]);
+    const [transactions, setTransactions] = useState<DrilldownTransaction[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [uploadFilter, setUploadFilter] = useState("");
+    const [categoryFilter, setCategoryFilter] = useState(config.category ?? "");
+    const [qualificationFilter, setQualificationFilter] = useState(appliedFilters.qualification);
+    const [search, setSearch] = useState("");
+
+    useEffect(() => {
+        const controller = new AbortController();
+        void (async () => {
+            setIsLoading(true);
+            setError(null);
+            try {
+                const allUploads: UploadSummary[] = [];
+                let page = 0;
+                let totalPages = 1;
+                while (page < totalPages) {
+                    const result = await getUploads({ page, size: 100, search: "", sort: "uploadedAt,desc" }, controller.signal);
+                    allUploads.push(...result.items);
+                    totalPages = result.totalPages;
+                    page += 1;
+                }
+                if (controller.signal.aborted) return;
+                setUploads(allUploads);
+
+                const allTransactions: DrilldownTransaction[] = [];
+                for (let index = 0; index < allUploads.length; index += 3) {
+                    const batch = allUploads.slice(index, index + 3);
+                    const results = await Promise.all(batch.map(async (upload) => ({
+                        upload,
+                        transactions: await getAllUploadTransactions(upload.id, controller.signal)
+                    })));
+                    if (controller.signal.aborted) return;
+                    results.forEach(({ upload, transactions: uploadTransactions }) => {
+                        allTransactions.push(...uploadTransactions.map((transaction) => ({
+                            ...transaction,
+                            uploadId: upload.id,
+                            uploadFileName: upload.fileName
+                        })));
+                    });
+                }
+                setTransactions(allTransactions);
+            } catch (requestError: unknown) {
+                if (!controller.signal.aborted) {
+                    setError(requestError instanceof Error ? requestError.message : "Could not load chart transactions.");
+                }
+            } finally {
+                if (!controller.signal.aborted) setIsLoading(false);
+            }
+        })();
+        return () => controller.abort();
+    }, []);
+
+    const categories = useMemo(() => {
+        const getValue = (transaction: DrilldownTransaction) => {
+            if (config.dimension === "merchant") return transaction.merchantName;
+            if (config.dimension === "country") return transaction.merchantCountry ?? "Unknown country";
+            if (config.dimension === "scheme") return transaction.scheme;
+            return normalizedQualification(transaction.qualificationStatus);
+        };
+        return Array.from(new Set(transactions.map(getValue).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+    }, [config.dimension, transactions]);
+
+    const filteredTransactions = useMemo(() => transactions.filter((transaction) => {
+        const qualification = normalizedQualification(transaction.qualificationStatus);
+        const category = config.dimension === "merchant" ? transaction.merchantName
+            : config.dimension === "country" ? transaction.merchantCountry ?? "Unknown country"
+            : config.dimension === "scheme" ? transaction.scheme
+            : qualification;
+        if (uploadFilter && transaction.uploadId !== uploadFilter) return false;
+        if (qualificationFilter && qualification !== qualificationFilter) return false;
+        if (categoryFilter && category !== categoryFilter) return false;
+        if (appliedFilters.scheme && transaction.scheme.toLowerCase() !== appliedFilters.scheme.toLowerCase()) return false;
+        if (appliedFilters.country && (transaction.merchantCountry ?? "").toLowerCase() !== appliedFilters.country.toLowerCase()) return false;
+        if (appliedFilters.merchant && transaction.merchantName.toLowerCase() !== appliedFilters.merchant.toLowerCase()) return false;
+        if (appliedFilters.from && transaction.authorizedAt && transaction.authorizedAt.slice(0, 10) < appliedFilters.from) return false;
+        if (appliedFilters.to && transaction.authorizedAt && transaction.authorizedAt.slice(0, 10) > appliedFilters.to) return false;
+        if (search.trim()) {
+            const haystack = [transaction.externalId, transaction.merchantName, transaction.scheme, transaction.merchantCountry, transaction.uploadFileName].join(" ").toLowerCase();
+            if (!haystack.includes(search.trim().toLowerCase())) return false;
+        }
+        return true;
+    }), [transactions, uploadFilter, qualificationFilter, categoryFilter, config.dimension, appliedFilters, search]);
+
+    const uploadCounts = useMemo(() => uploads.map((upload) => ({
+        upload,
+        count: filteredTransactions.filter((transaction) => transaction.uploadId === upload.id).length
+    })).filter(({ count }) => count > 0), [uploads, filteredTransactions]);
+
+    const qualificationOptions = ["QUALIFIED", "PARTIALLY_QUALIFIED", "NOT_QUALIFIED", "PENDING"];
+    return (
+        <Modal
+            className="analytics-drilldown-modal"
+            title={<div><span className="analytics-modal-eyebrow">CHART DETAILS</span><h2>{config.title}</h2></div>}
+            open
+            onCancel={onClose}
+            footer={null}
+            width={1050}
+            centered
+            destroyOnClose
+        >
+            <div className="analytics-drilldown-controls">
+                <Select
+                    aria-label="Filter by upload"
+                    value={uploadFilter || "all"}
+                    onChange={(value) => setUploadFilter(value === "all" ? "" : value)}
+                    options={[{ value: "all", label: "All uploads" }, ...uploads.map((upload) => ({ value: upload.id, label: upload.fileName }))]}
+                />
+                <Select
+                    aria-label="Filter by qualification category"
+                    value={qualificationFilter || "all"}
+                    onChange={(value) => setQualificationFilter(value === "all" ? "" : value)}
+                    options={[{ value: "all", label: "All qualification results" }, ...qualificationOptions.map((value) => ({ value, label: label(value) }))]}
+                />
+                <Select
+                    aria-label={`Filter by ${config.dimension} chart category`}
+                    value={categoryFilter || "all"}
+                    onChange={(value) => setCategoryFilter(value === "all" ? "" : value)}
+                    options={[{ value: "all", label: `All ${config.dimension} categories` }, ...categories.map((value) => ({ value, label: label(value) }))]}
+                />
+                <Input.Search placeholder="Find a transaction" value={search} onChange={(event) => setSearch(event.target.value)} allowClear />
+            </div>
+
+            <section className="analytics-upload-split" aria-label="Transactions by upload">
+                <div className="analytics-detail-section-heading"><h3>Split by upload</h3><span>{formatInteger(filteredTransactions.length)} transactions</span></div>
+                {isLoading ? <div className="analytics-detail-loading"><Spin /><span>Loading transactions across uploads…</span></div>
+                    : uploadCounts.length ? <div className="analytics-upload-pills">
+                        {uploadCounts.map(({ upload, count }) => (
+                            <button type="button" className={uploadFilter === upload.id ? "selected" : ""} key={upload.id} onClick={() => setUploadFilter((current) => current === upload.id ? "" : upload.id)}>
+                                <span>{upload.fileName}</span><strong>{formatInteger(count)}</strong>
+                            </button>
+                        ))}
+                    </div> : <p className="analysis-empty">No uploads match these filters.</p>}
+            </section>
+
+            <section className="analytics-transactions-section" aria-label="Matching transactions">
+                <div className="analytics-detail-section-heading"><h3>Transactions</h3><span>{formatInteger(filteredTransactions.length)} results</span></div>
+                {error ? <p className="analysis-empty" role="alert">{error}</p>
+                    : isLoading ? null
+                    : filteredTransactions.length ? <div className="analytics-transaction-list">
+                        {filteredTransactions.slice(0, 200).map((transaction) => (
+                            <button type="button" className="analytics-transaction-row" key={`${transaction.uploadId}-${transaction.id}`} onClick={() => {
+                                const upload = uploads.find((item) => item.id === transaction.uploadId);
+                                if (upload) onOpenTransaction(upload, transaction);
+                            }}>
+                                <span className="analytics-transaction-primary"><strong>{transaction.externalId}</strong><small>{transaction.merchantName} · {transaction.scheme}</small></span>
+                                <span className="analytics-transaction-upload" title={transaction.uploadFileName}>{transaction.uploadFileName}</span>
+                                <span className={`analytics-qualification-badge ${normalizedQualification(transaction.qualificationStatus).toLowerCase()}`}>{label(normalizedQualification(transaction.qualificationStatus))}</span>
+                                <strong>{formatCurrency(transaction.amount, transaction.currencyCode)}</strong>
+                            </button>
+                        ))}
+                        {filteredTransactions.length > 200 && <p className="analysis-empty">Showing the first 200 matches. Refine the filters to narrow the list.</p>}
+                    </div> : <p className="analysis-empty">No transactions match these filters.</p>}
+            </section>
+        </Modal>
+    );
+}
+
+export function AnalysisDashboardPage({
+    onOpenTransaction
+}: {
+    onOpenTransaction: (upload: UploadSummary, transaction: Transaction) => void;
+}) {
     const [analytics, setAnalytics] = useState<AnalyticsResponse | null>(null);
     const [filters, setFilters] = useState<Filters>(emptyFilters);
     const [appliedFilters, setAppliedFilters] = useState<Filters>(emptyFilters);
@@ -176,6 +377,8 @@ export function AnalysisDashboardPage() {
     const analyticsRequestRef = useRef<AbortController | null>(null);
     const [requestWasCancelled, setRequestWasCancelled] = useState(false);
     const [isApplyingFilters, setIsApplyingFilters] = useState(false);
+    const [areFiltersOpen, setAreFiltersOpen] = useState(false);
+    const [drilldown, setDrilldown] = useState<DrilldownConfig | null>(null);
 
     useEffect(() => {
         let isMounted = true;
@@ -225,19 +428,23 @@ export function AnalysisDashboardPage() {
         const pendingFromBackend = metricCount(analytics.qualificationResults, "PENDING");
         const pending = pendingFromBackend || Math.max(analytics.totalTransactions - qualified - partiallyQualified - notQualified, 0);
         return [
-            { label: "Qualified", value: qualified, color: "#38a6ff" },
-            { label: "Not qualified", value: notQualified + partiallyQualified, color: "#ff6b62" },
-            { label: "Pending", value: pending, color: "#36d6a2" }
+            { label: "Qualified", value: qualified, color: "#5899C4" },
+            { label: "Not qualified", value: notQualified + partiallyQualified, color: "#FF5641" },
+            { label: "Pending", value: pending, color: "#7C94A6" }
         ];
     }, [analytics]);
 
     const qualificationRateSegments = useMemo<DonutSegment[]>(() => {
         if (!analytics) return [];
         return [
-            { label: "Qualified", value: analytics.qualifiedTransactions, color: "#38a6ff" },
-            { label: "Not qualified", value: Math.max(analytics.totalTransactions - analytics.qualifiedTransactions, 0), color: "#ff6b62" }
+            { label: "Qualified", value: analytics.qualifiedTransactions, color: "#5899C4" },
+            { label: "Not qualified", value: Math.max(analytics.totalTransactions - analytics.qualifiedTransactions, 0), color: "#FF5641" }
         ];
     }, [analytics]);
+
+    const openDrilldown = (title: string, dimension: DrilldownDimension, category?: string) => {
+        setDrilldown({ title, dimension, category });
+    };
 
     const setFilter = (key: keyof Filters, value: string) => setFilters((current) => ({ ...current, [key]: value }));
     const hasPendingFilterChanges = requestWasCancelled || !filtersMatch(filters, appliedFilters);
@@ -314,24 +521,35 @@ export function AnalysisDashboardPage() {
             <div className="brand-decoration" aria-hidden="true"><span className="orb orb-blue orb-one"></span><span className="orb orb-coral orb-two"></span><span className="orb orb-white orb-three"></span><span className="orb orb-blue orb-four"></span></div>
             <section className="content">
                 <div className="page-heading analysis-heading">
-                    <div><p className="eyebrow">ANALYSIS DASHBOARD</p><h2>Descriptive statistics</h2><p>Explore qualification results, fees and transaction distribution.</p></div>
-                    <Tooltip
-                        title="Export CSV"
-                        color="#f05d53"
-                        styles={{ container: { color: "#ffffff" } }}
-                    >
-                        <Button
-                            type="primary"
-                            shape="circle"
-                            //className="analysis-export-button"
-                            icon={<DownloadOutlined />}
-                            onClick={exportCsv}
-                            disabled={!analytics?.totalTransactions}
-                            aria-label="Export CSV"
-                        />
-                    </Tooltip>
+                    <h2>Analytics</h2>
+                    <div className="analysis-heading-actions">
+                        <Tooltip title={areFiltersOpen ? "Hide filters" : "Show filters"}>
+                            <Button
+                                shape="circle"
+                                icon={<FilterOutlined />}
+                                onClick={() => setAreFiltersOpen((open) => !open)}
+                                aria-label={areFiltersOpen ? "Hide filters" : "Show filters"}
+                                aria-expanded={areFiltersOpen}
+                                aria-controls="analytics-filter-panel"
+                            />
+                        </Tooltip>
+                        <Tooltip
+                            title="Export CSV"
+                            color="#FF5640"
+                            styles={{ container: { color: "#ffffff" } }}
+                        >
+                            <Button
+                                type="primary"
+                                shape="circle"
+                                icon={<DownloadOutlined />}
+                                onClick={exportCsv}
+                                disabled={!analytics?.totalTransactions}
+                                aria-label="Export CSV"
+                            />
+                        </Tooltip>
+                    </div>
                 </div>
-                <section className="analysis-filter-panel" aria-label="Dashboard filters">
+                {areFiltersOpen && <section id="analytics-filter-panel" className="analysis-filter-panel" aria-label="Dashboard filters">
                     <div className="analysis-filter-grid">
                         <div className="analysis-filter-field">
                             <span>From</span>
@@ -414,12 +632,12 @@ export function AnalysisDashboardPage() {
                             </Button>
                         </div>
                     </div>
-                </section>
+                </section>}
                 {isLoading && <div className="analysis-loading" role="status" aria-live="polite"><Spin size="large" /><span>Loading analytics...</span></div>}
                 {error && <ErrorMessage title="Unable to load analytics" message={error} />}
                 {!isLoading && !error && !analytics && <p className="analysis-empty">Analytics request was cancelled. Apply filters to try again.</p>}
                 {!isLoading && !error && analytics && <>
-                    <section className="analysis-kpi-grid">
+                    <section className="analysis-kpi-grid analysis-animated">
                         <Card className="analysis-kpi-card">
                             <div className="analysis-kpi-copy"><span>Total transactions</span><strong>{formatInteger(analytics.totalTransactions)}</strong></div>
                             <div className="analysis-donut-wrap">
@@ -441,14 +659,33 @@ export function AnalysisDashboardPage() {
                             <span className="analysis-kpi-icon analysis-kpi-icon-purple"><PercentageOutlined /></span>
                         </Card>
                     </section>
-                    <section className="analysis-chart-grid">
-                        <Card className="analysis-card"><div className="analysis-card-heading"><h3>Qualification results</h3></div><BarList items={analytics.qualificationResults} denominator={analytics.totalTransactions} /></Card>
-                        <Card className="analysis-card"><div className="analysis-card-heading"><h3>Top merchants by fees</h3></div><BarList items={analytics.topMerchantsByFees} useFees currency={analytics.currency} denominator={Number(analytics.totalFees)} /></Card>
-                        <Card className="analysis-card"><div className="analysis-card-heading"><h3>Transactions by country</h3></div><BarList items={analytics.transactionsByCountry} denominator={analytics.totalTransactions} /></Card>
-                        <Card className="analysis-card"><div className="analysis-card-heading"><h3>Transactions by scheme</h3></div><BarList items={analytics.feesByScheme} denominator={analytics.totalTransactions} /></Card>
+                    <section className="analysis-chart-grid analysis-animated">
+                        <Card className="analysis-card analysis-chart-launch" onClick={() => openDrilldown("Qualification results", "qualification")}>
+                            <div className="analysis-card-heading"><h3>Qualification results</h3><button type="button" className="analysis-detail-link" onClick={(event) => { event.stopPropagation(); openDrilldown("Qualification results", "qualification"); }}>Explore details ↗</button></div>
+                            <BarList items={analytics.qualificationResults} denominator={analytics.totalTransactions} onSelectItem={(item) => openDrilldown("Qualification results", "qualification", item.name)} />
+                        </Card>
+                        <Card className="analysis-card analysis-chart-launch" onClick={() => openDrilldown("Top merchants by fees", "merchant")}>
+                            <div className="analysis-card-heading"><h3>Top merchants by fees</h3><button type="button" className="analysis-detail-link" onClick={(event) => { event.stopPropagation(); openDrilldown("Top merchants by fees", "merchant"); }}>Explore details ↗</button></div>
+                            <BarList items={analytics.topMerchantsByFees} useFees currency={analytics.currency} denominator={Number(analytics.totalFees)} onSelectItem={(item) => openDrilldown("Top merchants by fees", "merchant", item.name)} />
+                        </Card>
+                        <Card className="analysis-card analysis-chart-launch" onClick={() => openDrilldown("Transactions by country", "country")}>
+                            <div className="analysis-card-heading"><h3>Transactions by country</h3><button type="button" className="analysis-detail-link" onClick={(event) => { event.stopPropagation(); openDrilldown("Transactions by country", "country"); }}>Explore details ↗</button></div>
+                            <BarList items={analytics.transactionsByCountry} denominator={analytics.totalTransactions} onSelectItem={(item) => openDrilldown("Transactions by country", "country", item.name)} />
+                        </Card>
+                        <Card className="analysis-card analysis-chart-launch" onClick={() => openDrilldown("Transactions by scheme", "scheme")}>
+                            <div className="analysis-card-heading"><h3>Transactions by scheme</h3><button type="button" className="analysis-detail-link" onClick={(event) => { event.stopPropagation(); openDrilldown("Transactions by scheme", "scheme"); }}>Explore details ↗</button></div>
+                            <BarList items={analytics.feesByScheme} denominator={analytics.totalTransactions} onSelectItem={(item) => openDrilldown("Transactions by scheme", "scheme", item.name)} />
+                        </Card>
                     </section>
                 </>}
             </section>
+            {drilldown && <AnalyticsDrilldown
+                key={`${drilldown.title}-${drilldown.category ?? "all"}`}
+                config={drilldown}
+                appliedFilters={appliedFilters}
+                onClose={() => setDrilldown(null)}
+                onOpenTransaction={onOpenTransaction}
+            />}
         </main>
     );
 }

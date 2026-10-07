@@ -1,0 +1,492 @@
+/* SchemeGuard's operations-console visual system. */
+:root {
+    --console-rail-width: 92px;
+    --console-radius: 12px;
+}
+
+body,
+button,
+input,
+select,
+textarea {
+    font-family: "Dava Sans", Arial, sans-serif;
+}
+
+.authenticated-app {
+    display: block;
+    min-height: 100vh;
+}
+
+.app-navbar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 30;
+    width: var(--console-rail-width);
+    padding: 0 14px;
+    overflow-y: auto;
+    border: 0;
+    border-right: 1px solid color-mix(in srgb, var(--text-primary) 12%, transparent);
+    background: #192B37;
+    box-shadow: 5px 0 22px rgba(6, 23, 35, .12);
+}
+
+.app-navbar::before {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 4px;
+    background: #FF5640;
+    content: "";
+}
+
+.app-navbar-inner {
+    display: flex;
+    min-height: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    padding: 18px 0 16px;
+}
+
+.app-navbar-brand {
+    display: flex;
+    min-height: 52px;
+    justify-content: center;
+    padding: 0 4px 14px;
+    border-bottom: 1px solid rgba(220, 235, 243, .14);
+    color: #FFFFFF;
+    font-size: 0;
+}
+
+.app-navbar-logo { width: 42px; height: 42px; }
+
+.app-navbar-links {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 9px;
+    padding: 18px 0;
+}
+
+.app-navbar-link.ant-btn {
+    display: inline-grid;
+    place-items: center;
+    width: 52px;
+    min-width: 52px;
+    height: 52px;
+    min-height: 52px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: var(--console-radius);
+    color: #D1D5D7;
+    font-size: 21px;
+    font-weight: 650;
+    text-align: center;
+}
+
+.app-navbar-link.ant-btn .ant-btn-icon {
+    margin-inline-end: 0;
+    font-size: 21px;
+}
+
+.app-navbar-link.ant-btn:hover {
+    border-color: rgba(220, 235, 243, .13);
+    background: rgba(255, 255, 255, .07);
+    color: #fff;
+}
+
+.app-navbar-link.ant-btn[aria-current="page"] {
+    border-color: rgba(255, 86, 64, .48);
+    background: rgba(255, 86, 64, .15);
+    color: #fff;
+}
+
+.app-navbar-link.ant-btn[aria-current="page"]::after {
+    top: 9px;
+    right: auto;
+    bottom: 9px;
+    left: -14px;
+    width: 3px;
+    height: auto;
+    border-radius: 0;
+    background: #FF5640;
+}
+
+.app-navbar-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+    margin: auto 0 0;
+    padding: 16px 4px 0;
+    border-top: 1px solid rgba(220, 235, 243, .14);
+}
+
+.app-navbar-welcome {
+    grid-column: 1 / -1;
+    overflow: hidden;
+    color: #E8EAEB;
+    font-size: 12px;
+    text-overflow: ellipsis;
+}
+
+.account-button.ant-btn {
+    width: 48px;
+    height: 48px;
+    justify-content: center;
+    padding: 4px;
+    border-color: rgba(220, 235, 243, .18);
+    border-radius: var(--console-radius);
+    background: rgba(255, 255, 255, .06);
+    color: #FFFFFF;
+    font-size: 12px;
+}
+
+.account-avatar { border-radius: 8px; }
+.account-chevron { border-color: #E8EAEB; }
+.theme-toggle-button.ant-btn { width: 40px; height: 40px; border-radius: var(--console-radius); }
+
+.account-dropdown {
+    border: 1px solid var(--border);
+    border-radius: var(--console-radius);
+    box-shadow: 0 12px 28px rgba(7, 24, 38, .22);
+}
+
+.account-dropdown .ant-btn { border-radius: 0 !important; }
+
+.authenticated-app > .dashboard {
+    width: calc(100% - var(--console-rail-width));
+    min-height: 100vh;
+    margin-left: var(--console-rail-width);
+    padding: 36px clamp(22px, 3vw, 48px);
+}
+
+.dashboard { overflow: visible; }
+.content { max-width: 1480px; }
+
+.page-heading h1,
+.page-heading h2,
+.profile-heading h2,
+.entity-list-heading h2 {
+    letter-spacing: -.015em;
+}
+
+/* Give work surfaces a comfortable, consistent radius. */
+.entity-list-card,
+.rule-builder-card,
+.rule-detail-card,
+.profile-card,
+.transactions-card,
+.rule-card,
+.entity-list-dialog,
+.card-scheme-dialog,
+.analysis-filter-panel,
+.analysis-kpi-card.ant-card,
+.analysis-card.ant-card,
+.stat-card,
+.my-agent-history,
+.my-agent-main,
+.my-agent-context,
+.card {
+    border-radius: var(--console-radius) !important;
+    box-shadow: 0 3px 12px rgba(7, 24, 38, .08) !important;
+}
+
+.entity-list-card,
+.rule-builder-card,
+.rule-detail-card,
+.profile-card,
+.transactions-card,
+.rule-card,
+.analysis-filter-panel,
+.analysis-kpi-card.ant-card,
+.analysis-card.ant-card,
+.stat-card {
+    border-top: 1px solid var(--border) !important;
+}
+
+.ant-btn,
+button,
+input,
+select,
+textarea,
+.ant-input,
+.ant-select-selector,
+.ant-picker,
+.ant-modal-content,
+.ant-modal-header,
+.ant-popover-inner,
+.ant-dropdown .ant-dropdown-menu {
+    border-radius: var(--console-radius) !important;
+}
+
+.ant-btn { font-weight: 650; }
+.ant-btn-primary { box-shadow: none !important; }
+.ant-btn:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: 2px solid #FF5640;
+    outline-offset: 2px;
+}
+
+.ant-input,
+.ant-select-selector,
+.ant-picker,
+input,
+select,
+textarea {
+    box-shadow: none;
+}
+
+.ant-input:hover,
+.ant-select:not(.ant-select-disabled):hover .ant-select-selector,
+.ant-picker:hover,
+input:hover,
+select:hover,
+textarea:hover {
+    border-color: #FF5640;
+}
+
+.entity-list-table th,
+.entity-list-table td { padding-top: 13px; padding-bottom: 13px; }
+.entity-list-table thead th { letter-spacing: .045em; text-transform: uppercase; }
+.entity-list-table tbody tr:hover { box-shadow: inset 3px 0 #FF5640; }
+
+.my-agent-page { padding-top: 26px !important; }
+
+.my-agent-shell {
+    width: min(100%, 1680px);
+    min-height: calc(100vh - 52px);
+    grid-template-columns: minmax(205px, 245px) minmax(420px, 1fr) minmax(260px, 310px);
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    background: var(--surface-card);
+    box-shadow: 0 5px 22px rgba(7, 24, 38, .09);
+}
+
+.my-agent-history,
+.my-agent-main,
+.my-agent-context {
+    min-height: 0;
+    padding: 22px 18px;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+}
+
+.my-agent-history {
+    border-right: 1px solid var(--border) !important;
+    background: var(--surface-raised);
+}
+
+.my-agent-context {
+    border-left: 1px solid var(--border) !important;
+    background: var(--surface-raised);
+}
+
+.my-agent-panel-heading {
+    min-height: 44px;
+    align-items: flex-start;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+}
+
+.my-agent-panel-heading h2 { font-size: 14px; letter-spacing: .005em; }
+
+.my-agent-history-entry,
+.my-agent-history-item,
+.my-agent-delete-chat,
+.my-agent-add-transaction,
+.my-agent-transaction-pagination button,
+.my-agent-suggestions button,
+.my-agent-transaction-button.ant-btn,
+button.my-agent-transaction-button {
+    border-radius: 8px !important;
+}
+
+.my-agent-history-entry {
+    border-bottom: 1px solid var(--border);
+    border-radius: 8px !important;
+}
+
+.my-agent-history-entry.active,
+.my-agent-history-entry:hover {
+    border-color: var(--border);
+    border-left: 3px solid #FF5640;
+    background: var(--surface-card);
+}
+
+.my-agent-history-item { padding: 12px 9px; }
+.my-agent-history-item strong { font-size: 12px; }
+.my-agent-delete-chat { width: 28px; height: 28px; }
+
+.my-agent-main { padding: 22px clamp(18px, 2vw, 32px); }
+
+.my-agent-heading {
+    gap: 13px;
+    padding-bottom: 19px;
+    border-bottom: 1px solid var(--border);
+}
+
+.my-agent-title-icon {
+    width: 42px;
+    height: 42px;
+    border: 1px solid color-mix(in srgb, #FF5640 38%, var(--border));
+    border-radius: 12px;
+    background: color-mix(in srgb, #FF5640 10%, var(--surface-card));
+    font-size: 19px;
+}
+
+.my-agent-heading h1 { font-size: 23px; font-weight: 720; }
+.my-agent-heading p:last-child { margin-top: 5px; font-size: 12px; }
+.my-agent-eyebrow { font-size: 10px; letter-spacing: .13em; }
+
+.my-agent-empty { max-width: 680px; align-self: center; margin: auto; }
+.my-agent-empty > .anticon { font-size: 25px; }
+.my-agent-empty h2 { font-size: 19px; }
+.my-agent-empty p { max-width: 460px; line-height: 1.55; }
+
+.my-agent-suggestions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-content: stretch;
+    gap: 8px;
+    margin-top: 21px;
+}
+
+.my-agent-suggestions button {
+    min-height: 54px;
+    padding: 10px 12px;
+    border-color: var(--border);
+    background: var(--surface-card);
+    color: var(--text-primary);
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.my-agent-suggestions button:hover {
+    border-color: #FF5640;
+    background: var(--surface-raised);
+}
+
+.my-agent-messages {
+    gap: 0;
+    max-height: none;
+    padding: 4px 0 20px;
+}
+
+.my-agent-message {
+    position: relative;
+    align-self: stretch;
+    max-width: none;
+    padding: 17px 18px 18px 20px;
+    border: 1px solid var(--border);
+    border-left: 3px solid #FF5640;
+    border-radius: 12px !important;
+    background: var(--surface-card);
+    box-shadow: 0 2px 7px rgba(25, 43, 55, .06);
+}
+
+.my-agent-message + .my-agent-message { margin-top: 10px; }
+
+.my-agent-message.user {
+    align-self: stretch;
+    border-color: var(--border);
+    border-left-color: #FF5640;
+    background: color-mix(in srgb, #FF5640 4%, var(--surface-card));
+}
+
+.my-agent-message strong {
+    color: var(--text-muted);
+    font-size: 10px;
+    letter-spacing: .11em;
+}
+
+.my-agent-message p {
+    margin-top: 8px;
+    font-size: 13px;
+    line-height: 1.65;
+}
+
+.my-agent-composer-context {
+    margin-top: auto;
+    padding: 9px 11px;
+    border: 1px solid var(--border);
+    border-bottom: 0;
+    border-radius: 12px 12px 0 0 !important;
+    background: var(--surface-subtle);
+}
+
+.my-agent-context-chip {
+    border-radius: 8px !important;
+    background: var(--surface-card);
+}
+
+.my-agent-composer {
+    gap: 8px;
+    padding: 8px;
+    border: 1px solid var(--border);
+    border-top: 1px solid var(--border);
+    border-radius: 0 0 12px 12px !important;
+    background: var(--surface-input);
+}
+
+.my-agent-composer .ant-input {
+    min-height: 40px;
+    padding: 9px 10px;
+    font-size: 13px;
+}
+
+.my-agent-composer .ant-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px !important;
+}
+
+.my-agent-footnote { text-align: left; }
+.my-agent-transaction-list { border-radius: 10px !important; }
+.my-agent-transaction-row { grid-template-columns: 34px minmax(0, 1fr) 30px; }
+.my-agent-qualification { border-radius: 5px !important; }
+
+@media (max-width: 1050px) {
+    :root { --console-rail-width: 84px; }
+    .my-agent-shell { grid-template-columns: minmax(180px, 220px) minmax(0, 1fr); }
+    .my-agent-context { grid-column: 1 / -1; border-top: 1px solid var(--border) !important; border-left: 0 !important; }
+}
+
+@media (max-width: 700px) {
+    .app-navbar {
+        position: relative;
+        width: 100%;
+        padding: 0 12px;
+        border-right: 0;
+        border-bottom: 1px solid rgba(220, 235, 243, .14);
+    }
+    .app-navbar::before { inset: 0 0 auto; width: 100%; height: 3px; }
+    .app-navbar-inner { min-height: 0; padding: 12px 0 8px; }
+    .app-navbar-brand { min-height: 42px; justify-content: flex-start; padding: 0 6px 10px; font-size: 17px; }
+    .app-navbar-brand span { display: inline; }
+    .app-navbar-logo { width: 31px; height: 31px; }
+    .app-navbar-links { flex-direction: row; justify-content: flex-start; gap: 4px; overflow-x: auto; padding: 7px 0; }
+    .app-navbar-link.ant-btn { width: 42px; min-width: 42px; height: 42px; min-height: 42px; flex: 0 0 auto; padding: 0; font-size: 18px; }
+    .app-navbar-link.ant-btn .ant-btn-icon { font-size: 18px; }
+    .app-navbar-link.ant-btn[aria-current="page"]::after { inset: auto 8px -1px; width: auto; height: 2px; }
+    .app-navbar-actions { position: absolute; top: 14px; right: 5px; display: flex; flex-direction: row; gap: 6px; margin: 0; padding: 0; border: 0; }
+    .app-navbar-welcome { display: none; }
+    .authenticated-app > .dashboard { width: 100%; margin-left: 0; padding: 20px 14px; }
+    .my-agent-page { padding-top: 14px !important; }
+    .my-agent-shell { min-height: calc(100vh - 155px); grid-template-columns: 1fr; }
+    .my-agent-history { border-right: 0 !important; border-bottom: 1px solid var(--border) !important; }
+    .my-agent-context { grid-column: auto; border-top: 1px solid var(--border) !important; }
+    .my-agent-history-list { max-height: 135px; }
+    .my-agent-suggestions { grid-template-columns: 1fr; }
+    .my-agent-main { min-height: 480px; }
+    .page-heading-actions { flex-wrap: wrap; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
+}

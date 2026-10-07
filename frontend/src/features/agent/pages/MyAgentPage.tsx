@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { Button, Input, Select, Spin } from "antd";
-import { DeleteOutlined, RobotOutlined, SendOutlined } from "@ant-design/icons";
+import { CloseOutlined, DeleteOutlined, PlusOutlined, SendOutlined } from "@ant-design/icons";
 import { getUploadTransactions, getUploads } from "../../uploads/api/uploadsApi";
 import type { UploadSummary } from "../../uploads/types/upload";
 import type { Transaction } from "../../../shared/types/transaction";
@@ -44,6 +44,19 @@ interface StreamingMessage {
     textLength: number;
     visibleLength: number;
 }
+
+type ResizeTarget = "history" | "context";
+
+interface ResizeStart {
+    target: ResizeTarget;
+    pointerX: number;
+    initialWidth: number;
+    shellLeft: number;
+}
+
+const clampWidth = (value: number, minimum: number, maximum: number) =>
+    Math.min(maximum, Math.max(minimum, value));
+const HISTORY_COLLAPSE_THRESHOLD = 240;
 
 const createConversation = (context?: AgentOpenContext): AgentConversation => ({
     id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -107,15 +120,69 @@ export function MyAgentPage({
     const [transactionSearch, setTransactionSearch] = useState("");
     const [contextError, setContextError] = useState<string | null>(null);
     const [prompt, setPrompt] = useState("");
+    const [historyWidth, setHistoryWidth] = useState(256);
+    const [isHistoryCollapsed, setIsHistoryCollapsed] = useState(false);
+    const [contextWidth, setContextWidth] = useState(320);
+    const [isContextOpen, setIsContextOpen] = useState(false);
     const [sendingConversationId, setSendingConversationId] = useState<string | null>(null);
     const [streamingMessage, setStreamingMessage] = useState<StreamingMessage | null>(null);
     const [requestError, setRequestError] = useState<{ conversationId: string; message: string } | null>(null);
     const endRef = useRef<HTMLDivElement>(null);
     const consumedContextId = useRef<number | null>(null);
+    const resizeStartRef = useRef<ResizeStart | null>(null);
 
     const activeConversation = chatState.conversations.find((chat) => chat.id === chatState.activeId)
         ?? chatState.conversations[0];
     const isBusy = sendingConversationId !== null || streamingMessage !== null;
+
+    const beginResize = (target: ResizeTarget, event: ReactPointerEvent<HTMLDivElement>) => {
+        event.preventDefault();
+        resizeStartRef.current = {
+            target,
+            pointerX: event.clientX,
+            initialWidth: target === "history" ? historyWidth : contextWidth,
+            shellLeft: event.currentTarget.parentElement?.getBoundingClientRect().left ?? 0,
+        };
+        event.currentTarget.setPointerCapture(event.pointerId);
+    };
+
+    const updateResize = (event: ReactPointerEvent<HTMLDivElement>) => {
+        const start = resizeStartRef.current;
+        if (!start) return;
+        const delta = event.clientX - start.pointerX;
+        if (start.target === "history") {
+            const nextWidth = event.clientX - start.shellLeft;
+            if (nextWidth < HISTORY_COLLAPSE_THRESHOLD) {
+                setIsHistoryCollapsed(true);
+            } else {
+                setIsHistoryCollapsed(false);
+                setHistoryWidth(clampWidth(nextWidth, HISTORY_COLLAPSE_THRESHOLD, 460));
+            }
+        } else {
+            setContextWidth(clampWidth(start.initialWidth - delta, 260, 520));
+        }
+    };
+
+    const endResize = () => {
+        resizeStartRef.current = null;
+    };
+
+    const resizeWithKeyboard = (target: ResizeTarget, event: ReactKeyboardEvent<HTMLDivElement>) => {
+        if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+        event.preventDefault();
+        const direction = event.key === "ArrowRight" ? 1 : -1;
+        const step = event.shiftKey ? 32 : 12;
+        if (target === "history") {
+            const nextWidth = historyWidth + direction * step;
+            if (nextWidth < HISTORY_COLLAPSE_THRESHOLD) setIsHistoryCollapsed(true);
+            else {
+                setIsHistoryCollapsed(false);
+                setHistoryWidth(clampWidth(nextWidth, HISTORY_COLLAPSE_THRESHOLD, 460));
+            }
+        } else {
+            setContextWidth((width) => clampWidth(width - direction * step, 260, 520));
+        }
+    };
 
     useEffect(() => {
         try {
@@ -325,7 +392,7 @@ export function MyAgentPage({
         const priorMessages = activeConversation.messages.slice(-8).map(({ role, content }) => ({ role, content }));
         updateConversation(conversationId, (conversation) => ({
             ...conversation,
-            title: conversation.title === "New chat" ? question.slice(0, 42) : conversation.title,
+            title: conversation.title === "New investigation" || conversation.title === "New chat" ? question.slice(0, 42) : conversation.title,
             messages: [...conversation.messages, { role: "user", content: question }],
         }));
         setPrompt("");
@@ -371,11 +438,14 @@ export function MyAgentPage({
 
     return (
         <main className="dashboard my-agent-page">
-            <section className="my-agent-shell">
-                <aside className="my-agent-history" aria-label="Chat history">
+            <section
+                className={`my-agent-shell${isContextOpen ? " with-context" : ""}${isHistoryCollapsed ? " history-collapsed" : ""}`}
+                style={{ "--agent-history-width": `${historyWidth}px`, "--agent-context-width": `${contextWidth}px` } as CSSProperties}
+            >
+                {!isHistoryCollapsed && <aside className="my-agent-history" aria-label="Chat history">
                     <div className="my-agent-panel-heading">
                         <h2>Chat history</h2>
-                        <Button type="primary" onClick={startNewChat} disabled={isBusy}>New chat</Button>
+                        <Button type="primary" onClick={startNewChat} disabled={isBusy}>New Chat</Button>
                     </div>
                     <div className="my-agent-history-list">
                         {chatState.conversations.map((conversation) => (
@@ -385,7 +455,7 @@ export function MyAgentPage({
                             >
                                 <button type="button" className="my-agent-history-item" onClick={() => selectConversation(conversation.id)}>
                                     <strong>{conversation.title}</strong>
-                                    <span>{conversation.messages.at(-1)?.content ?? "New conversation"}</span>
+                                    <span>{conversation.messages.at(-1)?.content ?? "No findings yet"}</span>
                                 </button>
                                 <button
                                     type="button"
@@ -398,24 +468,28 @@ export function MyAgentPage({
                             </div>
                         ))}
                     </div>
-                </aside>
+                </aside>}
+                <div
+                    className="my-agent-resize-handle my-agent-history-resize"
+                    role="separator"
+                    tabIndex={0}
+                    aria-label="Resize or reopen chat history"
+                    aria-orientation="vertical"
+                    aria-valuemin={HISTORY_COLLAPSE_THRESHOLD}
+                    aria-valuemax={460}
+                    aria-valuenow={historyWidth}
+                    onPointerDown={(event) => beginResize("history", event)}
+                    onPointerMove={updateResize}
+                    onPointerUp={endResize}
+                    onPointerCancel={endResize}
+                    onKeyDown={(event) => resizeWithKeyboard("history", event)}
+                />
 
                 <section className="my-agent-main">
-                    <header className="my-agent-heading">
-                        <div className="my-agent-title-icon"><RobotOutlined /></div>
-                        <div>
-                            <p className="my-agent-eyebrow">SCHEMEGUARD AI</p>
-                            <h1>MY AGENT</h1>
-                            <p>Ask about your transactions, qualification, fees, and anomalies.</p>
-                        </div>
-                    </header>
-
-                    <section className="my-agent-chat" aria-label="Chat with MY AGENT">
+                    <section className="my-agent-chat" aria-label="Chat">
                         {activeConversation?.messages.length === 0 ? (
                             <div className="my-agent-empty">
-                                <RobotOutlined />
                                 <h2>What would you like to know?</h2>
-                                <p>Choose an upload on the right, or start by browsing your transaction context.</p>
                                 <SuggestionButtons onChoose={chooseSuggestion} />
                             </div>
                         ) : (
@@ -428,7 +502,6 @@ export function MyAgentPage({
                                         : message.content;
                                     return (
                                         <article className={`my-agent-message ${message.role}`} key={`${activeConversation.id}-${index}`}>
-                                            <strong>{message.role === "assistant" ? "MY AGENT" : "You"}</strong>
                                             <p>{visibleContent}{isStreaming && <span className="my-agent-typing-caret" aria-hidden="true" />}</p>
                                             {message.role === "assistant" && message.invalid && (
                                                 <div className="my-agent-invalid-options">
@@ -441,7 +514,7 @@ export function MyAgentPage({
                                 })}
                                 {sendingConversationId === activeConversation?.id && (
                                     <article className="my-agent-message assistant my-agent-thinking">
-                                        <strong>MY AGENT</strong><p>Looking through your context<span>…</span></p>
+                                        <p>Looking through your context<span>…</span></p>
                                     </article>
                                 )}
                                 <div ref={endRef} />
@@ -479,17 +552,51 @@ export function MyAgentPage({
                                 placeholder={activeConversation?.uploadId ? "Ask about the selected upload…" : "Choose an upload to add transaction context"}
                                 autoSize={{ minRows: 1, maxRows: 5 }}
                                 maxLength={2000}
-                                aria-label="Message MY AGENT"
+                                aria-label="Message chat assistant"
                                 disabled={isBusy}
+                            />
+                            <Button
+                                className={`my-agent-context-toggle${isContextOpen ? " is-open" : ""}`}
+                                type="default"
+                                icon={<PlusOutlined />}
+                                aria-label={isContextOpen ? "Close transaction context" : "Open transaction context"}
+                                title={isContextOpen ? "Close transaction context" : "Open transaction context"}
+                                aria-expanded={isContextOpen}
+                                onClick={() => setIsContextOpen((open) => !open)}
                             />
                             <Button type="primary" htmlType="submit" icon={<SendOutlined />} aria-label="Send message" disabled={!prompt.trim() || isBusy} loading={sendingConversationId !== null} />
                         </form>
                     </section>
                 </section>
 
-                <aside className="my-agent-context" aria-label="Transaction context">
+                {isContextOpen && (
+                <>
+                <div
+                    className="my-agent-resize-handle my-agent-context-resize"
+                    role="separator"
+                    tabIndex={0}
+                    aria-label="Resize transaction context"
+                    aria-orientation="vertical"
+                    aria-valuemin={260}
+                    aria-valuemax={520}
+                    aria-valuenow={contextWidth}
+                    onPointerDown={(event) => beginResize("context", event)}
+                    onPointerMove={updateResize}
+                    onPointerUp={endResize}
+                    onPointerCancel={endResize}
+                    onKeyDown={(event) => resizeWithKeyboard("context", event)}
+                />
+                <aside id="agent-transaction-context" className="my-agent-context" aria-label="Transaction context">
                     <div className="my-agent-panel-heading">
                         <div><p className="my-agent-eyebrow">CONTEXT</p><h2>Transaction context</h2></div>
+                        <Button
+                            className="my-agent-context-close"
+                            type="text"
+                            icon={<CloseOutlined />}
+                            aria-label="Close transaction context"
+                            title="Close transaction context"
+                            onClick={() => setIsContextOpen(false)}
+                        />
                     </div>
                     <label htmlFor="agent-upload">Browse uploads</label>
                     <Select
@@ -565,11 +672,13 @@ export function MyAgentPage({
                     ) : (
                         <div className="my-agent-no-context">
                             <p>No upload selected.</p>
-                            <span>Choose an upload to browse its transactions. Nothing is sent to MY AGENT until you select context.</span>
+                            <span>Choose an upload to browse its transactions.</span>
                         </div>
                     )}
                     {contextError && !activeConversation?.uploadId && <div className="my-agent-context-error" role="alert">{contextError}</div>}
                 </aside>
+                </>
+                )}
             </section>
         </main>
     );

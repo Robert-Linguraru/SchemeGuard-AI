@@ -1,57 +1,69 @@
 :root[data-theme="light"] {
     color-scheme: light;
-    --page-bg: #eaf3f8;
+    --page-bg: #e8eaeb;
     --surface-card: #ffffff;
-    --surface-raised: #f7fbfd;
-    --surface-subtle: #edf4f8;
-    --surface-input: #fbfdfe;
-    --text-primary: #20384a;
-    --text-muted: #60778a;
-    --muted: #60778a;
-    --border: #d5e2ea;
-    --nav-surface: #ffffff;
-    --action-neutral: #e7f0f6;
-    --action-neutral-hover: #dceaf3;
-    --danger: #a8292d;
-    --danger-surface: #ffeded;
-    --status-evaluated-bg: #dcefff;
-    --status-evaluated-text: #176a9a;
-    --status-not-evaluated-bg: #fff0d2;
-    --status-not-evaluated-text: #855800;
-    --status-evaluating-bg: #ffe5bd;
-    --status-evaluating-text: #a65300;
-    --download-progress-bg: #f3c94f;
-    --download-progress-text: #4d3b05;
-    --danger-button-bg: #c63d45;
-    --danger-button-hover: #ad3039;
+    --surface-raised: #ffffff;
+    --surface-subtle: #e8eaeb;
+    --surface-input: #ffffff;
+    --text-primary: #192b37;
+    --text-muted: #5e6a73;
+    --muted: #5e6a73;
+    --border: #d1d5d7;
+    --nav-surface: #192b37;
+    --action-neutral: #e8eaeb;
+    --action-neutral-hover: #d1d5d7;
+    --danger: #d4403b;
+    --danger-surface: color-mix(in srgb, #d4403b 12%, #ffffff);
+    --status-evaluated-bg: color-mix(in srgb, #2d9c5b 12%, #ffffff);
+    --status-evaluated-text: #2d9c5b;
+    --status-not-evaluated-bg: color-mix(in srgb, #eb9410 16%, #ffffff);
+    --status-not-evaluated-text: #eb9410;
+    --status-evaluating-bg: color-mix(in srgb, #eb9410 16%, #ffffff);
+    --status-evaluating-text: #eb9410;
+    --green: #2d9c5b;
+    --green-bg: color-mix(in srgb, #2d9c5b 12%, #ffffff);
+    --orange: #eb9410;
+    --orange-bg: color-mix(in srgb, #eb9410 16%, #ffffff);
+    --red: #d4403b;
+    --red-bg: color-mix(in srgb, #d4403b 12%, #ffffff);
+    --download-progress-bg: #eb9410;
+    --download-progress-text: #192b37;
+    --danger-button-bg: #d4403b;
+    --danger-button-hover: color-mix(in srgb, #d4403b 86%, #192b37);
 }
 
 :root[data-theme="dark"] {
     color-scheme: dark;
-    --page-bg: #172b3a;
-    --surface-card: #203d50;
-    --surface-raised: #27485d;
-    --surface-subtle: #29485b;
-    --surface-input: #1d394b;
-    --text-primary: #f4f7fa;
-    --text-muted: #a9bbc7;
-    --muted: #a9bbc7;
-    --border: #3d6378;
-    --nav-surface: #172b3a;
-    --action-neutral: #2d536b;
-    --action-neutral-hover: #386781;
-    --danger: #ff8b85;
-    --danger-surface: #542f37;
-    --status-evaluated-bg: #23536d;
-    --status-evaluated-text: #a8e1ff;
-    --status-not-evaluated-bg: #58451f;
-    --status-not-evaluated-text: #ffdc91;
-    --status-evaluating-bg: #674526;
-    --status-evaluating-text: #ffd09a;
-    --download-progress-bg: #8e6d19;
-    --download-progress-text: #fff2bc;
-    --danger-button-bg: #cb4d55;
-    --danger-button-hover: #b63e47;
+    --page-bg: #192b37;
+    --surface-card: #30404b;
+    --surface-raised: #47555f;
+    --surface-subtle: #30404b;
+    --surface-input: #30404b;
+    --text-primary: #ffffff;
+    --text-muted: #d1d5d7;
+    --muted: #d1d5d7;
+    --border: #5e6a73;
+    --nav-surface: #192b37;
+    --action-neutral: #47555f;
+    --action-neutral-hover: #5e6a73;
+    --danger: #e84641;
+    --danger-surface: color-mix(in srgb, #e84641 20%, #192b37);
+    --status-evaluated-bg: color-mix(in srgb, #3dd17b 18%, #192b37);
+    --status-evaluated-text: #3dd17b;
+    --status-not-evaluated-bg: color-mix(in srgb, #f99c11 18%, #192b37);
+    --status-not-evaluated-text: #f99c11;
+    --status-evaluating-bg: color-mix(in srgb, #f99c11 18%, #192b37);
+    --status-evaluating-text: #f99c11;
+    --green: #3dd17b;
+    --green-bg: color-mix(in srgb, #3dd17b 18%, #192b37);
+    --orange: #f99c11;
+    --orange-bg: color-mix(in srgb, #f99c11 18%, #192b37);
+    --red: #e84641;
+    --red-bg: color-mix(in srgb, #e84641 20%, #192b37);
+    --download-progress-bg: #f99c11;
+    --download-progress-text: #192b37;
+    --danger-button-bg: #e84641;
+    --danger-button-hover: color-mix(in srgb, #e84641 86%, #192b37);
 }
 
 html,
@@ -94,12 +106,12 @@ textarea::placeholder {
 
 .app-navbar-link.ant-btn:hover,
 .app-navbar-link[aria-current="page"] {
-    background: color-mix(in srgb, #f05d53 12%, var(--nav-surface));
-    border-color: color-mix(in srgb, #f05d53 45%, transparent);
+    background: color-mix(in srgb, #FF5640 12%, var(--nav-surface));
+    border-color: color-mix(in srgb, #FF5640 45%, transparent);
 }
 
 .app-navbar-link.ant-btn[aria-current="page"]::after {
-    background: #f05d53;
+    background: #FF5640;
 }
 
 .app-navbar-link.ant-btn:hover {
@@ -115,12 +127,12 @@ textarea::placeholder {
 
 .account-button.ant-btn:hover,
 .theme-toggle-button.ant-btn:hover {
-    border-color: #f05d53;
-    color: #f05d53;
+    border-color: #FF5640;
+    color: #FF5640;
 }
 
 .account-avatar {
-    background: #f05d53;
+    background: #FF5640;
     color: #ffffff;
 }
 
@@ -474,23 +486,23 @@ tbody tr:hover {
 .secondary-button.ant-btn:hover:not(:disabled),
 .page-nav-button.ant-btn:hover:not(:disabled),
 .view-rule-button.ant-btn:hover:not(:disabled) {
-    border-color: #f05d53 !important;
-    color: #f05d53 !important;
+    border-color: #FF5640 !important;
+    color: #FF5640 !important;
     filter: none !important;
-    box-shadow: 0 0 0 1px rgba(240, 93, 83, 0.72), 0 4px 10px rgba(5, 25, 40, 0.18);
+    box-shadow: 0 0 0 1px rgba(255, 86, 64, 0.72), 0 4px 10px rgba(5, 25, 40, 0.18);
 }
 
 .entity-list-actions .ant-btn.entity-list-action-warning,
 .entity-list-actions .ant-btn.entity-list-action-warning:hover:not(:disabled) {
-    border-color: #f05d53 !important;
-    background: #f05d53 !important;
+    border-color: #FF5640 !important;
+    background: #FF5640 !important;
     color: #ffffff !important;
     filter: none !important;
 }
 
 .entity-list-actions .ant-btn.entity-list-action-warning:hover:not(:disabled) {
-    border-color: #dd5149 !important;
-    background: #dd5149 !important;
+    border-color: color-mix(in srgb, #FF5640 86%, #192B37) !important;
+    background: color-mix(in srgb, #FF5640 86%, #192B37) !important;
     box-shadow: 0 4px 10px rgba(5, 25, 40, 0.18);
 }
 
@@ -580,8 +592,8 @@ tbody tr:hover {
 .create-rule-button.ant-btn,
 .save-profile-button.ant-btn,
 .save-profile-button.ant-btn {
-    border-color: #f05d53;
-    background: #f05d53;
+    border-color: #FF5640;
+    background: #FF5640;
     color: #ffffff;
 }
 
@@ -607,8 +619,8 @@ tbody tr:hover {
 .save-profile-button.ant-btn:hover,
 .analysis-export-button.ant-btn:hover,
 .save-profile-button.ant-btn:hover {
-    border-color: #dd5149;
-    background: #dd5149;
+    border-color: color-mix(in srgb, #FF5640 86%, #192B37);
+    background: color-mix(in srgb, #FF5640 86%, #192B37);
     color: #ffffff;
 }
 

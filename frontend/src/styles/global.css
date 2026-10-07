@@ -1,17 +1,81 @@
 :root {
-    --navy: #172b3a;
-    --navy-light: #203d50;
-    --coral: #ff5a4f;
-    --blue: #68b3e7;
+    --navy: #192b37;
+    --navy-light: #30404b;
+    --coral: #ff5640;
+    --data-blue: #5899c4;
     --white: #ffffff;
-    --muted: #a9bbc7;
-    --border: #dbe4ea;
-    --green: #16845b;
-    --green-bg: #e2f5ec;
-    --orange: #a86200;
-    --orange-bg: #fff0d8;
-    --red: #b93232;
-    --red-bg: #ffe4e4;
+    --muted: #5e6a73;
+    --border: #d1d5d7;
+    --green: #2d9c5b;
+    --green-bg: color-mix(in srgb, #2d9c5b 12%, #ffffff);
+    --orange: #eb9410;
+    --orange-bg: color-mix(in srgb, #eb9410 16%, #ffffff);
+    --red: #d4403b;
+    --red-bg: color-mix(in srgb, #d4403b 12%, #ffffff);
+}
+
+@font-face {
+    font-family: "Dava Sans";
+    src: url("/fonts/DavaSans-Light.ttf") format("truetype");
+    font-style: normal;
+    font-weight: 300;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Dava Sans";
+    src: url("/fonts/DavaSans-LightItalic.ttf") format("truetype");
+    font-style: italic;
+    font-weight: 300;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Dava Sans";
+    src: url("/fonts/DavaSans-Regular.ttf") format("truetype");
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Dava Sans";
+    src: url("/fonts/DavaSans-Italic.ttf") format("truetype");
+    font-style: italic;
+    font-weight: 400;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Dava Sans";
+    src: url("/fonts/DavaSans-Medium.ttf") format("truetype");
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Dava Sans";
+    src: url("/fonts/DavaSans-MediumItalic.ttf") format("truetype");
+    font-style: italic;
+    font-weight: 500;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Dava Sans";
+    src: url("/fonts/DavaSans-Bold.ttf") format("truetype");
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Dava Sans";
+    src: url("/fonts/DavaSans-BoldItalic.ttf") format("truetype");
+    font-style: italic;
+    font-weight: 700;
+    font-display: swap;
 }
 
 * {
@@ -21,7 +85,7 @@
 body {
     margin: 0;
     min-width: 320px;
-    font-family: Arial, sans-serif;
+    font-family: "Dava Sans", Arial, sans-serif;
     background: var(--navy);
     color: var(--navy);
 }
@@ -50,14 +114,14 @@ label {
 input {
     width: 100%;
     padding: 12px;
-    border: 1px solid #c4d2dc;
+    border: 1px solid #D1D5D7;
     border-radius: 8px;
     outline: none;
 }
 
 input:focus {
-    border-color: var(--blue);
-    box-shadow: 0 0 0 3px rgba(104, 179, 231, 0.2);
+    border-color: var(--coral);
+    box-shadow: 0 0 0 3px rgba(255, 86, 64, 0.18);
 }
 
 form button,
@@ -71,7 +135,7 @@ form button,
 
 form button:hover,
 .logout-button:hover {
-    background: #ff7168;
+    background: color-mix(in srgb, var(--coral) 86%, var(--navy));
 }
 
 form button:disabled {
@@ -83,7 +147,7 @@ form button:disabled {
 .error-box {
     color: var(--red);
     background: var(--red-bg);
-    border: 1px solid #ffc2c2;
+    border: 1px solid color-mix(in srgb, var(--red) 45%, var(--border));
     border-radius: 8px;
     padding: 12px;
 }
@@ -95,7 +159,7 @@ form button:disabled {
 .empty-state {
     padding: 35px;
     text-align: center;
-    color: #65738b;
+    color: #5E6A73;
     white-space: pre-line;
 }
 
@@ -123,13 +187,13 @@ form button:disabled {
 }
 
 .orb-blue {
-    background: var(--blue);
-    box-shadow: 0 0 30px rgba(104, 179, 231, 0.3);
+    background: #68B5E8;
+    box-shadow: 0 0 30px rgba(104, 181, 232, 0.3);
 }
 
 .orb-coral {
     background: var(--coral);
-    box-shadow: 0 0 30px rgba(255, 90, 79, 0.3);
+    box-shadow: 0 0 30px rgba(255, 86, 64, 0.3);
 }
 
 .orb-white {
@@ -182,6 +246,6 @@ form button:disabled {
 }
 
 Button.primary {
-    background: var(--blue);
+    background: var(--coral);
     color: var(--white);
 }

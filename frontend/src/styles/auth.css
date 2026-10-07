@@ -26,7 +26,7 @@
 
 .subtitle {
 	margin: 0 0 24px;
-	color: #647786;
+	color: #5E6A73;
 }
 
 .brand {
@@ -57,7 +57,7 @@
 	flex: 1;
 	padding: 12px;
 	border-radius: 8px;
-	background: #e9f0f4;
+	background: #E8EAEB;
 	color: var(--navy);
 }
 
