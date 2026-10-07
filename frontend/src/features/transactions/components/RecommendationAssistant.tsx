@@ -1,5 +1,4 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { getAllUploadTransactions } from "../../uploads/api/uploadsApi";
 import { askRecommendationAgent } from "../api/recommendationApi";
 import type { Transaction } from "../../../shared/types/transaction";
 import { Button } from "antd";
@@ -7,6 +6,8 @@ import { Button } from "antd";
 interface RecommendationAssistantProps {
     uploadId: string | null;
     fileName?: string | null;
+    transactions: Transaction[];
+    isLoadingTransactions: boolean;
     isOpen: boolean;
     onClose: () => void;
 }
@@ -17,7 +18,7 @@ interface ChatMessage {
 }
 
 const welcomeMessage =
-    "Select an evaluated transaction from this CSV file, then ask me about its qualification or fee.";
+    "Select an evaluated transaction from this page, then ask me about its qualification or fee.";
 
 const evaluatedStatuses = new Set([
     "QUALIFIED",
@@ -28,13 +29,13 @@ const evaluatedStatuses = new Set([
 export function RecommendationAssistant({
     uploadId,
     fileName,
+    transactions,
+    isLoadingTransactions,
     isOpen,
     onClose
 }: RecommendationAssistantProps) {
-    const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [selectedTransactionId, setSelectedTransactionId] = useState("");
     const [message, setMessage] = useState("");
-    const [isLoadingTransactions, setIsLoadingTransactions] = useState(false);
     const [isSending, setIsSending] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [messages, setMessages] = useState<ChatMessage[]>([
@@ -54,44 +55,22 @@ export function RecommendationAssistant({
     ) ?? null;
 
     useEffect(() => {
-        if (!isOpen || !uploadId) {
+        if (evaluatedTransactions.some((transaction) => transaction.id === selectedTransactionId)) {
             return;
         }
 
-        const controller = new AbortController();
-        setIsLoadingTransactions(true);
         setError(null);
-        setSelectedTransactionId("");
-        setTransactions([]);
-        setMessages([{ role: "assistant", content: welcomeMessage }]);
-
-        void getAllUploadTransactions(uploadId, controller.signal)
-            .then((loadedTransactions) => {
-                setTransactions(loadedTransactions);
-                const evaluated = loadedTransactions.filter((transaction) =>
-                    evaluatedStatuses.has(transaction.qualificationStatus)
-                );
-                if (evaluated.length > 0) {
-                    setSelectedTransactionId(evaluated[0].id);
-                }
-            })
-            .catch((requestError: unknown) => {
-                if (!controller.signal.aborted) {
-                    setError(
-                        requestError instanceof Error
-                            ? requestError.message
-                            : "Could not load transactions for this CSV file."
-                    );
-                }
-            })
-            .finally(() => {
-                if (!controller.signal.aborted) {
-                    setIsLoadingTransactions(false);
-                }
-            });
-
-        return () => controller.abort();
-    }, [isOpen, uploadId]);
+        const nextTransaction = evaluatedTransactions[0];
+        setSelectedTransactionId(nextTransaction?.id ?? "");
+        setMessages([
+            {
+                role: "assistant",
+                content: nextTransaction
+                    ? `Selected ${nextTransaction.externalId} (${nextTransaction.qualificationStatus}). What would you like to know?`
+                    : welcomeMessage
+            }
+        ]);
+    }, [evaluatedTransactions, selectedTransactionId]);
 
     useEffect(() => {
         endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -185,7 +164,7 @@ export function RecommendationAssistant({
                             <option value="">Loading transactions...</option>
                         )}
                         {!isLoadingTransactions && !evaluatedTransactions.length && (
-                            <option value="">Evaluate this CSV first</option>
+                            <option value="">No evaluated transactions on this page</option>
                         )}
                         {evaluatedTransactions.map((transaction) => (
                             <option key={transaction.id} value={transaction.id}>
@@ -206,7 +185,7 @@ export function RecommendationAssistant({
                     ))}
                     {!isLoadingTransactions && !evaluatedTransactions.length && (
                         <div className="assistant-message assistant">
-                            Evaluate this CSV file before asking transaction questions.
+                            No evaluated transactions are on this page. Move to a page with evaluated transactions or evaluate this CSV first.
                         </div>
                     )}
                     {isSending && (
@@ -223,7 +202,7 @@ export function RecommendationAssistant({
                         value={message}
                         maxLength={2000}
                         onChange={(event) => setMessage(event.target.value)}
-                        placeholder={canAsk ? "Ask about this transaction..." : "Evaluate this CSV first"}
+                        placeholder={canAsk ? "Ask about this transaction..." : "Select an evaluated transaction"}
                         disabled={!canAsk || isSending}
                         aria-label="Ask recommendation assistant"
                     />

@@ -62,6 +62,8 @@ export function DashboardPage({
     const [anomalyError, setAnomalyError] = useState<string | null>(null);
     const [anomalyMessage, setAnomalyMessage] = useState<string | null>(null);
     const [showTransactionFilters, setShowTransactionFilters] = useState(false);
+    const [currentPageTransactions, setCurrentPageTransactions] = useState<Transaction[]>([]);
+    const [isLoadingCurrentPageTransactions, setIsLoadingCurrentPageTransactions] = useState(true);
     const [expandedTransactionId, setExpandedTransactionId] = useState<string | null>(null);
     const [transactionDetails, setTransactionDetails] = useState<Record<string, TransactionExplanation>>({});
     const [detailErrors, setDetailErrors] = useState<Record<string, string>>({});
@@ -286,7 +288,8 @@ export function DashboardPage({
     };
 
     const handleTransactionResponse = useCallback(
-        (_response: EntityListResponse<Transaction>) => {
+        (response: EntityListResponse<Transaction>) => {
+            setCurrentPageTransactions(response.items);
             detailRequest.current?.abort();
             detailCache.current.clear();
             setExpandedTransactionId(null);
@@ -296,6 +299,13 @@ export function DashboardPage({
         },
         []
     );
+
+    const handleTransactionPageLoading = useCallback((isLoading: boolean) => {
+        setIsLoadingCurrentPageTransactions(isLoading);
+        if (isLoading) {
+            setCurrentPageTransactions([]);
+        }
+    }, []);
 
     const runOutlierDetection = async () => {
         if (!selectedUploadId || isDetectingOutliers) {
@@ -522,6 +532,7 @@ export function DashboardPage({
                             columns={transactionColumns}
                             fetchData={fetchTransactions}
                             onResponse={handleTransactionResponse}
+                            onLoadingChange={handleTransactionPageLoading}
                             expandedItemId={expandedTransactionId}
                             onToggleExpanded={toggleTransactionDetails}
                             expandOnRowClick
@@ -641,6 +652,8 @@ export function DashboardPage({
             <RecommendationAssistant
                 uploadId={selectedUploadId ?? null}
                 fileName={selectedUploadFileName}
+                transactions={currentPageTransactions}
+                isLoadingTransactions={isLoadingCurrentPageTransactions}
                 isOpen={isAssistantOpen}
                 onClose={onCloseAssistant}
             />
