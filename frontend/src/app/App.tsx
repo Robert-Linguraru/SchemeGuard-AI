@@ -6,6 +6,7 @@ import NavBar from "../shared/components/NavBar";
 import { AppRouter } from "./AppRouter";
 import { useTheme } from "./ThemeProvider";
 import type { View } from "../shared/types/navigation";
+import type { AgentOpenContext, AgentTransactionContext } from "../shared/types/agent";
 
 function AuthenticatedApp() {
     const { user } = useAuth();
@@ -23,14 +24,11 @@ function AuthenticatedApp() {
     const [selectedUploadWasEvaluated, setSelectedUploadWasEvaluated] =
         useState(false);
     const [ruleCreationNotice, setRuleCreationNotice] = useState<string | null>(null);
-    const [isAssistantOpen, setIsAssistantOpen] = useState(false);
+    const [agentOpenContext, setAgentOpenContext] = useState<AgentOpenContext | null>(null);
     const isAdmin = user?.role?.toUpperCase() === "ADMIN";
 
     const navigate = (nextView: View) => {
         setView(nextView);
-        if (nextView !== "upload-details") {
-            setIsAssistantOpen(false);
-        }
     };
 
     useEffect(() => {
@@ -52,6 +50,13 @@ function AuthenticatedApp() {
             />
             <AppRouter
                 view={view}
+                agentUserId={user?.id ?? ""}
+                agentOpenContext={agentOpenContext}
+                onAgentOpenContextConsumed={() => setAgentOpenContext(null)}
+                onAskAgentAboutTransaction={(uploadId: string, transaction: AgentTransactionContext) => {
+                    setAgentOpenContext({ requestId: Date.now(), uploadId, transaction });
+                    navigate("my-agent");
+                }}
                 selectedRuleId={selectedRuleId}
                 selectedUploadId={selectedUploadId}
                 selectedUploadFileName={selectedUploadFileName}
@@ -76,9 +81,6 @@ function AuthenticatedApp() {
                     navigate("upload-details");
                 }}
                 onUploadEvaluated={(wasEvaluated) => setSelectedUploadWasEvaluated(wasEvaluated)}
-                onOpenAssistant={() => setIsAssistantOpen(true)}
-                onCloseAssistant={() => setIsAssistantOpen(false)}
-                isAssistantOpen={isAssistantOpen}
             />
         </div>
     );

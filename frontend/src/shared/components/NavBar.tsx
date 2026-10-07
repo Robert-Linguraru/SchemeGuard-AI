@@ -18,6 +18,11 @@ function NavBar({ currentView, isAdmin, onViewChange, onEditProfile, theme, onTo
     const { user } = useAuth();
     const navigationItems: NavigationItem[] = [
         {
+            view: "my-agent",
+            label: "MY AGENT",
+            active: currentView === "my-agent",
+        },
+        {
             view: "dashboard",
             label: "CSV uploads",
             active: currentView === "dashboard" || currentView === "upload-details",

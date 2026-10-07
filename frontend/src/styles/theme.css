@@ -193,7 +193,6 @@ textarea::placeholder {
 .transactions-card,
 .rule-card,
 .entity-list-dialog,
-.assistant-panel,
 .card-scheme-dialog {
     border-color: var(--border);
     background: var(--surface-card);
@@ -206,8 +205,7 @@ textarea::placeholder {
 .details-grid strong,
 .rule-form label,
 .rule-detail-card,
-.profile-card,
-.assistant-panel {
+.profile-card {
     color: var(--text-primary);
 }
 
@@ -581,9 +579,7 @@ tbody tr:hover {
 .analysis-export-button.ant-btn,
 .create-rule-button.ant-btn,
 .save-profile-button.ant-btn,
-.assistant-floating-button.ant-btn,
-.assistant-launcher.ant-btn,
-.assistant-form .ant-btn {
+.save-profile-button.ant-btn {
     border-color: #f05d53;
     background: #f05d53;
     color: #ffffff;
@@ -610,40 +606,15 @@ tbody tr:hover {
 .create-rule-button.ant-btn:hover,
 .save-profile-button.ant-btn:hover,
 .analysis-export-button.ant-btn:hover,
-.assistant-floating-button.ant-btn:hover,
-.assistant-launcher.ant-btn:hover,
-.assistant-form .ant-btn:hover {
+.save-profile-button.ant-btn:hover {
     border-color: #dd5149;
     background: #dd5149;
-    color: #ffffff;
-}
-
-.assistant-messages {
-    background: var(--surface-raised);
-}
-
-.assistant-message.assistant {
-    background: var(--surface-subtle);
-}
-
-.assistant-message.user {
-    background: var(--navy);
     color: #ffffff;
 }
 
 .condition-value,
 .scheme {
     color: var(--text-primary);
-}
-
-.assistant-context select {
-    border-color: var(--border);
-    background: var(--surface-input);
-    color: var(--text-primary);
-}
-
-.assistant-clear {
-    color: var(--text-muted);
 }
 
 .auth-card,

@@ -12,7 +12,6 @@ import type { UploadStatistics } from "../../uploads/types/upload";
 import { isAbortError } from "../../../shared/api/httpClient";
 import { LoadingState } from "../../../shared/components/LoadingState";
 import { TransactionStats } from "../components/TransactionStats";
-import { RecommendationAssistant } from "../components/RecommendationAssistant";
 import { getTransactionExplanation, type TransactionExplanation } from "../api/transactionExplanationApi";
 import { TransactionDetails } from "../components/TransactionDetails";
 import { EntityList } from "../../../shared/components/EntityList/EntityList";
@@ -24,12 +23,11 @@ import type {
 } from "../../../shared/types/list";
 import { App as AntdApp, Button, Tooltip } from "antd";
 import { ExperimentOutlined } from "@ant-design/icons";
+import type { AgentTransactionContext } from "../../../shared/types/agent";
 
 interface DashboardPageProps {
-    onOpenAssistant: () => void;
-    onCloseAssistant: () => void;
-    isAssistantOpen: boolean;
     onOpenRule: (ruleId: string) => void;
+    onAskAgentAboutTransaction: (uploadId: string, transaction: AgentTransactionContext) => void;
     selectedUploadId?: string | null;
     selectedUploadFileName?: string | null;
     selectedUploadImportStatus?: string | null;
@@ -38,10 +36,8 @@ interface DashboardPageProps {
 }
 
 export function DashboardPage({
-    onOpenAssistant,
-    onCloseAssistant,
-    isAssistantOpen,
     onOpenRule,
+    onAskAgentAboutTransaction,
     selectedUploadId,
     selectedUploadFileName,
     selectedUploadImportStatus,
@@ -532,7 +528,14 @@ export function DashboardPage({
                                     || qualificationStatus === "PENDING"
                                     || qualificationStatus === "UNKNOWN";
                                 if (isUnevaluated) {
-                                    return <TransactionDetails unevaluated />;
+                                    return (
+                                        <TransactionDetails
+                                            unevaluated
+                                            transactionId={transaction.id}
+                                            externalId={transaction.externalId}
+                                            onAskAgent={() => onAskAgentAboutTransaction(selectedUploadId, transaction)}
+                                        />
+                                    );
                                 }
                                 if (loadingDetailId === transaction.id) {
                                     return <LoadingState message="Loading qualification details..." />;
@@ -546,6 +549,9 @@ export function DashboardPage({
                                         details={details}
                                         currency={transaction.currencyCode}
                                         onViewRule={onOpenRule}
+                                        transactionId={transaction.id}
+                                        externalId={transaction.externalId}
+                                        onAskAgent={() => onAskAgentAboutTransaction(selectedUploadId, transaction)}
                                     />
                                 ) : (
                                     <LoadingState message="Loading qualification details..." />
@@ -627,23 +633,6 @@ export function DashboardPage({
 
                 </section>
             </section>
-            {selectedUploadId && !isAssistantOpen && (
-                <Button
-                    type="primary"
-                    className="assistant-floating-button"
-                    onClick={onOpenAssistant}
-                    aria-label="Open AI recommendations"
-                    title="AI recommendations"
-                >
-                    AI
-                </Button>
-            )}
-            <RecommendationAssistant
-                uploadId={selectedUploadId ?? null}
-                fileName={selectedUploadFileName}
-                isOpen={isAssistantOpen}
-                onClose={onCloseAssistant}
-            />
         </main>
     );
 }

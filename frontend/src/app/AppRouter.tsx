@@ -6,10 +6,16 @@ import { AnalysisDashboardPage } from "../features/transactions/pages/AnalysisDa
 import { ProfilePage } from "../features/auth/pages/ProfilePage";
 import { CardSchemesPage } from "../features/cardSchemes/pages/CardSchemesPage";
 import { UploadsPage } from "../features/uploads/pages/UploadsPage";
+import { MyAgentPage } from "../features/agent/pages/MyAgentPage";
 import type { View } from "../shared/types/navigation";
+import type { AgentOpenContext, AgentTransactionContext } from "../shared/types/agent";
 
 type AppRouterProps = {
     view: View;
+    agentUserId: string;
+    agentOpenContext: AgentOpenContext | null;
+    onAgentOpenContextConsumed: () => void;
+    onAskAgentAboutTransaction: (uploadId: string, transaction: AgentTransactionContext) => void;
     selectedRuleId: string | null;
     selectedUploadId: string | null;
     selectedUploadFileName: string | null;
@@ -27,13 +33,14 @@ type AppRouterProps = {
         wasEvaluated: boolean
     ) => void;
     onUploadEvaluated: (wasEvaluated: boolean) => void;
-    onOpenAssistant: () => void;
-    onCloseAssistant: () => void;
-    isAssistantOpen: boolean;
 };
 
 export function AppRouter({
     view,
+    agentUserId,
+    agentOpenContext,
+    onAgentOpenContextConsumed,
+    onAskAgentAboutTransaction,
     selectedRuleId,
     selectedUploadId,
     selectedUploadFileName,
@@ -46,9 +53,6 @@ export function AppRouter({
     onOpenRule,
     onOpenUpload,
     onUploadEvaluated,
-    onOpenAssistant,
-    onCloseAssistant,
-    isAssistantOpen,
 }: AppRouterProps) {
     switch (view) {
         case "dashboard":
@@ -80,6 +84,15 @@ export function AppRouter({
         case "card-schemes":
             return <CardSchemesPage />;
 
+        case "my-agent":
+            return (
+                <MyAgentPage
+                    userId={agentUserId}
+                    initialContext={agentOpenContext}
+                    onInitialContextConsumed={onAgentOpenContextConsumed}
+                />
+            );
+
         case "details":
             return selectedRuleId ? (
                 <RuleDetailsPage
@@ -102,10 +115,8 @@ export function AppRouter({
         case "upload-details":
             return (
                 <DashboardPage
-                    onOpenAssistant={onOpenAssistant}
-                    onCloseAssistant={onCloseAssistant}
-                    isAssistantOpen={isAssistantOpen}
                     onOpenRule={onOpenRule}
+                    onAskAgentAboutTransaction={onAskAgentAboutTransaction}
                     selectedUploadId={selectedUploadId}
                     selectedUploadFileName={selectedUploadFileName}
                     selectedUploadImportStatus={selectedUploadImportStatus}
