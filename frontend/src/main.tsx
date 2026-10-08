@@ -1,7 +1,8 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App as AntdApp, ConfigProvider, theme as antdTheme } from "antd";
-import { App } from "./app/App";
+import { BrowserRouter } from "react-router-dom";
+import { AppRoutes } from "./app/AppRoutes";
 import { AuthProvider } from "./app/AuthProvider";
 import { ThemeProvider, useTheme } from "./app/ThemeProvider";
 import "./styles/global.css";
@@ -37,7 +38,7 @@ function ThemedApplication() {
         >
             <AntdApp>
                 <AuthProvider>
-                    <App />
+                    <AppRoutes />
                 </AuthProvider>
             </AntdApp>
         </ConfigProvider>
@@ -47,7 +48,9 @@ function ThemedApplication() {
 createRoot(document.getElementById("root")!).render(
     <StrictMode>
         <ThemeProvider>
-            <ThemedApplication />
+            <BrowserRouter>
+                <ThemedApplication />
+            </BrowserRouter>
         </ThemeProvider>
     </StrictMode>
 );
