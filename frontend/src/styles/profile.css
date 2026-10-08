@@ -35,7 +35,7 @@
 
 .account-avatar.account-avatar--pineapple {
     overflow: hidden;
-    background: #fff0b5;
+    background: #E8EAEB;
 }
 
 .account-avatar.account-avatar--flower {
@@ -83,7 +83,7 @@
 
 .account-summary span {
     overflow: hidden;
-    color: #65738b;
+    color: #5E6A73;
     font-size: 12px;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -101,7 +101,7 @@
 
 .account-dropdown > button:hover,
 .account-dropdown > button:focus-visible {
-    background: #f1f6f8;
+    background: #E8EAEB;
 }
 
 .profile-heading {
@@ -163,7 +163,7 @@
 }
 
 .password-toggle:hover {
-    background: #edf3f6;
+    background: #E8EAEB;
 }
 
 .profile-divider {
@@ -195,7 +195,7 @@
 }
 
 .save-profile-button:hover {
-    background: #ff7168;
+    background: color-mix(in srgb, var(--coral) 86%, var(--navy));
 }
 
 @media (max-width: 600px) {

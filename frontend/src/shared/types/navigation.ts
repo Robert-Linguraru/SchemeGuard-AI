@@ -6,7 +6,8 @@ export type View =
     | "details"
     | "upload-details"
     | "profile"
-    | "card-schemes";
+    | "card-schemes"
+    | "my-agent";
 
 export type NavigationItem = {
     view: View;

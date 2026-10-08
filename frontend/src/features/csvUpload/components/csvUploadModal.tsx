@@ -236,7 +236,7 @@ export default function CsvTransactionUploadModal({
         width={640}
         title={(
           <Space align="start" size={12}>
-            <CloudUploadOutlined style={{ color: "#68b3e7", fontSize: 24 }} />
+            <CloudUploadOutlined style={{ color: "#47555F", fontSize: 24 }} />
             <div>
               <Typography.Title level={4} style={{ margin: 0 }}>
                 Import transactions
@@ -306,7 +306,7 @@ export default function CsvTransactionUploadModal({
           {file && (
             <Card size="small">
               <Flex align="center" gap={12}>
-                <FileTextOutlined style={{ color: "#68b3e7", fontSize: 22 }} />
+                <FileTextOutlined style={{ color: "#47555F", fontSize: 22 }} />
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <Typography.Text strong ellipsis={{ tooltip: file.name }}>
                     {file.name}
