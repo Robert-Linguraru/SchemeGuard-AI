@@ -10,6 +10,7 @@ import org.schemeguard.backend.exception.ResourceNotFoundException;
 import org.schemeguard.backend.repository.CardScheme.CardSchemeRepository;
 import org.schemeguard.backend.repository.RuleRepository;
 import org.schemeguard.backend.service.RuleService;
+import org.schemeguard.backend.service.RuleHistoryService;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockHttpServletRequest;
 
@@ -25,7 +26,8 @@ class RuleServiceErrorHandlingTests {
 
     private final RuleRepository ruleRepository = mock(RuleRepository.class);
     private final CardSchemeRepository cardSchemeRepository = mock(CardSchemeRepository.class);
-    private final RuleService ruleService = new RuleService(ruleRepository, cardSchemeRepository);
+    private final RuleHistoryService ruleHistoryService = mock(RuleHistoryService.class);
+    private final RuleService ruleService = new RuleService(ruleRepository, cardSchemeRepository, ruleHistoryService);
     private final GlobalExceptionHandler exceptionHandler = new GlobalExceptionHandler();
 
     @Test
