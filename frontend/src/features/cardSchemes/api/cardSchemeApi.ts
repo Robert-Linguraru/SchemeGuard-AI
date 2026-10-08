@@ -42,6 +42,36 @@ export const getCardSchemes = (
         totalPages: response.totalPages
     }));
 
+export const getAllActiveCardSchemes = async (
+    signal?: AbortSignal
+): Promise<CardScheme[]> => {
+    const firstPage = await getCardSchemes({
+        page: 0,
+        size: 100,
+        search: "",
+        sort: "name,asc",
+        includeInactive: false
+    }, signal);
+
+    if (firstPage.totalPages <= 1) {
+        return firstPage.items;
+    }
+
+    const remainingPages = await Promise.all(
+        Array.from({ length: firstPage.totalPages - 1 }, (_, index) =>
+            getCardSchemes({
+                page: index + 1,
+                size: 100,
+                search: "",
+                sort: "name,asc",
+                includeInactive: false
+            }, signal)
+        )
+    );
+
+    return [firstPage, ...remainingPages].flatMap((page) => page.items);
+};
+
 export const getCardScheme = (
     id: string,
     includeInactive = false,

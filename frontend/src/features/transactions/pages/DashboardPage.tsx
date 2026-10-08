@@ -21,7 +21,7 @@ import type {
     EntityListQuery,
     EntityListResponse
 } from "../../../shared/types/list";
-import { App as AntdApp, Button, Tooltip } from "antd";
+import { Button, Tooltip } from "antd";
 import { ExperimentOutlined } from "@ant-design/icons";
 import type { AgentTransactionContext } from "../../../shared/types/agent";
 
@@ -46,11 +46,11 @@ export function DashboardPage({
     focusedAnalyticsTransaction = null,
     onUploadEvaluated
 }: DashboardPageProps) {
-    const { notification } = AntdApp.useApp();
     const [uploadStatistics, setUploadStatistics] = useState<UploadStatistics | null>(null);
     const [isLoadingStatistics, setIsLoadingStatistics] = useState(false);
     const [statisticsError, setStatisticsError] = useState<string | null>(null);
     const [isEvaluating, setIsEvaluating] = useState(false);
+    const [evaluationMessage, setEvaluationMessage] = useState<string | null>(null);
     const [evaluationError, setEvaluationError] = useState<string | null>(null);
     const [transactionReloadKey, setTransactionReloadKey] = useState(0);
     const [outlierIds, setOutlierIds] = useState<Set<string>>(new Set());
@@ -184,14 +184,11 @@ export function DashboardPage({
         }
 
         setIsEvaluating(true);
+        setEvaluationMessage(null);
         setEvaluationError(null);
         try {
             const result = await evaluateUpload(selectedUploadId);
-            notification.success({
-                placement: "topRight",
-                message: "Evaluation complete",
-                description: result.message
-            });
+            setEvaluationMessage(result.message);
             onUploadEvaluated(result.wasEvaluated);
             setTransactionReloadKey((key) => key + 1);
         } catch (requestError: unknown) {
@@ -310,6 +307,7 @@ export function DashboardPage({
         }
 
         if (!canDetectOutliers) {
+            setAnomalyMessage(null);
             setAnomalyError("Evaluate this CSV before detecting outliers.");
             return;
         }
@@ -425,14 +423,14 @@ export function DashboardPage({
             render: (transaction) => outlierIds.has(transaction.id) ? (
                 <div className="transaction-anomaly-cell">
                     <span>Outlier</span>
-                    <Button
-                        type="default"
+                    <button
+                        type="button"
                         className="entity-list-action-button"
                         disabled={confirmedOutlierIds.has(transaction.id)}
                         onClick={() => void confirmOutlier(transaction.id)}
                     >
                         {confirmedOutlierIds.has(transaction.id) ? "Checked" : "Check off"}
-                    </Button>
+                    </button>
                 </div>
             ) : null
         }
@@ -468,7 +466,7 @@ export function DashboardPage({
                         {selectedUploadId && canEvaluate && (
                             <Tooltip
                                 title={isEvaluating ? "Evaluating upload..." : "Evaluate this upload"}
-                                color="#FF5640"
+                                color="#f05d53"
                                 styles={{ container: { color: "#ffffff" } }}
                             >
                                 <span className="action-tooltip-trigger">
@@ -489,7 +487,7 @@ export function DashboardPage({
                         {selectedUploadId && canDetectOutliers && (
                             <Tooltip
                                 title={isDetectingOutliers ? "Detecting outliers..." : "Detect outliers in this upload"}
-                                color="#FF5640"
+                                color="#f05d53"
                                 styles={{ container: { color: "#ffffff" } }}
                             >
                                 <span className="action-tooltip-trigger">
@@ -571,15 +569,15 @@ export function DashboardPage({
                             reloadKey={transactionReloadKey}
                             initialQuery={{ size: 50, sort: "createdAt,desc", search: focusedAnalyticsTransaction?.externalId ?? "" }}
                             toolbar={({ query, updateQuery }) => (
-                                <div className="transaction-list-filters">
-                                    <Button
-                                        type="default"
+                                <>
+                                    <button
+                                        type="button"
                                         className="entity-list-filter-button"
                                         aria-expanded={showTransactionFilters}
                                         onClick={() => setShowTransactionFilters((visible) => !visible)}
                                     >
                                         {showTransactionFilters ? "Hide filters" : "Filter"}
-                                    </Button>
+                                    </button>
                                     {showTransactionFilters && <>
                                     <label className="entity-list-filter">
                                         <span>Show</span>
@@ -616,7 +614,7 @@ export function DashboardPage({
                                         </select>
                                     </label>
                                     </>}
-                                </div>
+                                </>
                             )}
                             emptyMessage="No transactions available in this CSV upload."
                             rowClassName={(transaction) => outlierIds.has(transaction.id) ? "transaction-anomaly-row" : undefined}
@@ -624,6 +622,12 @@ export function DashboardPage({
                     ) : (
                         <div className="empty-state">
                             <p>Select a CSV upload to view its transactions.</p>
+                        </div>
+                    )}
+
+                    {evaluationMessage && (
+                        <div className="success-box" role="status">
+                            {evaluationMessage}
                         </div>
                     )}
 

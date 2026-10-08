@@ -15,6 +15,13 @@ export function AccountMenu({ onEditProfile }: AccountMenuProps) {
     const dropdownRef = useRef<HTMLDivElement>(null);
     const buttonRef = useRef<HTMLButtonElement>(null);
     const [menuPosition, setMenuPosition] = useState({ top: 12, left: 12 });
+    const hasPineappleAvatar = user?.email?.trim().toLowerCase() === "leo@gmail.com";
+    const hasFlowerAvatar = user?.fullName?.trim().toLowerCase().startsWith("f") ?? false;
+    const avatarClassName = hasPineappleAvatar
+        ? "account-avatar account-avatar--pineapple"
+        : hasFlowerAvatar
+            ? "account-avatar account-avatar--flower"
+            : "account-avatar";
 
     const openMenu = () => {
         const bounds = buttonRef.current?.getBoundingClientRect();
@@ -55,6 +62,20 @@ export function AccountMenu({ onEditProfile }: AccountMenuProps) {
                 aria-haspopup="menu"
                 onClick={openMenu}
             >
+                <span
+                    className={avatarClassName}
+                    aria-hidden="true"
+                >
+                    {hasPineappleAvatar ? (
+                        <img className="account-avatar-image" src="/pineapple-avatar.png" alt="" />
+                    ) : hasFlowerAvatar ? (
+                        <img className="account-avatar-image" src="/flower-avatar.svg" alt="" />
+                    ) : (
+                        (user?.fullName?.trim().charAt(0) || "A").toUpperCase()
+                    )}
+                </span>
+                <span>Account</span>
+                <span className="account-chevron" aria-hidden="true" />
                 <UserOutlined aria-hidden="true" />
             </Button>
 

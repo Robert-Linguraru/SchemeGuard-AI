@@ -10,6 +10,7 @@ import {
 } from "@ant-design/icons";
 import { Button, Card, DatePicker, Input, Modal, Progress, Select, Spin, Tooltip } from "antd";
 import { ErrorMessage } from "../../../shared/components/ErrorMessage";
+import { UploadComparisonPanel } from "../components/UploadComparisonPanel";
 import {
     getAnalytics,
     type AnalyticsFilters,

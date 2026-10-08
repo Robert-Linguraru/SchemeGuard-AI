@@ -24,6 +24,7 @@ type AppRouterProps = {
     selectedUploadImportStatus: string | null;
     selectedUploadWasEvaluated: boolean;
     focusedAnalyticsTransaction: { id: string; externalId: string } | null;
+    onReturnFromAgent: () => void;
     onOpenAnalyticsTransaction: (upload: UploadSummary, transaction: Transaction) => void;
     ruleCreationNotice: string | null;
     onRuleCreationNoticeShown: () => void;
@@ -51,6 +52,7 @@ export function AppRouter({
     selectedUploadImportStatus,
     selectedUploadWasEvaluated,
     focusedAnalyticsTransaction,
+    onReturnFromAgent,
     onOpenAnalyticsTransaction,
     ruleCreationNotice,
     onRuleCreationNoticeShown,
@@ -96,6 +98,7 @@ export function AppRouter({
                     userId={agentUserId}
                     initialContext={agentOpenContext}
                     onInitialContextConsumed={onAgentOpenContextConsumed}
+                    onReturn={onReturnFromAgent}
                 />
             );
 

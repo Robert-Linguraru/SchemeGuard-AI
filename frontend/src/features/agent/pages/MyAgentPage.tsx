@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { Button, Input, Select, Spin } from "antd";
-import { CloseOutlined, DeleteOutlined, PlusOutlined, SendOutlined } from "@ant-design/icons";
+import { ArrowLeftOutlined, CloseOutlined, DeleteOutlined, PlusOutlined, SendOutlined } from "@ant-design/icons";
 import { getUploadTransactions, getUploads } from "../../uploads/api/uploadsApi";
 import type { UploadSummary } from "../../uploads/types/upload";
 import type { Transaction } from "../../../shared/types/transaction";
@@ -104,10 +104,12 @@ export function MyAgentPage({
     userId,
     initialContext,
     onInitialContextConsumed,
+    onReturn,
 }: {
     userId: string;
     initialContext: AgentOpenContext | null;
     onInitialContextConsumed: () => void;
+    onReturn: () => void;
 }) {
     const storageKey = `schemeguard-agent-chats:${userId}`;
     const [chatState, setChatState] = useState<ConversationState>(() => readConversationState(storageKey));
@@ -444,7 +446,17 @@ export function MyAgentPage({
             >
                 {!isHistoryCollapsed && <aside className="my-agent-history" aria-label="Chat history">
                     <div className="my-agent-panel-heading">
-                        <h2>Chat history</h2>
+                        <div>
+                            <p className="my-agent-eyebrow">ASSISTANT</p>
+                            <h2>Chat history</h2>
+                        </div>
+                        <Button
+                            type="text"
+                            icon={<ArrowLeftOutlined />}
+                            aria-label="Return to previous page"
+                            title="Return to previous page"
+                            onClick={onReturn}
+                        />
                         <Button type="primary" onClick={startNewChat} disabled={isBusy}>New Chat</Button>
                     </div>
                     <div className="my-agent-history-list">
