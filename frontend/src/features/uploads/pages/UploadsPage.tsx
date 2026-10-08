@@ -5,6 +5,7 @@ import type { UploadSummary } from "../types/upload";
 import { ErrorMessage } from "../../../shared/components/ErrorMessage";
 import { EntityList } from "../../../shared/components/EntityList/EntityList";
 import type { EntityListColumn, EntityListQuery } from "../../../shared/types/list";
+import { UploadComparisonModal } from "../../transactions/components/UploadComparisonModal";
 import {
   App as AntdApp,
   Button,
@@ -130,24 +131,6 @@ const createColumns = (
                         </span>
                     </Tooltip>
                 )}
-                {upload.importStatus === "COMPLETED" && !upload.wasEvaluated && (
-                    <Tooltip
-                        title={evaluatingUploadId === upload.id ? "Evaluating upload..." : "Evaluate"}
-                        color="#f05d53"
-                        styles={{ container: { color: "#ffffff" } }}
-                    >
-                        <span className="entity-list-action-tooltip">
-                            <Button
-                                type="primary"
-                                className="entity-list-action-icon-button"
-                                icon={<ExperimentOutlined />}
-                                disabled={evaluatingUploadId === upload.id}
-                                onClick={() => onEvaluateUpload(upload.id)}
-                                aria-label="Evaluate upload"
-                            />
-                        </span>
-                    </Tooltip>
-                )}
                 <Tooltip
                     title="Open Details"
                     color="#f05d53"
@@ -168,6 +151,24 @@ const createColumns = (
                         />
                     </span>
                 </Tooltip>
+                {upload.importStatus === "COMPLETED" && !upload.wasEvaluated && (
+                    <Tooltip
+                        title={evaluatingUploadId === upload.id ? "Evaluating upload..." : "Evaluate"}
+                        color="#f05d53"
+                        styles={{ container: { color: "#ffffff" } }}
+                    >
+                        <span className="entity-list-action-tooltip">
+                            <Button
+                                type="primary"
+                                className="entity-list-action-icon-button"
+                                icon={<ExperimentOutlined />}
+                                disabled={evaluatingUploadId === upload.id}
+                                onClick={() => onEvaluateUpload(upload.id)}
+                                aria-label="Evaluate upload"
+                            />
+                        </span>
+                    </Tooltip>
+                )}
             </div>
         )
     }
@@ -265,6 +266,7 @@ export function UploadsPage({
                     </div>
 
                     <div className="page-heading-actions">
+                        <UploadComparisonModal />
                         <CsvTransactionUploadModal
                             onCompleted={() => setReloadKey((currentKey) => currentKey + 1)}
                         />

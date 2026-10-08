@@ -8,7 +8,6 @@ import type { UploadStatistics, UploadSummary } from "../../uploads/types/upload
 type AnomalyStatus = AnomalyJobResponse["status"] | "NOT_REQUESTED";
 
 interface UploadComparison {
-    upload: UploadSummary;
     statistics: UploadStatistics;
     anomalyStatus: AnomalyStatus;
     anomalyCount: number | null;
@@ -59,7 +58,6 @@ async function loadUploadComparison(upload: UploadSummary, signal: AbortSignal):
         : null;
 
     return {
-        upload,
         statistics,
         anomalyStatus,
         anomalyCount: anomalyIds?.length ?? null
@@ -150,7 +148,6 @@ export function UploadComparisonPanel() {
             <div className="analysis-card-heading">
                 <div>
                     <h3>Compare uploads</h3>
-                    <span>Compare evaluated transaction results and calculated fees.</span>
                 </div>
             </div>
 
@@ -201,14 +198,6 @@ export function UploadComparisonPanel() {
 
             {comparison && (
                 <div className="analysis-comparison-results">
-                    <div className="analysis-comparison-upload-labels">
-                        {comparison.map((item) => (
-                            <div key={item.upload.id}>
-                                <strong>{item.upload.fileName}</strong>
-                                <span>{formatUploadDate(item.upload.uploadedAt)}</span>
-                            </div>
-                        ))}
-                    </div>
                     <div className="analysis-comparison-table-wrap">
                         <table className="analysis-comparison-table">
                             <thead>
@@ -219,25 +208,25 @@ export function UploadComparisonPanel() {
                                     <th scope="row">Transactions</th>
                                     <td>{formatCount(comparison[0].statistics.totalTransactions)}</td>
                                     <td>{formatCount(comparison[1].statistics.totalTransactions)}</td>
-                                    <td>{formatSignedCount(comparison[1].statistics.totalTransactions - comparison[0].statistics.totalTransactions)}</td>
+                                    <td><span className="analysis-comparison-delta">{formatSignedCount(comparison[1].statistics.totalTransactions - comparison[0].statistics.totalTransactions)}</span></td>
                                 </tr>
                                 <tr>
                                     <th scope="row">Evaluated transactions</th>
                                     <td>{formatCount(comparison[0].statistics.processedTransactions)}</td>
                                     <td>{formatCount(comparison[1].statistics.processedTransactions)}</td>
-                                    <td>{formatSignedCount(comparison[1].statistics.processedTransactions - comparison[0].statistics.processedTransactions)}</td>
+                                    <td><span className="analysis-comparison-delta">{formatSignedCount(comparison[1].statistics.processedTransactions - comparison[0].statistics.processedTransactions)}</span></td>
                                 </tr>
                                 <tr>
                                     <th scope="row">Qualification rate</th>
                                     <td>{formatPercent(Number(comparison[0].statistics.qualificationRate) * 100)}</td>
                                     <td>{formatPercent(Number(comparison[1].statistics.qualificationRate) * 100)}</td>
-                                    <td>{formatSignedPoints((Number(comparison[1].statistics.qualificationRate) - Number(comparison[0].statistics.qualificationRate)) * 100)}</td>
+                                    <td><span className="analysis-comparison-delta">{formatSignedPoints((Number(comparison[1].statistics.qualificationRate) - Number(comparison[0].statistics.qualificationRate)) * 100)}</span></td>
                                 </tr>
                                 <tr>
                                     <th scope="row">Calculated fees (EUR)</th>
                                     <td>{formatFees(Number(comparison[0].statistics.totalFees))}</td>
                                     <td>{formatFees(Number(comparison[1].statistics.totalFees))}</td>
-                                    <td>{formatSignedFees(Number(comparison[1].statistics.totalFees) - Number(comparison[0].statistics.totalFees))}</td>
+                                    <td><span className="analysis-comparison-delta">{formatSignedFees(Number(comparison[1].statistics.totalFees) - Number(comparison[0].statistics.totalFees))}</span></td>
                                 </tr>
                                 <tr>
                                     <th scope="row">Detected anomalies</th>
@@ -245,17 +234,13 @@ export function UploadComparisonPanel() {
                                     <td>{anomalyLabel(comparison[1])}</td>
                                     <td>
                                         {comparison.every((item) => item.anomalyStatus === "COMPLETED")
-                                            ? formatSignedCount((comparison[1].anomalyCount ?? 0) - (comparison[0].anomalyCount ?? 0))
+                                            ? <span className="analysis-comparison-delta">{formatSignedCount((comparison[1].anomalyCount ?? 0) - (comparison[0].anomalyCount ?? 0))}</span>
                                             : "—"}
                                     </td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
-                    <p className="analysis-comparison-note">
-                        Qualification rate is qualified transactions divided by evaluated transactions. Fees are converted to EUR.
-                        Anomaly differences are shown only when detection is complete for both uploads.
-                    </p>
                 </div>
             )}
         </Card>

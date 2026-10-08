@@ -435,6 +435,14 @@
 	margin-bottom: 16px;
 }
 
+.analysis-comparison-modal .analysis-comparison-card {
+	margin: 0;
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+	box-shadow: none;
+}
+
 .analysis-comparison-card .ant-card-body {
 	display: grid;
 	gap: 14px;
@@ -445,6 +453,10 @@
 	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
 	align-items: end;
 	gap: 12px;
+	padding: 14px;
+	border: 1px solid var(--border);
+	border-radius: 12px;
+	background: color-mix(in srgb, var(--surface-subtle) 58%, transparent);
 }
 
 .analysis-comparison-controls label {
@@ -474,44 +486,57 @@
 	color: var(--muted);
 }
 
-.analysis-comparison-upload-labels {
-	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 12px;
-}
-
-.analysis-comparison-upload-labels > div {
-	display: grid;
-	gap: 4px;
-	min-width: 0;
-}
-
-.analysis-comparison-upload-labels strong {
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-
-.analysis-comparison-upload-labels span,
-.analysis-comparison-note {
-	color: var(--muted);
-	font-size: 12px;
-}
-
 .analysis-comparison-table-wrap {
 	width: 100%;
 	overflow-x: auto;
+	border: 1px solid var(--border);
+	border-radius: 12px;
+	background: var(--surface-card);
 }
 
 .analysis-comparison-table {
 	min-width: 620px;
+	width: 100%;
 	font-variant-numeric: tabular-nums;
+	border-collapse: separate;
+	border-spacing: 0;
 }
 
 .analysis-comparison-table th,
 .analysis-comparison-table td {
 	padding: 10px 12px;
 	text-align: right;
+}
+
+.analysis-comparison-table tbody tr:nth-child(odd) {
+	background: color-mix(in srgb, var(--surface-subtle) 72%, transparent);
+}
+
+.analysis-comparison-table tbody th,
+.analysis-comparison-table tbody td {
+	border: 0;
+}
+
+.analysis-comparison-table tbody tr {
+	border-bottom: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
+}
+
+.analysis-comparison-table tbody tr:last-child {
+	border-bottom: 0;
+}
+
+.analysis-comparison-delta {
+	display: inline-block;
+	padding: 3px 8px;
+	border-radius: 999px;
+	background: color-mix(in srgb, #1b9477 13%, transparent);
+	color: #167563;
+	font-weight: 650;
+}
+
+:root[data-theme="dark"] .analysis-comparison-delta {
+	background: color-mix(in srgb, #42c8a4 16%, transparent);
+	color: #42c8a4;
 }
 
 .analysis-comparison-table th:first-child,
@@ -523,10 +548,6 @@
 	color: var(--muted);
 	font-size: 11px;
 	text-transform: uppercase;
-}
-
-.analysis-comparison-note {
-	margin: 0;
 }
 
 .analysis-card {
@@ -1095,8 +1116,7 @@ tbody tr:hover {
 		grid-column: span 1;
 	}
 
-	.analysis-comparison-controls,
-	.analysis-comparison-upload-labels {
+	.analysis-comparison-controls {
 		grid-template-columns: 1fr;
 	}
 

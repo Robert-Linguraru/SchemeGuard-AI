@@ -10,7 +10,6 @@ import {
 } from "@ant-design/icons";
 import { Button, Card, DatePicker, Progress, Select, Spin, Tooltip } from "antd";
 import { ErrorMessage } from "../../../shared/components/ErrorMessage";
-import { UploadComparisonPanel } from "../components/UploadComparisonPanel";
 import {
     getAnalytics,
     type AnalyticsFilters,
@@ -332,7 +331,6 @@ export function AnalysisDashboardPage() {
                         />
                     </Tooltip>
                 </div>
-                <UploadComparisonPanel />
                 <section className="analysis-filter-panel" aria-label="Dashboard filters">
                     <div className="analysis-filter-grid">
                         <div className="analysis-filter-field">
