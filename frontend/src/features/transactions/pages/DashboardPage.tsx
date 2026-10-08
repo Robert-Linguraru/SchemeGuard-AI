@@ -4,6 +4,7 @@ import {
     detectUploadOutliers,
     evaluateUpload,
     getUploadOutlierIds,
+    getUploadAnomalyJob,
     getUploadStatistics,
     getUploadTransactions
 } from "../../uploads/api/uploadsApi";
