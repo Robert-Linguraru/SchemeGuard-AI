@@ -3,6 +3,8 @@ import { ApiError, type FieldErrors } from "./ApiError";
 
 interface ApiErrorResponse {
     message?: string;
+    detail?: string;
+    title?: string;
     errorCode?: string;
     code?: string;
     fieldErrors?: FieldErrors;
@@ -23,7 +25,7 @@ export const isAbortError = (error: unknown): boolean =>
 const parseResponse = async (response: Response): Promise<unknown> => {
     const contentType = response.headers.get("content-type") ?? "";
 
-    if (!contentType.includes("application/json")) {
+    if (!contentType.includes("application/json") && !contentType.includes("+json")) {
         return null;
     }
 
@@ -66,7 +68,10 @@ export const request = async <T>(
     if (!response.ok) {
         const errorData = data as ApiErrorResponse | null;
         throw new ApiError(
-            errorData?.message || "Request failed",
+            errorData?.message
+                || errorData?.detail
+                || errorData?.title
+                || `Request failed (${response.status})`,
             response.status,
             errorData?.errorCode || errorData?.code,
             errorData?.fieldErrors

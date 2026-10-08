@@ -7,6 +7,7 @@ import lombok.Setter;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 import org.schemeguard.backend.entity.csvuploads.Upload;
+import org.schemeguard.backend.entity.csvuploads.TransactionSource;
 import org.schemeguard.backend.entity.enums.CardCategory;
 import org.schemeguard.backend.entity.enums.CardType;
 import org.schemeguard.backend.entity.enums.TransactionChannel;
@@ -44,6 +45,14 @@ public class Transaction {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "upload_id")
     private Upload upload;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private User owner;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "source_id")
+    private TransactionSource source;
 
     @Column(nullable = false, precision = 19, scale = 4)
     private BigDecimal amount;

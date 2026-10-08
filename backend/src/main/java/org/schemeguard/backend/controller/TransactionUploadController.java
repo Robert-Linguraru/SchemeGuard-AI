@@ -18,11 +18,15 @@ import org.schemeguard.backend.service.ruleIntepreter.UploadEvaluationService;
 import org.schemeguard.backend.service.csvuploads.UploadDownloadService;
 import org.schemeguard.backend.service.csvuploads.UploadStatisticsService;
 import org.schemeguard.backend.service.csvuploads.UploadService;
+import org.schemeguard.backend.service.csvuploads.DuplicateTransactionReportService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.ContentDisposition;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -49,6 +53,24 @@ public class TransactionUploadController {
         private final UploadEvaluationService uploadEvaluationService;
     private final UploadDownloadService uploadDownloadService;
     private final UploadStatisticsService uploadStatisticsService;
+    private final DuplicateTransactionReportService duplicateTransactionReportService;
+
+    @Autowired
+    public TransactionUploadController(
+            UploadService uploadService,
+            TransactionService transactionService,
+            UploadEvaluationService uploadEvaluationService,
+            UploadDownloadService uploadDownloadService,
+            UploadStatisticsService uploadStatisticsService,
+            DuplicateTransactionReportService duplicateTransactionReportService
+    ) {
+        this.uploadService = uploadService;
+        this.transactionService = transactionService;
+        this.uploadEvaluationService = uploadEvaluationService;
+        this.uploadDownloadService = uploadDownloadService;
+        this.uploadStatisticsService = uploadStatisticsService;
+        this.duplicateTransactionReportService = duplicateTransactionReportService;
+    }
 
     public TransactionUploadController(
             UploadService uploadService,
@@ -57,11 +79,14 @@ public class TransactionUploadController {
             UploadDownloadService uploadDownloadService,
             UploadStatisticsService uploadStatisticsService
     ) {
-        this.uploadService = uploadService;
-        this.transactionService = transactionService;
-        this.uploadEvaluationService = uploadEvaluationService;
-        this.uploadDownloadService = uploadDownloadService;
-        this.uploadStatisticsService = uploadStatisticsService;
+        this(
+                uploadService,
+                transactionService,
+                uploadEvaluationService,
+                uploadDownloadService,
+                uploadStatisticsService,
+                null
+        );
     }
 
     @PostMapping
@@ -78,9 +103,10 @@ public class TransactionUploadController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "uploadedAt,desc") String sort,
             @AuthenticationPrincipal User user
     ) {
-        return uploadService.findUploads(user, page, size, search);
+        return uploadService.findUploads(user, page, size, search, sort);
     }
 
     @GetMapping("/{uploadId}/transactions")
@@ -146,31 +172,98 @@ public class TransactionUploadController {
             @PathVariable UUID uploadId,
             @PathVariable int partNumber,
             @RequestHeader(value = "X-Chunk-SHA256", required = false) String clientSha256,
-            HttpServletRequest request
+            HttpServletRequest request,
+            @AuthenticationPrincipal User user
     ) throws IOException {
         return uploadService.uploadPart(
                 uploadId,
                 partNumber,
                 request.getInputStream(),
-                clientSha256
+                clientSha256,
+                user.getId()
         );
     }
 
     @PostMapping("/{uploadId}/complete")
-    public CompleteUploadResponse completeUpload(@PathVariable UUID uploadId) {
-        return uploadService.completeUpload(uploadId);
+    public CompleteUploadResponse completeUpload(
+            @PathVariable UUID uploadId,
+            @AuthenticationPrincipal User user
+    ) {
+        return uploadService.completeUpload(uploadId, user.getId());
     }
 
     @GetMapping("/{uploadId}")
-    public ResponseEntity<UploadStatusResponse> getStatus(@PathVariable UUID uploadId) {
+    public ResponseEntity<UploadStatusResponse> getStatus(
+            @PathVariable UUID uploadId,
+            @AuthenticationPrincipal User user
+    ) {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.noStore())
-                .body(uploadService.getStatus(uploadId));
+                .body(uploadService.getStatus(uploadId, user.getId()));
     }
 
     @DeleteMapping("/{uploadId}")
-    public ResponseEntity<Void> cancelUpload(@PathVariable UUID uploadId) {
-        uploadService.cancelUpload(uploadId);
+    public ResponseEntity<Void> cancelUpload(
+            @PathVariable UUID uploadId,
+            @AuthenticationPrincipal User user
+    ) {
+        uploadService.cancelUpload(uploadId, user.getId());
         return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{uploadId}/document")
+    public ResponseEntity<Void> deleteUploadDocument(
+            @PathVariable UUID uploadId,
+            @AuthenticationPrincipal User user
+    ) {
+        uploadService.deleteUploadDocument(uploadId, user.getId());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{uploadId}/duplicates/confirm")
+    public UploadStatusResponse confirmDuplicateImport(
+            @PathVariable UUID uploadId,
+            @AuthenticationPrincipal User user
+    ) {
+        return uploadService.confirmDuplicateImport(uploadId, user.getId());
+    }
+
+    @GetMapping(
+            value = "/{uploadId}/duplicates.xlsx",
+            produces = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    public ResponseEntity<StreamingResponseBody> downloadDuplicateReport(
+            @PathVariable UUID uploadId,
+            @AuthenticationPrincipal User user
+    ) {
+        UploadStatusResponse status = uploadService.getStatus(uploadId, user.getId());
+        if (status.status() != org.schemeguard.backend.entity.csvuploads.UploadStatus.DUPLICATES_FOUND
+                || status.uploadRecordId() == null) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "This upload has no duplicate transactions to download."
+            );
+        }
+        StreamingResponseBody body = outputStream ->
+                duplicateTransactionReportService.writeReport(
+                        status.uploadRecordId(),
+                        outputStream
+                );
+        String fileBaseName = status.fileName()
+                .replaceAll("[\\\\/:*?\"<>|]", "_")
+                .replaceFirst("\\.[^.]+$", "");
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .contentType(MediaType.parseMediaType(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                ))
+                .header(
+                        "Content-Disposition",
+                        ContentDisposition.attachment()
+                                .filename(fileBaseName + "-duplicates.xlsx", StandardCharsets.UTF_8)
+                                .build()
+                                .toString()
+                )
+                .body(body);
     }
 }

@@ -1,0 +1,43 @@
+.csv-upload-dropzone.ant-upload-wrapper .ant-upload-drag {
+  min-height: 200px;
+  border-color: var(--border);
+  background: var(--surface-input);
+}
+
+.csv-upload-dropzone.ant-upload-wrapper .ant-upload-drag:not(.ant-upload-disabled):hover {
+  border-color: var(--coral);
+  background: var(--surface-raised);
+}
+
+.csv-upload-dropzone.ant-upload-wrapper .ant-upload-drag-icon .anticon {
+  color: var(--status-evaluated-text);
+}
+
+.csv-upload-processing-track {
+  height: 6px;
+  margin: 13px 0 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-subtle);
+}
+
+.csv-upload-processing-track::after {
+  display: block;
+  width: 36%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--status-evaluated-text);
+  content: "";
+  animation: csv-upload-progress 1.4s ease-in-out infinite alternate;
+}
+
+@keyframes csv-upload-progress {
+  from { transform: translateX(0); }
+  to { transform: translateX(175%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .csv-upload-processing-track::after {
+    animation-duration: 3s;
+  }
+}

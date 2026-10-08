@@ -7,7 +7,11 @@ public interface UploadSummaryProjection {
 
     UUID getId();
 
+    UUID getSessionId();
+
     String getFileName();
+
+    String getSourceName();
 
     Instant getUploadedAt();
 
@@ -16,6 +20,8 @@ public interface UploadSummaryProjection {
     boolean getWasEvaluated();
 
     long getTransactionCount();
+
+    long getDuplicateRows();
 
     long getNewTransactionCount();
 }

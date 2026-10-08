@@ -108,12 +108,22 @@ the following order:
 4. `seed_reference_data.sql` inserts roles, card schemes, and 249 country mappings.
 5. `upload_tables.sql` creates the upload tables and the transaction-import staging table.
 6. `upload_content_hash.sql` adds per-user exact-file deduplication and removes stored document rows for duplicate attempts. Existing documents are not hashed retroactively.
-7. `transaction_outliers.sql` creates the upload-scoped anomaly table used by outlier detection.
-8. `anomaly_detection_jobs.sql` creates the persistent queue and status table for asynchronous outlier detection.
-9. `anomaly_detection_inputs.sql` creates the cache identity table used to invalidate older detector results.
+7. `transaction_sources_and_deduplication.sql` adds shared, normalized sources and per-user/per-source transaction deduplication. It preserves existing rows and leaves historical uploads without a known source unassigned.
+8. `transaction_outliers.sql` creates the upload-scoped anomaly table used by outlier detection.
+9. `anomaly_detection_jobs.sql` creates the persistent queue and status table for asynchronous outlier detection.
+10. `anomaly_detection_inputs.sql` creates the cache identity table used to invalidate older detector results.
 
-If the database already exists, run `upload_content_hash.sql` before deploying or restarting the backend with file deduplication. It also removes duplicate-attempt rows already present in upload history while leaving their sessions for normal cleanup. Existing uploads keep a `NULL` content hash and are not checked as prior files. Run
-`transaction_outliers.sql`, `anomaly_detection_jobs.sql`, and `anomaly_detection_inputs.sql` after deploying the anomaly feature. These scripts are safe to rerun.
+If the database already exists, run both `upload_content_hash.sql` and
+`transaction_sources_and_deduplication.sql` before deploying or restarting the
+backend with these upload features. The first migration enables per-user exact-file
+deduplication and removes duplicate-attempt rows already present in upload history
+while leaving their sessions for normal cleanup. Existing uploads keep a `NULL`
+content hash and are not checked as prior files. The second migration enables shared
+transaction sources and per-user/source transaction deduplication; historical uploads
+remain unassigned to a source, so their transactions are not used as prior source-scoped
+duplicates until a source is explicitly associated with them. Run `transaction_outliers.sql`,
+`anomaly_detection_jobs.sql`, and `anomaly_detection_inputs.sql` after deploying the
+anomaly feature. These scripts are safe to rerun.
 
 Detection returns a job from `POST /api/uploads/{uploadId}/anomalies/detect` (HTTP 202).
 Poll `/anomalies/status`, then retrieve transaction IDs from `/anomalies` when the job
@@ -217,10 +227,13 @@ SPRING_DATASOURCE_PASSWORD=your-supabase-database-password
 | Endpoint | Purpose |
 | --- | --- |
 | `GET /api/transactions` | Retrieve paginated transactions and their latest qualification results |
-| `POST /api/uploads` | Create an upload session |
+| `GET /api/transaction-sources` | List saved shared sources for the upload dropdown |
+| `POST /api/uploads` | Create an upload session with a required `sourceName` |
 | `PUT /api/uploads/{id}/parts/{partNumber}` | Upload a binary file chunk |
 | `POST /api/uploads/{id}/complete` | Queue the CSV import |
 | `GET /api/uploads/{id}`, `DELETE /api/uploads/{id}` | Check progress or cancel an upload |
+| `GET /api/uploads/{id}/duplicates.xlsx` | Download the duplicate transaction report while review is pending |
+| `POST /api/uploads/{id}/duplicates/confirm` | Continue the import while skipping duplicate transactions |
 
 ### Machine learning
 

@@ -25,6 +25,51 @@ public class TransactionBatchWriter {
             WHERE upload_id = ?
             """;
 
+    private static final String DELETE_REVIEW_ROWS_SQL = """
+            DELETE FROM transaction_import_review
+            WHERE upload_id = ?
+            """;
+
+    private static final String PERSIST_REVIEW_ROWS_SQL = """
+            INSERT INTO transaction_import_review (
+                upload_id, row_number, external_id, network, amount, currency_code,
+                merchant_id, merchant_name, merchant_mcc, merchant_country,
+                issuer_country, card_type, card_category, channel,
+                authorized_at, cleared_at, three_ds_used, cvv_present, raw_data,
+                is_duplicate, duplicate_reason, duplicate_transaction_id, duplicate_upload_id
+            )
+            SELECT
+                upload_id, row_number, external_id, network, amount, currency_code,
+                merchant_id, merchant_name, merchant_mcc, merchant_country,
+                issuer_country, card_type, card_category, channel,
+                authorized_at, cleared_at, three_ds_used, cvv_present, raw_data,
+                is_duplicate, duplicate_reason, duplicate_transaction_id, duplicate_upload_id
+            FROM transaction_import_staging
+            WHERE upload_id = ?
+            ON CONFLICT (upload_id, row_number) DO UPDATE SET
+                external_id = EXCLUDED.external_id,
+                network = EXCLUDED.network,
+                amount = EXCLUDED.amount,
+                currency_code = EXCLUDED.currency_code,
+                merchant_id = EXCLUDED.merchant_id,
+                merchant_name = EXCLUDED.merchant_name,
+                merchant_mcc = EXCLUDED.merchant_mcc,
+                merchant_country = EXCLUDED.merchant_country,
+                issuer_country = EXCLUDED.issuer_country,
+                card_type = EXCLUDED.card_type,
+                card_category = EXCLUDED.card_category,
+                channel = EXCLUDED.channel,
+                authorized_at = EXCLUDED.authorized_at,
+                cleared_at = EXCLUDED.cleared_at,
+                three_ds_used = EXCLUDED.three_ds_used,
+                cvv_present = EXCLUDED.cvv_present,
+                raw_data = EXCLUDED.raw_data,
+                is_duplicate = EXCLUDED.is_duplicate,
+                duplicate_reason = EXCLUDED.duplicate_reason,
+                duplicate_transaction_id = EXCLUDED.duplicate_transaction_id,
+                duplicate_upload_id = EXCLUDED.duplicate_upload_id
+            """;
+
     private static final String COPY_STAGED_ROWS_SQL = """
             COPY transaction_import_staging (
                 upload_id, row_number, external_id, network, amount, currency_code,
@@ -52,6 +97,12 @@ public class TransactionBatchWriter {
                 status = EXCLUDED.status
             """;
 
+    private static final String UPSERT_REVIEW_MERCHANTS_SQL =
+            UPSERT_MERCHANTS_SQL.replace(
+                    "transaction_import_staging",
+                    "transaction_import_review"
+            );
+
     private static final String UPSERT_SCHEMES_SQL = """
             INSERT INTO card_schemes (code, name, active)
             SELECT network, network, TRUE
@@ -62,15 +113,24 @@ public class TransactionBatchWriter {
                 name = EXCLUDED.name
             """;
 
+    private static final String UPSERT_REVIEW_SCHEMES_SQL =
+            UPSERT_SCHEMES_SQL.replace(
+                    "transaction_import_staging",
+                    "transaction_import_review"
+            );
+
     private static final String MERGE_TRANSACTIONS_SQL = """
             INSERT INTO transactions (
-                upload_id, external_id, merchant_id, scheme_id, amount, currency_code,
+                upload_id, user_id, source_id, external_id, merchant_id, scheme_id,
+                amount, currency_code,
                 card_type, card_category, channel, issuer_country, merchant_country,
                 authorized_at, cleared_at, three_ds_used, cvv_present, status,
                 raw_data, active
             )
             SELECT
                 staging.upload_id,
+                upload.user_id,
+                upload.source_id,
                 staging.external_id,
                 staging.merchant_id,
                 scheme.id,
@@ -90,8 +150,19 @@ public class TransactionBatchWriter {
                 scheme.active
             FROM transaction_import_staging staging
             JOIN card_schemes scheme ON scheme.code = staging.network
+            JOIN uploads upload ON upload.id = staging.upload_id
             WHERE staging.upload_id = ?
+              AND staging.is_duplicate = FALSE
+            ON CONFLICT (user_id, source_id, external_id)
+                WHERE user_id IS NOT NULL AND source_id IS NOT NULL
+            DO NOTHING
             """;
+
+    private static final String MERGE_REVIEW_TRANSACTIONS_SQL =
+            MERGE_TRANSACTIONS_SQL.replace(
+                    "transaction_import_staging",
+                    "transaction_import_review"
+            );
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -101,6 +172,24 @@ public class TransactionBatchWriter {
 
     @Transactional
     public void clearStagedRows(UUID uploadId) {
+        jdbcTemplate.update(DELETE_STAGED_ROWS_SQL, uploadId);
+    }
+
+    @Transactional
+    public void clearReviewRows(UUID uploadId) {
+        jdbcTemplate.update(DELETE_REVIEW_ROWS_SQL, uploadId);
+    }
+
+    @Transactional
+    public void clearImportRows(UUID uploadId) {
+        clearStagedRows(uploadId);
+        clearReviewRows(uploadId);
+    }
+
+    /** Moves a duplicate upload from fast, unlogged staging into durable review storage. */
+    @Transactional
+    public void persistStagedRowsForReview(UUID uploadId) {
+        jdbcTemplate.update(PERSIST_REVIEW_ROWS_SQL, uploadId);
         jdbcTemplate.update(DELETE_STAGED_ROWS_SQL, uploadId);
     }
 
@@ -117,11 +206,21 @@ public class TransactionBatchWriter {
     }
 
     @Transactional
-    public void mergeStagedRows(UUID uploadId) {
+    public long mergeStagedRows(UUID uploadId) {
         jdbcTemplate.update(UPSERT_MERCHANTS_SQL, uploadId);
         jdbcTemplate.update(UPSERT_SCHEMES_SQL, uploadId);
-        jdbcTemplate.update(MERGE_TRANSACTIONS_SQL, uploadId);
+        int insertedRows = jdbcTemplate.update(MERGE_TRANSACTIONS_SQL, uploadId);
         jdbcTemplate.update(DELETE_STAGED_ROWS_SQL, uploadId);
+        return insertedRows;
+    }
+
+    @Transactional
+    public long mergeReviewRows(UUID uploadId) {
+        jdbcTemplate.update(UPSERT_REVIEW_MERCHANTS_SQL, uploadId);
+        jdbcTemplate.update(UPSERT_REVIEW_SCHEMES_SQL, uploadId);
+        int insertedRows = jdbcTemplate.update(MERGE_REVIEW_TRANSACTIONS_SQL, uploadId);
+        jdbcTemplate.update(DELETE_REVIEW_ROWS_SQL, uploadId);
+        return insertedRows;
     }
 
     private void copyRowsToStaging(UUID uploadId, List<TransactionRow> rows) {

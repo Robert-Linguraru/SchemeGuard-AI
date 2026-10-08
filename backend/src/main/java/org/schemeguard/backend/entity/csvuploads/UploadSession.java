@@ -26,6 +26,9 @@ public class UploadSession {
     @Column(name = "processing_job_id")
     private UUID processingJobId;
 
+    @Column(name = "user_id")
+    private UUID userId;
+
     @Column(name = "original_file_name", nullable = false, length = 255)
     private String originalFileName;
 
@@ -50,6 +53,12 @@ public class UploadSession {
 
     @Column(name = "processed_rows", nullable = false)
     private long processedRows;
+
+    @Column(name = "duplicate_rows", nullable = false)
+    private long duplicateRows;
+
+    @Column(name = "duplicate_signature", length = 32)
+    private String duplicateSignature;
 
     @Column(name = "error_message", length = 1000)
     private String errorMessage;
@@ -109,6 +118,19 @@ public class UploadSession {
         return processingJobId;
     }
 
+    /** Clears the in-memory inverse side before its Upload entity is deleted. */
+    public void detachUpload() {
+        this.upload = null;
+    }
+
+    public UUID getUserId() {
+        return userId;
+    }
+
+    public void setUserId(UUID userId) {
+        this.userId = userId;
+    }
+
     public void setProcessingJobId(UUID processingJobId) {
         this.processingJobId = processingJobId;
     }
@@ -159,6 +181,22 @@ public class UploadSession {
 
     public void setProcessedRows(long processedRows) {
         this.processedRows = processedRows;
+    }
+
+    public long getDuplicateRows() {
+        return duplicateRows;
+    }
+
+    public void setDuplicateRows(long duplicateRows) {
+        this.duplicateRows = duplicateRows;
+    }
+
+    public String getDuplicateSignature() {
+        return duplicateSignature;
+    }
+
+    public void setDuplicateSignature(String duplicateSignature) {
+        this.duplicateSignature = duplicateSignature;
     }
 
     public String getErrorMessage() {

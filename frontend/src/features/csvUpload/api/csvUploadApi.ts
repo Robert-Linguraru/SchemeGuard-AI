@@ -2,6 +2,7 @@ import type {
   CreateUploadResponse,
   UploadProgress,
   UploadStatusResponse,
+  TransactionSource,
 } from "../../../types/csvUploadType";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/api";
@@ -97,6 +98,7 @@ async function uploadPartWithRetry(
 
 async function createUpload(
   file: File,
+  sourceName: string,
   signal: AbortSignal,
 ): Promise<CreateUploadResponse> {
   const response = await fetch(`${API_BASE_URL}/uploads`, {
@@ -105,7 +107,11 @@ async function createUpload(
       ...authorizationHeaders(),
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ fileName: file.name, fileSizeBytes: file.size }),
+    body: JSON.stringify({
+      fileName: file.name,
+      fileSizeBytes: file.size,
+      sourceName,
+    }),
     signal,
   });
   if (!response.ok) {
@@ -137,10 +143,11 @@ async function getStatus(
 
 export async function uploadCsv(
   file: File,
+  sourceName: string,
   onProgress: (progress: UploadProgress) => void,
   signal: AbortSignal,
 ): Promise<UploadStatusResponse> {
-  const session = await createUpload(file, signal);
+  const session = await createUpload(file, sourceName, signal);
   try {
     let nextPart = 0;
     let completedParts = 0;
@@ -222,6 +229,10 @@ export async function uploadCsv(
       );
     }
 
+    if (status.status === "DUPLICATES_FOUND") {
+      return status;
+    }
+
     if (status.status !== "COMPLETED") {
       throw new UploadImportError(
         status.errorMessage ?? "The CSV import failed.",
@@ -246,6 +257,57 @@ export async function uploadCsv(
     }
     throw error;
   }
+}
+
+export async function getTransactionSources(
+  signal?: AbortSignal,
+): Promise<TransactionSource[]> {
+  const response = await fetch(`${API_BASE_URL}/transaction-sources`, {
+    headers: authorizationHeaders(),
+    signal,
+  });
+  if (!response.ok) {
+    throw await parseError(response);
+  }
+  return (await response.json()) as TransactionSource[];
+}
+
+export async function confirmDuplicateImport(
+  uploadId: string,
+): Promise<UploadStatusResponse> {
+  const response = await fetch(
+    `${API_BASE_URL}/uploads/${uploadId}/duplicates/confirm`,
+    {
+      method: "POST",
+      headers: authorizationHeaders(),
+    },
+  );
+  if (!response.ok) {
+    throw await parseError(response);
+  }
+  return (await response.json()) as UploadStatusResponse;
+}
+
+export async function downloadDuplicateReport(uploadId: string): Promise<Blob> {
+  const response = await fetch(
+    `${API_BASE_URL}/uploads/${uploadId}/duplicates.xlsx`,
+    { headers: authorizationHeaders() },
+  );
+  if (!response.ok) {
+    throw await parseError(response);
+  }
+  return response.blob();
+}
+
+export async function downloadOriginalCsv(uploadRecordId: string): Promise<Blob> {
+  const response = await fetch(
+    `${API_BASE_URL}/uploads/${encodeURIComponent(uploadRecordId)}/download`,
+    { headers: authorizationHeaders() },
+  );
+  if (!response.ok) {
+    throw await parseError(response);
+  }
+  return response.blob();
 }
 
 export async function cancelUpload(uploadId: string): Promise<void> {

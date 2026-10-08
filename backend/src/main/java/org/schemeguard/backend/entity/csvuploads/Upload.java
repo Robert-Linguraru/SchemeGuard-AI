@@ -37,6 +37,10 @@ public class Upload {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "source_id")
+    private TransactionSource source;
+
     @OneToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "session_id", nullable = false)
     private UploadSession session;
@@ -55,9 +59,24 @@ public class Upload {
     @Column(name = "was_evaluated", nullable = false)
     private boolean wasEvaluated = false;
 
+    @Column(name = "total_duration_ms")
+    private Long totalDurationMs;
+
     public Upload(User user, UploadSession session, byte[] document) {
         this.user = user;
         this.session = session;
+        this.document = document;
+    }
+
+    public Upload(
+            User user,
+            UploadSession session,
+            TransactionSource source,
+            byte[] document
+    ) {
+        this.user = user;
+        this.session = session;
+        this.source = source;
         this.document = document;
     }
 

@@ -4,9 +4,11 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
 import org.schemeguard.backend.config.UploadProperties;
+import org.schemeguard.backend.dto.csvuploads.UploadStatusResponse;
 import org.schemeguard.backend.entity.csvuploads.UploadPart;
 import org.schemeguard.backend.entity.csvuploads.UploadSession;
 import org.schemeguard.backend.entity.csvuploads.UploadStatus;
+import org.schemeguard.backend.service.csvuploads.csvUploadTimeLogger.UploadTimeLogger;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.AsyncResult;
 import org.springframework.stereotype.Service;
@@ -43,6 +45,7 @@ public class CsvImportService {
     private final UploadDocumentWriter documentWriter;
     private final UploadRepository uploadRepository;
     private final UploadProperties uploadProperties;
+    private final UploadTimeLogger uploadTimeLogger;
 
     public CsvImportService(
             UploadService uploadService,
@@ -50,7 +53,8 @@ public class CsvImportService {
             TransactionBatchWriter batchWriter,
             UploadDocumentWriter documentWriter,
             UploadRepository uploadRepository,
-            UploadProperties uploadProperties
+            UploadProperties uploadProperties,
+            UploadTimeLogger uploadTimeLogger
     ) {
         this.uploadService = uploadService;
         this.storageService = storageService;
@@ -58,12 +62,14 @@ public class CsvImportService {
         this.documentWriter = documentWriter;
         this.uploadRepository = uploadRepository;
         this.uploadProperties = uploadProperties;
+        this.uploadTimeLogger = uploadTimeLogger;
     }
 
     @Async("csvImportExecutor")
     public Future<Void> importAsync(UUID uploadId) {
         long processedRows = 0;
         UUID uploadRecordId = null;
+        boolean keepStagedRows = false;
         try {
             UploadSession session = uploadService.getSession(uploadId);
             if (session.getStatus() != UploadStatus.QUEUED) {
@@ -78,20 +84,42 @@ public class CsvImportService {
             uploadRecordId = uploadRepository
                     .findUploadIdBySessionId(uploadId)
                     .orElseThrow(() -> new IllegalStateException("Stored upload not found."));
-            String contentSha256 = documentWriter.write(
-                    uploadRecordId,
-                    parts,
-                    session.getExpectedFileSizeBytes(),
-                    session.getExpectedFileSha256()
-            );
+            long documentWriteStartedAtNanos = System.nanoTime();
+            try {
+                documentWriter.write(
+                        uploadRecordId,
+                        parts,
+                        session.getExpectedFileSizeBytes(),
+                        session.getExpectedFileSha256()
+                );
+            } finally {
+                uploadTimeLogger.recordDocumentPersistence(
+                        uploadId,
+                        System.nanoTime() - documentWriteStartedAtNanos
+                );
+            }
 
-            processedRows = importCsv(uploadId, uploadRecordId, parts);
-            uploadService.commitImportedTransactions(
+            UploadTimeLogger.CsvStageTimer csvStageTimer =
+                    uploadTimeLogger.newCsvStageTimer();
+            long csvProcessingStartedAtNanos = System.nanoTime();
+            try {
+                processedRows = importCsv(uploadId, uploadRecordId, parts, csvStageTimer);
+            } finally {
+                uploadTimeLogger.recordCsvProcessing(
+                        uploadId,
+                        System.nanoTime() - csvProcessingStartedAtNanos,
+                        csvStageTimer
+                );
+            }
+            UploadStatusResponse importResult = uploadService.commitImportedTransactions(
                     uploadId,
                     uploadRecordId,
-                    contentSha256,
-                    processedRows
+                    processedRows,
+                    false
             );
+            if (importResult.status() == UploadStatus.DUPLICATES_FOUND) {
+                keepStagedRows = true;
+            }
             try {
                 storageService.deleteUpload(uploadId);
             } catch (RuntimeException ignored) {
@@ -114,7 +142,7 @@ public class CsvImportService {
                     processedRows
             );
         } finally {
-            if (uploadRecordId != null) {
+            if (uploadRecordId != null && !keepStagedRows) {
                 try {
                     batchWriter.clearStagedRows(uploadRecordId);
                 } catch (RuntimeException ignored) {
@@ -128,7 +156,8 @@ public class CsvImportService {
     private long importCsv(
             UUID sessionId,
             UUID uploadRecordId,
-            List<UploadPart> parts
+            List<UploadPart> parts,
+            UploadTimeLogger.CsvStageTimer csvStageTimer
     ) throws IOException {
         CSVFormat format = CSVFormat.DEFAULT.builder()
                 .setHeader()
@@ -164,7 +193,10 @@ public class CsvImportService {
                 }
                 batch.add(TransactionRow.from(record, record.getRecordNumber() + 1));
                 if (batch.size() == batchSize) {
-                    batchWriter.stage(uploadRecordId, batch);
+                    uploadTimeLogger.measureStagingWrite(
+                            csvStageTimer,
+                            () -> batchWriter.stage(uploadRecordId, batch)
+                    );
                     processedRows += batch.size();
                     if (System.nanoTime() - lastProgressUpdateNanos >= progressUpdateIntervalNanos) {
                         if (uploadService.isCancellationRequested(sessionId)) {
@@ -178,7 +210,10 @@ public class CsvImportService {
                 }
             }
             if (!batch.isEmpty()) {
-                batchWriter.stage(uploadRecordId, batch);
+                uploadTimeLogger.measureStagingWrite(
+                        csvStageTimer,
+                        () -> batchWriter.stage(uploadRecordId, batch)
+                );
                 processedRows += batch.size();
             }
             if (uploadService.isCancellationRequested(sessionId)) {
