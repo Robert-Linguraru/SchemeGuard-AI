@@ -55,15 +55,19 @@ export function DashboardPage({
     const [outlierIds, setOutlierIds] = useState<Set<string>>(new Set());
     const [confirmedOutlierIds, setConfirmedOutlierIds] = useState<Set<string>>(new Set());
     const [isDetectingOutliers, setIsDetectingOutliers] = useState(false);
+    const [isQueuingDetection, setIsQueuingDetection] = useState(false);
     const [anomalyError, setAnomalyError] = useState<string | null>(null);
     const [anomalyMessage, setAnomalyMessage] = useState<string | null>(null);
     const [showTransactionFilters, setShowTransactionFilters] = useState(false);
+    const [currentPageTransactions, setCurrentPageTransactions] = useState<Transaction[]>([]);
+    const [isLoadingCurrentPageTransactions, setIsLoadingCurrentPageTransactions] = useState(true);
     const [expandedTransactionId, setExpandedTransactionId] = useState<string | null>(null);
     const [transactionDetails, setTransactionDetails] = useState<Record<string, TransactionExplanation>>({});
     const [detailErrors, setDetailErrors] = useState<Record<string, string>>({});
     const [loadingDetailId, setLoadingDetailId] = useState<string | null>(null);
     const detailRequest = useRef<AbortController | null>(null);
     const detailCache = useRef(new Map<string, TransactionExplanation>());
+    const detectionEpoch = useRef(0);
 
     const canEvaluate = selectedUploadImportStatus === "COMPLETED"
         && !selectedUploadWasEvaluated;
@@ -102,10 +106,13 @@ export function DashboardPage({
 
     useEffect(() => {
         let cancelled = false;
+        detectionEpoch.current += 1;
         setOutlierIds(new Set());
         setConfirmedOutlierIds(new Set());
         setAnomalyError(null);
         setAnomalyMessage(null);
+        setIsDetectingOutliers(false);
+        setIsQueuingDetection(false);
         if (!selectedUploadId) {
             return () => { cancelled = true; };
         }
@@ -122,6 +129,54 @@ export function DashboardPage({
             });
         return () => { cancelled = true; };
     }, [selectedUploadId]);
+
+    useEffect(() => {
+        if (!selectedUploadId) return;
+        let cancelled = false;
+        const epoch = detectionEpoch.current;
+        void getUploadAnomalyJob(selectedUploadId).then((job) => {
+            if (cancelled || epoch !== detectionEpoch.current) return;
+            setIsDetectingOutliers(job.status === "PENDING" || job.status === "RUNNING");
+            if (job.status === "FAILED") setAnomalyError(job.errorMessage ?? "Could not detect outliers.");
+        }).catch(() => {
+            // No job exists until anomaly detection is requested.
+        });
+        return () => { cancelled = true; };
+    }, [selectedUploadId]);
+
+    useEffect(() => {
+        if (!selectedUploadId || !isDetectingOutliers || isQueuingDetection) return;
+        let cancelled = false;
+        let timer: number | undefined;
+        const poll = async () => {
+            try {
+                const job = await getUploadAnomalyJob(selectedUploadId);
+                if (cancelled) return;
+                if (job.status === "COMPLETED") {
+                    const ids = await getUploadOutlierIds(selectedUploadId);
+                    if (cancelled) return;
+                    setOutlierIds(new Set(ids));
+                    setConfirmedOutlierIds(new Set());
+                    setIsDetectingOutliers(false);
+                    setTransactionReloadKey((key) => key + 1);
+                    setAnomalyMessage(ids.length === 0
+                        ? "Outlier detection completed. No outliers were found in this CSV."
+                        : `Outlier detection completed. ${ids.length} outlier${ids.length === 1 ? "" : "s"} found.`);
+                } else if (job.status === "FAILED") {
+                    setIsDetectingOutliers(false);
+                    setAnomalyError(job.errorMessage ?? "Could not detect outliers.");
+                } else {
+                    timer = window.setTimeout(() => void poll(), 1500);
+                }
+            } catch (error: unknown) {
+                if (cancelled) return;
+                setIsDetectingOutliers(false);
+                setAnomalyError(error instanceof Error ? error.message : "Could not retrieve detection results. Try again.");
+            }
+        };
+        void poll();
+        return () => { cancelled = true; window.clearTimeout(timer); };
+    }, [selectedUploadId, isDetectingOutliers, isQueuingDetection]);
 
     const runEvaluation = async () => {
         if (!selectedUploadId || !canEvaluate || isEvaluating) {
@@ -227,7 +282,8 @@ export function DashboardPage({
     };
 
     const handleTransactionResponse = useCallback(
-        (_response: EntityListResponse<Transaction>) => {
+        (response: EntityListResponse<Transaction>) => {
+            setCurrentPageTransactions(response.items);
             detailRequest.current?.abort();
             detailCache.current.clear();
             setExpandedTransactionId(null);
@@ -237,6 +293,13 @@ export function DashboardPage({
         },
         []
     );
+
+    const handleTransactionPageLoading = useCallback((isLoading: boolean) => {
+        setIsLoadingCurrentPageTransactions(isLoading);
+        if (isLoading) {
+            setCurrentPageTransactions([]);
+        }
+    }, []);
 
     const runOutlierDetection = async () => {
         if (!selectedUploadId || isDetectingOutliers) {
@@ -250,26 +313,31 @@ export function DashboardPage({
         }
 
         setIsDetectingOutliers(true);
+        setIsQueuingDetection(true);
+        const epoch = ++detectionEpoch.current;
         setAnomalyError(null);
         setAnomalyMessage(null);
         try {
             const result = await detectUploadOutliers(selectedUploadId);
-            setOutlierIds(new Set(result.outlierTransactionIds));
-            setConfirmedOutlierIds(new Set());
-            const count = result.outlierTransactionIds.length;
-            setAnomalyMessage(
-                count === 0
-                    ? "Outlier detection completed. No outliers were found in this CSV."
-                    : `Outlier detection completed. ${count} outlier${count === 1 ? "" : "s"} found.`
-            );
+            if (epoch !== detectionEpoch.current) return;
+            if (result.status === "FAILED") {
+                throw new Error(result.errorMessage ?? "Could not detect outliers.");
+            }
+            // The POST returns a job, including when cached results already exist.
+            // Polling retrieves IDs from the results endpoint after completion.
+            setAnomalyMessage(result.status === "COMPLETED"
+                ? "Loading detection results."
+                : "Outlier detection is queued. Results will appear when processing completes.");
         } catch (requestError: unknown) {
+            if (epoch !== detectionEpoch.current) return;
+            setIsDetectingOutliers(false);
             setAnomalyError(
                 requestError instanceof Error
                     ? requestError.message
                     : "Could not detect outliers"
             );
         } finally {
-            setIsDetectingOutliers(false);
+            if (epoch === detectionEpoch.current) setIsQueuingDetection(false);
         }
     };
 
@@ -439,6 +507,7 @@ export function DashboardPage({
                             columns={transactionColumns}
                             fetchData={fetchTransactions}
                             onResponse={handleTransactionResponse}
+                            onLoadingChange={handleTransactionPageLoading}
                             expandedItemId={expandedTransactionId}
                             onToggleExpanded={toggleTransactionDetails}
                             renderExpanded={(transaction) => {
@@ -543,6 +612,9 @@ export function DashboardPage({
                             {anomalyError}
                         </div>
                     )}
+                    {anomalyMessage && (
+                        <div className="success-box" role="status">{anomalyMessage}</div>
+                    )}
 
                     {anomalyMessage && (
                         <div className="success-box" role="status">
@@ -566,6 +638,8 @@ export function DashboardPage({
             <RecommendationAssistant
                 uploadId={selectedUploadId ?? null}
                 fileName={selectedUploadFileName}
+                transactions={currentPageTransactions}
+                isLoadingTransactions={isLoadingCurrentPageTransactions}
                 isOpen={isAssistantOpen}
                 onClose={onCloseAssistant}
             />

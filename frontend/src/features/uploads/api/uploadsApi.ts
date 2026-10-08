@@ -61,6 +61,28 @@ export const getUploads = (
         signal
     }).then(toEntityListResponse);
 
+export const getAllUploads = async (
+    signal?: AbortSignal
+): Promise<UploadSummary[]> => {
+    const uploads: UploadSummary[] = [];
+    let page = 0;
+    let totalPages = 1;
+
+    while (page < totalPages) {
+        const response = await getUploads({
+            page,
+            size: 100,
+            search: "",
+            sort: "uploadedAt,desc"
+        }, signal);
+        uploads.push(...response.items);
+        totalPages = response.totalPages;
+        page += 1;
+    }
+
+    return uploads;
+};
+
 export const getUploadTransactions = (
     uploadId: string,
     query: EntityListQuery,
@@ -201,10 +223,13 @@ export const detectUploadOutliers = (
         { method: "POST" }
     );
 
-export const getUploadAnomalyJob = (uploadId: string): Promise<AnomalyJobResponse> =>
+export const getUploadAnomalyJob = (
+    uploadId: string,
+    signal?: AbortSignal
+): Promise<AnomalyJobResponse> =>
     request<AnomalyJobResponse>(
         `/api/uploads/${encodeURIComponent(uploadId)}/anomalies/status`,
-        { method: "GET" }
+        { method: "GET", signal }
     );
 
 export const confirmUploadOutlier = (

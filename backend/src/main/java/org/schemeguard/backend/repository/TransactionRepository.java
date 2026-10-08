@@ -157,13 +157,37 @@ public interface TransactionRepository extends JpaRepository<Transaction, UUID> 
                    fc.interchange_rate AS interchangeRate
             FROM transactions t
             JOIN card_schemes cs ON cs.id = t.scheme_id
-            JOIN qualification_results qr ON qr.transaction_id = t.id
+            JOIN LATERAL (
+                SELECT q.* FROM qualification_results q
+                WHERE q.transaction_id = t.id AND q.active = TRUE
+                ORDER BY q.evaluated_at DESC, q.id DESC LIMIT 1
+            ) qr ON TRUE
             LEFT JOIN interchange_rules r ON r.id = qr.rule_id
             JOIN fee_calculations fc ON fc.qualification_result_id = qr.id
             WHERE t.upload_id = :uploadId
+              AND qr.active = TRUE AND fc.active = TRUE
             ORDER BY t.id, qr.evaluated_at DESC, qr.id DESC
             """, nativeQuery = true)
     List<MlTransactionProjection> findMlTransactionsForUpload(@Param("uploadId") UUID uploadId);
+
+    // Include current evaluated data so edits or a new evaluation invalidate cached results.
+    @Query(value = """
+            SELECT md5(COALESCE(string_agg(
+                md5(to_jsonb(t)::text || COALESCE(to_jsonb(qr)::text, '')
+                    || COALESCE(to_jsonb(fc)::text, '') || cs.code), '' ORDER BY t.id), ''))
+            FROM transactions t
+            JOIN card_schemes cs ON cs.id = t.scheme_id
+            LEFT JOIN LATERAL (
+                SELECT q.* FROM qualification_results q
+                WHERE q.transaction_id = t.id AND q.active = TRUE
+                ORDER BY q.evaluated_at DESC, q.id DESC LIMIT 1
+            ) qr ON TRUE
+            LEFT JOIN fee_calculations fc ON fc.qualification_result_id = qr.id AND fc.active = TRUE
+            WHERE t.upload_id = :uploadId
+            """, nativeQuery = true)
+    String anomalyInputFingerprint(@Param("uploadId") UUID uploadId);
+
+    long countByUpload_Id(UUID uploadId);
 
         boolean existsByIdAndUpload_Id(UUID transactionId, UUID uploadId);
 

@@ -31,9 +31,11 @@ interface EntityListProps<T> {
     emptyMessage?: string;
     toolbar?: (context: EntityListToolbarContext) => ReactNode;
     onResponse?: (response: EntityListResponse<T>) => void;
+    onLoadingChange?: (isLoading: boolean) => void;
     expandedItemId?: string | null;
     onToggleExpanded?: (item: T) => void;
     renderExpanded?: (item: T) => ReactNode;
+    rowClassName?: (item: T) => string | undefined;
     expandOnRowClick?: boolean;
     rowClassName?: (item: T) => string | undefined;
 }
@@ -59,11 +61,12 @@ export function EntityList<T>({
     emptyMessage = "No records found.",
     toolbar,
     onResponse,
+    onLoadingChange,
     expandedItemId = null,
     onToggleExpanded,
     renderExpanded,
-    expandOnRowClick = false,
-    rowClassName
+    rowClassName,
+    expandOnRowClick = false
 }: EntityListProps<T>) {
     const {
         query,
@@ -91,6 +94,10 @@ export function EntityList<T>({
             onResponse?.(response);
         }
     }, [onResponse, response]);
+
+    useEffect(() => {
+        onLoadingChange?.(isLoading);
+    }, [isLoading, onLoadingChange]);
 
     useEffect(() => {
         const timeout = window.setTimeout(() => {
@@ -313,7 +320,10 @@ export function EntityList<T>({
                                     return (
                                         <Fragment key={(item as { id?: string }).id || index}>
                                         <tr
-                                            className={dataRowClassName}
+                                            className={[
+                                                renderExpanded ? `entity-list-data-row${isExpanded ? " is-expanded" : ""}${expandOnRowClick ? " is-expandable" : ""}` : undefined,
+                                                rowClassName?.(item)
+                                            ].filter(Boolean).join(" ") || undefined}
                                             onClick={expandOnRowClick ? (event) => {
                                                 if ((event.target as HTMLElement).closest("button, a, input, select, textarea, label")) return;
                                                 toggleExpanded();

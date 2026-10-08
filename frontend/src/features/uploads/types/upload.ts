@@ -6,6 +6,7 @@ export type UploadImportStatus =
     | "QUEUED"
     | "PROCESSING"
     | "COMPLETED"
+    | "DUPLICATE"
     | "FAILED"
     | "CANCELLED"
     | (string & {});

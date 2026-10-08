@@ -161,7 +161,7 @@
 .entity-list-data-row.is-expandable:hover,
 .entity-list-data-row.is-expandable:focus-visible {
     outline: none;
-    background: #f4f9fa;
+    background: var(--surface-raised);
 }
 
 .entity-list-data-row.is-expandable:focus-visible {
@@ -169,7 +169,7 @@
 }
 
 .entity-list-data-row.is-expanded {
-    background: #f4f9fa;
+    background: var(--surface-raised);
 }
 
 .entity-list-expanded-row > td {

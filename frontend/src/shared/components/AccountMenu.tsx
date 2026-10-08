@@ -10,6 +10,13 @@ export function AccountMenu({ onEditProfile }: AccountMenuProps) {
     const { user, logout } = useAuth();
     const [isOpen, setIsOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
+    const hasPineappleAvatar = user?.email?.trim().toLowerCase() === "leo@gmail.com";
+    const hasFlowerAvatar = user?.fullName?.trim().toLowerCase().startsWith("f") ?? false;
+    const avatarClassName = hasPineappleAvatar
+        ? "account-avatar account-avatar--pineapple"
+        : hasFlowerAvatar
+            ? "account-avatar account-avatar--flower"
+            : "account-avatar";
 
     useEffect(() => {
         const closeMenu = (event: MouseEvent) => {
@@ -36,8 +43,17 @@ export function AccountMenu({ onEditProfile }: AccountMenuProps) {
                 aria-haspopup="menu"
                 onClick={() => setIsOpen((open) => !open)}
             >
-                <span className="account-avatar" aria-hidden="true">
-                    {(user?.fullName?.trim().charAt(0) || "A").toUpperCase()}
+                <span
+                    className={avatarClassName}
+                    aria-hidden="true"
+                >
+                    {hasPineappleAvatar ? (
+                        <img className="account-avatar-image" src="/pineapple-avatar.png" alt="" />
+                    ) : hasFlowerAvatar ? (
+                        <img className="account-avatar-image" src="/flower-avatar.svg" alt="" />
+                    ) : (
+                        (user?.fullName?.trim().charAt(0) || "A").toUpperCase()
+                    )}
                 </span>
                 <span>Account</span>
                 <span className="account-chevron" aria-hidden="true" />

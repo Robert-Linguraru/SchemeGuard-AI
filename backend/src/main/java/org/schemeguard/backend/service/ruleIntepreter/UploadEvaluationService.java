@@ -4,7 +4,7 @@ import org.schemeguard.backend.entity.User;
 import org.schemeguard.backend.entity.enums.TransactionStatus;
 import org.schemeguard.backend.exception.UploadException;
 import org.schemeguard.backend.repository.TransactionRepository;
-import org.schemeguard.backend.repository.UploadRepository;
+import org.schemeguard.backend.repository.csvuploads.UploadRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

@@ -431,6 +431,104 @@
 	padding: 14px 20px 18px;
 }
 
+.analysis-comparison-card {
+	margin-bottom: 16px;
+}
+
+.analysis-comparison-card .ant-card-body {
+	display: grid;
+	gap: 14px;
+}
+
+.analysis-comparison-controls {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+	align-items: end;
+	gap: 12px;
+}
+
+.analysis-comparison-controls label {
+	display: grid;
+	gap: 6px;
+	min-width: 0;
+	color: var(--muted);
+	font-size: 12px;
+}
+
+.analysis-comparison-controls .ant-select {
+	width: 100%;
+}
+
+.analysis-comparison-controls > .ant-btn {
+	min-height: 40px;
+}
+
+.analysis-comparison-error {
+	margin-bottom: 2px;
+}
+
+.analysis-comparison-loading {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	color: var(--muted);
+}
+
+.analysis-comparison-upload-labels {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 12px;
+}
+
+.analysis-comparison-upload-labels > div {
+	display: grid;
+	gap: 4px;
+	min-width: 0;
+}
+
+.analysis-comparison-upload-labels strong {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.analysis-comparison-upload-labels span,
+.analysis-comparison-note {
+	color: var(--muted);
+	font-size: 12px;
+}
+
+.analysis-comparison-table-wrap {
+	width: 100%;
+	overflow-x: auto;
+}
+
+.analysis-comparison-table {
+	min-width: 620px;
+	font-variant-numeric: tabular-nums;
+}
+
+.analysis-comparison-table th,
+.analysis-comparison-table td {
+	padding: 10px 12px;
+	text-align: right;
+}
+
+.analysis-comparison-table th:first-child,
+.analysis-comparison-table td:first-child {
+	text-align: left;
+}
+
+.analysis-comparison-table thead th {
+	color: var(--muted);
+	font-size: 11px;
+	text-transform: uppercase;
+}
+
+.analysis-comparison-note {
+	margin: 0;
+}
+
 .analysis-card {
 	border: 1px solid rgba(255, 255, 255, .12);
 	border-radius: 14px;
@@ -952,6 +1050,14 @@ tbody tr:hover {
 		grid-template-columns: 1fr;
 	}
 
+	.analysis-comparison-controls {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.analysis-comparison-controls > .ant-btn {
+		grid-column: 1 / -1;
+	}
+
 	.stats-grid {
 		grid-template-columns: repeat(2, 1fr);
 	}
@@ -987,6 +1093,11 @@ tbody tr:hover {
 
 	.analysis-filter-actions {
 		grid-column: span 1;
+	}
+
+	.analysis-comparison-controls,
+	.analysis-comparison-upload-labels {
+		grid-template-columns: 1fr;
 	}
 
 	.header-actions {
