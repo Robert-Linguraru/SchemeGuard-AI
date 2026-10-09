@@ -15,6 +15,13 @@ public interface RuleRepository extends CrudRepository<Rule, UUID> {
     boolean existsBySchemeIdAndRuleCodeAndVersion(UUID schemeId, String ruleCode, int version);
 
     @EntityGraph(attributePaths = "scheme")
+    java.util.Optional<Rule> findFirstByScheme_IdAndRuleCodeAndVersionLessThanOrderByVersionDesc(
+            UUID schemeId,
+            String ruleCode,
+            Integer version
+    );
+
+    @EntityGraph(attributePaths = "scheme")
     @Query("""
             SELECT r FROM Rule r WHERE r.scheme.id = :schemeId
             AND r.region = :region AND r.active = true

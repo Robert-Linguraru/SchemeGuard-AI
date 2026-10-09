@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { deleteRule, getRules } from "../api/rulesApi";
 import { getRuleErrorMessage } from "../api/ruleErrors";
 import type { RuleListResponse } from "../types/rule";
+import { FloatingBackground } from "../../../shared/components/FloatingBackground";
 import { App as AntdApp, Button } from "antd";
 import { DeleteOutlined, PlusOutlined, SearchOutlined } from "@ant-design/icons";
 
@@ -78,6 +79,7 @@ export function RulesPage({
 
     return (
         <main className="dashboard rules-page">
+            <FloatingBackground />
             <section className="content">
                 <div className="page-heading">
                     <div>

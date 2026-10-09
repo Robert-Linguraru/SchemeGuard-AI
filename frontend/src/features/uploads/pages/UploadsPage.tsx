@@ -10,6 +10,7 @@ import type { UploadSummary } from "../types/upload";
 import { ErrorMessage } from "../../../shared/components/ErrorMessage";
 import { EntityList } from "../../../shared/components/EntityList/EntityList";
 import type { EntityListColumn, EntityListQuery } from "../../../shared/types/list";
+import { UploadComparisonModal } from "../../transactions/components/UploadComparisonModal";
 import {
     App as AntdApp,
     Alert,
@@ -136,7 +137,7 @@ const createColumns = (
         key: "actions",
         label: "Actions",
         render: (upload) => (
-            <div className="entity-list-actions">
+                        <div className="entity-list-actions">
                 {upload.importStatus !== "DUPLICATE" && (
                     <Tooltip
                         title={downloadingUploadId === upload.id ? "Downloading original CSV..." : "Download CSV"}
@@ -155,6 +156,7 @@ const createColumns = (
                         </span>
                     </Tooltip>
                 )}
+
                 {upload.importStatus === "COMPLETED" && !upload.wasEvaluated && (
                     <Tooltip
                         title={evaluatingUploadId === upload.id ? "Evaluating upload..." : "Evaluate"}
@@ -173,10 +175,11 @@ const createColumns = (
                         </span>
                     </Tooltip>
                 )}
+
                 {upload.importStatus === "DUPLICATES_FOUND" && (
                     <Tooltip
                         title="Review duplicate transactions"
-                        color="#f05d53"
+                        color="#FF5640"
                         styles={{ container: { color: "#ffffff" } }}
                     >
                         <span className="entity-list-action-tooltip">
@@ -190,6 +193,7 @@ const createColumns = (
                         </span>
                     </Tooltip>
                 )}
+
                 <Tooltip
                     title={deletingUploadId === upload.id ? "Deleting document..." : "Delete document"}
                     color="var(--danger-button-bg)"
@@ -208,6 +212,7 @@ const createColumns = (
                         />
                     </span>
                 </Tooltip>
+
                 {upload.importStatus !== "DUPLICATES_FOUND" && (
                     <Tooltip
                         title="Open Details"
@@ -462,6 +467,7 @@ export function UploadsPage({
                     </div>
 
                     <div className="page-heading-actions">
+                        <UploadComparisonModal />
                         <CsvTransactionUploadModal
                             onCompleted={() => setReloadKey((currentKey) => currentKey + 1)}
                         />

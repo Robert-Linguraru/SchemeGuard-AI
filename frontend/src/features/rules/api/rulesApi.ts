@@ -3,6 +3,7 @@ import type {
     RuleCondition,
     RuleDetailsResponse,
     RuleFormValues,
+    RuleHistoryPage,
     RuleListResponse,
     RuleUploadRequest,
     RuleUploadResponse
@@ -61,4 +62,13 @@ export const deleteRule = (id: string): Promise<void> =>
         {
             method: "POST"
         }
+    );
+
+export const getRuleHistory = (
+    id: string,
+    page = 0,
+    size = 20
+): Promise<RuleHistoryPage> =>
+    request<RuleHistoryPage>(
+        `/api/rule/history?id=${encodeURIComponent(id)}&page=${page}&size=${size}`
     );
