@@ -10,10 +10,12 @@ import type { UploadSummary } from "../types/upload";
 import { ErrorMessage } from "../../../shared/components/ErrorMessage";
 import { EntityList } from "../../../shared/components/EntityList/EntityList";
 import type { EntityListColumn, EntityListQuery } from "../../../shared/types/list";
+import { UploadComparisonModal } from "../../transactions/components/UploadComparisonModal";
 import {
     App as AntdApp,
     Alert,
     Button,
+    Flex,
     Modal,
     Space,
     Tooltip,
@@ -135,7 +137,7 @@ const createColumns = (
         key: "actions",
         label: "Actions",
         render: (upload) => (
-            <div className="entity-list-actions">
+                        <div className="entity-list-actions">
                 {upload.importStatus !== "DUPLICATE" && (
                     <Tooltip
                         title={downloadingUploadId === upload.id ? "Downloading original CSV..." : "Download CSV"}
@@ -154,6 +156,7 @@ const createColumns = (
                         </span>
                     </Tooltip>
                 )}
+
                 {upload.importStatus === "COMPLETED" && !upload.wasEvaluated && (
                     <Tooltip
                         title={evaluatingUploadId === upload.id ? "Evaluating upload..." : "Evaluate"}
@@ -172,10 +175,11 @@ const createColumns = (
                         </span>
                     </Tooltip>
                 )}
+
                 {upload.importStatus === "DUPLICATES_FOUND" && (
                     <Tooltip
                         title="Review duplicate transactions"
-                        color="#f05d53"
+                        color="#FF5640"
                         styles={{ container: { color: "#ffffff" } }}
                     >
                         <span className="entity-list-action-tooltip">
@@ -189,9 +193,10 @@ const createColumns = (
                         </span>
                     </Tooltip>
                 )}
+
                 <Tooltip
                     title={deletingUploadId === upload.id ? "Deleting document..." : "Delete document"}
-                    color="#f05d53"
+                    color="var(--danger-button-bg)"
                     styles={{ container: { color: "#ffffff" } }}
                 >
                     <span className="entity-list-action-tooltip">
@@ -207,26 +212,29 @@ const createColumns = (
                         />
                     </span>
                 </Tooltip>
-                <Tooltip
-                    title="Open Details"
-                    color="#FF5640"
-                    styles={{ container: { color: "#ffffff" } }}
-                >
-                    <span className="entity-list-action-tooltip">
-                        <Button
-                            type="default"
-                            className="entity-list-action-button entity-list-action-icon-button"
-                            icon={<RightOutlined />}
-                            onClick={() => onOpenUpload(
-                                upload.id,
-                                upload.fileName,
-                                upload.importStatus,
-                                upload.wasEvaluated
-                            )}
-                            aria-label="Open upload details"
-                        />
-                    </span>
-                </Tooltip>
+
+                {upload.importStatus !== "DUPLICATES_FOUND" && (
+                    <Tooltip
+                        title="Open Details"
+                        color="#FF5640"
+                        styles={{ container: { color: "#ffffff" } }}
+                    >
+                        <span className="entity-list-action-tooltip">
+                            <Button
+                                type="default"
+                                className="entity-list-action-button entity-list-action-icon-button"
+                                icon={<RightOutlined />}
+                                onClick={() => onOpenUpload(
+                                    upload.id,
+                                    upload.fileName,
+                                    upload.importStatus,
+                                    upload.wasEvaluated
+                                )}
+                                aria-label="Open upload details"
+                            />
+                        </span>
+                    </Tooltip>
+                )}
             </div>
         )
     }
@@ -307,6 +315,7 @@ export function UploadsPage({
         deletingUploadId,
         (upload) => {
             modal.confirm({
+                className: "upload-delete-confirm",
                 title: `Delete ${upload.fileName}?`,
                 content: `This permanently deletes the document and all ${upload.transactionCount.toLocaleString()} associated transaction${upload.transactionCount === 1 ? "" : "s"}, including their analysis results. This cannot be undone.`,
                 okText: "Delete permanently",
@@ -458,6 +467,7 @@ export function UploadsPage({
                     </div>
 
                     <div className="page-heading-actions">
+                        <UploadComparisonModal />
                         <CsvTransactionUploadModal
                             onCompleted={() => setReloadKey((currentKey) => currentKey + 1)}
                         />
@@ -486,7 +496,7 @@ export function UploadsPage({
                     closable={!isResolvingDuplicates && !isDownloadingDuplicateReport}
                     mask={{ closable: !isResolvingDuplicates && !isDownloadingDuplicateReport }}
                     footer={(
-                        <Space>
+                        <Flex justify="space-between" align="center" gap={12} style={{ width: "100%" }}>
                             <Button
                                 danger
                                 icon={<WarningOutlined />}
@@ -504,7 +514,7 @@ export function UploadsPage({
                             >
                                 Continue without duplicates
                             </Button>
-                        </Space>
+                        </Flex>
                     )}
                 >
                     {reviewingUpload && (
@@ -516,6 +526,7 @@ export function UploadsPage({
                             action={(
                                 <Button
                                     size="small"
+                                    className="duplicate-download-button"
                                     icon={<DownloadOutlined />}
                                     onClick={() => void downloadDuplicateWorkbook()}
                                     loading={isDownloadingDuplicateReport}

@@ -10,7 +10,6 @@ import {
 } from "@ant-design/icons";
 import { Button, Card, DatePicker, Input, Modal, Progress, Select, Spin, Tooltip } from "antd";
 import { ErrorMessage } from "../../../shared/components/ErrorMessage";
-import { UploadComparisonPanel } from "../components/UploadComparisonPanel";
 import {
     getAnalytics,
     type AnalyticsFilters,
@@ -550,7 +549,7 @@ export function AnalysisDashboardPage({
                         </Tooltip>
                     </div>
                 </div>
-                {areFiltersOpen && <section id="analytics-filter-panel" className="analysis-filter-panel" aria-label="Dashboard filters">
+                <section className="analysis-filter-panel" aria-label="Dashboard filters">
                     <div className="analysis-filter-grid">
                         <div className="analysis-filter-field">
                             <span>From</span>
@@ -633,7 +632,7 @@ export function AnalysisDashboardPage({
                             </Button>
                         </div>
                     </div>
-                </section>}
+                </section>
                 {isLoading && <div className="analysis-loading" role="status" aria-live="polite"><Spin size="large" /><span>Loading analytics...</span></div>}
                 {error && <ErrorMessage title="Unable to load analytics" message={error} />}
                 {!isLoading && !error && !analytics && <p className="analysis-empty">Analytics request was cancelled. Apply filters to try again.</p>}

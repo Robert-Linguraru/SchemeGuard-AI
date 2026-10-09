@@ -646,3 +646,17 @@
         padding: 20px;
     }
 }
+.upload-delete-confirm .ant-modal-confirm-btns {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.upload-delete-confirm .ant-modal-confirm-btns > .ant-btn-default {
+    order: 0;
+}
+
+.upload-delete-confirm .ant-modal-confirm-btns > .ant-btn-dangerous {
+    order: 1;
+}

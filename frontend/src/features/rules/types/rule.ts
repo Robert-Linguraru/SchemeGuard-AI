@@ -70,3 +70,22 @@ export interface RuleDetailsResponse extends RuleListResponse {
     conditions: RuleConditions;
     createdAt: string;
 }
+
+export interface RuleHistoryEvent {
+    id: string;
+    action: "CREATED" | "VERSION_CREATED" | "DELETED" | string;
+    createdAt: string;
+    actorName: string;
+    actorEmail: string | null;
+    version: number | null;
+    oldValues: Record<string, unknown> | null;
+    newValues: Record<string, unknown> | null;
+}
+
+export interface RuleHistoryPage {
+    items: RuleHistoryEvent[];
+    page: number;
+    size: number;
+    totalElements: number;
+    totalPages: number;
+}

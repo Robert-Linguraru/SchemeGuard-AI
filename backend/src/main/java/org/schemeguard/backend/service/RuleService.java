@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.schemeguard.backend.dto.Rule.RuleRequestDto;
 import org.schemeguard.backend.entity.CardScheme;
 import org.schemeguard.backend.entity.Rule;
+import org.schemeguard.backend.entity.User;
 import org.schemeguard.backend.exception.ConflictException;
 import org.schemeguard.backend.exception.ResourceNotFoundException;
 import org.schemeguard.backend.repository.CardScheme.CardSchemeRepository;
@@ -19,8 +20,15 @@ public class RuleService {
 
     private final RuleRepository ruleRepository;
     private final CardSchemeRepository cardSchemeRepository;
+    private final RuleHistoryService ruleHistoryService;
 
+    @Transactional
     public Rule createRule(RuleRequestDto dto) {
+        return createRule(dto, null);
+    }
+
+    @Transactional
+    public Rule createRule(RuleRequestDto dto, User actor) {
         CardScheme scheme = cardSchemeRepository
                 .findById(dto.getSchemeId())
                 .filter(foundScheme -> Boolean.TRUE.equals(foundScheme.getActive()))
@@ -30,6 +38,11 @@ public class RuleService {
             dto.getSchemeId(), dto.getRuleCode(), dto.getVersion())) {
             throw new ConflictException("A rule with this code already exists.");
         }
+
+        Rule previousVersion = ruleRepository
+                .findFirstByScheme_IdAndRuleCodeAndVersionLessThanOrderByVersionDesc(
+                        dto.getSchemeId(), dto.getRuleCode(), dto.getVersion())
+                .orElse(null);
 
         Rule rule = new Rule();
 
@@ -52,7 +65,9 @@ public class RuleService {
         rule.setVersion(dto.getVersion());
         rule.setActive(dto.isActive());
 
-        return ruleRepository.save(rule);
+        Rule savedRule = ruleRepository.save(rule);
+        ruleHistoryService.recordCreated(savedRule, previousVersion, actor);
+        return savedRule;
     }
 
     @Transactional(readOnly = true)
@@ -68,10 +83,14 @@ public class RuleService {
 
     @Transactional
     public void deleteRule(UUID id) {
-        if (!ruleRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Rule not found");
-        }
+        deleteRule(id, null);
+    }
 
-        ruleRepository.deleteById(id);
+    @Transactional
+    public void deleteRule(UUID id, User actor) {
+        Rule rule = ruleRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Rule not found"));
+        ruleHistoryService.recordDeleted(rule, actor);
+        ruleRepository.delete(rule);
     }
 }

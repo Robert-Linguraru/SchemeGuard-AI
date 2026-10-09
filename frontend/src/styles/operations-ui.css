@@ -557,3 +557,43 @@ button.my-agent-transaction-button {
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
 }
+
+:root[data-theme="light"] .app-navbar {
+    border-right-color: var(--border);
+    background: #FFFFFF;
+    box-shadow: 5px 0 22px rgba(7, 24, 38, .08);
+}
+
+:root[data-theme="light"] .app-navbar-brand {
+    border-bottom-color: var(--border);
+    color: var(--text-primary);
+}
+
+:root[data-theme="light"] .app-navbar-actions {
+    border-top-color: var(--border);
+}
+
+:root[data-theme="light"] .app-navbar-link.ant-btn {
+    color: var(--text-muted);
+}
+
+:root[data-theme="light"] .app-navbar-link.ant-btn:hover,
+:root[data-theme="light"] .app-navbar-link.ant-btn[aria-current="page"] {
+    border-color: color-mix(in srgb, var(--coral) 35%, transparent);
+    background: color-mix(in srgb, var(--coral) 10%, #FFFFFF);
+    color: var(--text-primary);
+}
+
+:root[data-theme="light"] .account-button.ant-btn,
+:root[data-theme="light"] .theme-toggle-button.ant-btn {
+    border-color: var(--border);
+    background: var(--surface-card);
+    color: var(--text-primary);
+}
+
+@media (max-width: 700px) {
+    :root[data-theme="light"] .app-navbar {
+        border-right: 0;
+        border-bottom-color: var(--border);
+    }
+}

@@ -5,7 +5,6 @@ import org.schemeguard.backend.dto.TransactionResponse;
 import org.schemeguard.backend.dto.TransactionStatisticsResponse;
 import org.schemeguard.backend.entity.QualificationResult;
 import org.schemeguard.backend.entity.Transaction;
-import org.schemeguard.backend.entity.FeeCalculation;
 import org.schemeguard.backend.exception.UploadException;
 import org.schemeguard.backend.repository.QualificationResultRepository;
 import org.schemeguard.backend.repository.FeeCalculationRepository;
@@ -101,11 +100,12 @@ public class TransactionService {
                 .map(Transaction::getId)
                 .toList();
         Map<UUID, QualificationResult> qualifications = latestQualifications(transactionIds);
+        Map<UUID, BigDecimal> estimatedFees = estimatedFeesByQualification(qualifications);
         List<TransactionResponse> content = resultPage.getContent().stream()
                 .map(transaction -> toResponse(
                         transaction,
                         qualifications.get(transaction.getId()),
-                        feeFor(qualifications.get(transaction.getId()))
+                        estimatedFeeFor(qualifications.get(transaction.getId()), estimatedFees)
                 ))
                 .toList();
 
@@ -116,7 +116,7 @@ public class TransactionService {
                 resultPage.getTotalElements(),
                 resultPage.getTotalPages()
         );
-    }
+        }
 
     private Pageable transactionPageable(int requestedPage, int requestedSize, String requestedSort) {
         int page = Math.max(requestedPage, 0);
@@ -246,13 +246,31 @@ public class TransactionService {
         );
     }
 
-        private BigDecimal feeFor(QualificationResult qualification) {
-                if (qualification == null) {
-                        return null;
+        private Map<UUID, BigDecimal> estimatedFeesByQualification(
+                Map<UUID, QualificationResult> qualifications
+        ) {
+                if (qualifications.isEmpty()) {
+                        return Map.of();
                 }
 
-                return feeCalculationRepository.findByQualificationResultId(qualification.getId())
-                                .map(FeeCalculation::getTotalFee)
-                                .orElse(null);
+                List<UUID> qualificationIds = qualifications.values().stream()
+                        .map(QualificationResult::getId)
+                        .toList();
+                Map<UUID, BigDecimal> estimatedFees = new HashMap<>();
+                feeCalculationRepository.findByQualificationResultIdIn(qualificationIds)
+                        .forEach(fee -> estimatedFees.put(
+                                fee.getQualificationResult().getId(),
+                                fee.getTotalFee()
+                        ));
+                return estimatedFees;
+        }
+
+        private BigDecimal estimatedFeeFor(
+                QualificationResult qualification,
+                Map<UUID, BigDecimal> estimatedFees
+        ) {
+                return qualification == null
+                        ? null
+                        : estimatedFees.get(qualification.getId());
         }
 }

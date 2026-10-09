@@ -11,6 +11,7 @@ import {
 import { createCardSchemeActions, cardSchemeColumns } from "../config/cardSchemeListConfig";
 import { CardSchemeDialog } from "../components/CardSchemeDialog";
 import type { CardScheme } from "../types/cardScheme";
+import { FloatingBackground } from "../../../shared/components/FloatingBackground";
 import { App as AntdApp, Button } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 
@@ -112,6 +113,7 @@ export function CardSchemesPage() {
 
     return (
         <main className="dashboard card-scheme-page">
+            <FloatingBackground />
             <section className="content">
                 <div className="page-heading">
                     <div>

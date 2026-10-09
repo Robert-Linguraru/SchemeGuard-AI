@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../../../app/AuthProvider";
+import { RuleChangeHistory } from "../components/RuleChangeHistory";
 import { deleteRule, getRule } from "../api/rulesApi";
 import { getRuleErrorMessage } from "../api/ruleErrors";
 import type {
@@ -38,6 +39,7 @@ export function RuleDetailsPage({
     const isAdmin = user?.role?.toUpperCase() === "ADMIN";
     const [rule, setRule] = useState<RuleDetailsResponse | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [activeTab, setActiveTab] = useState<"overview" | "history">("overview");
 
     useEffect(() => {
         getRule(ruleId)
@@ -119,6 +121,32 @@ export function RuleDetailsPage({
                             </span>
                         </div>
 
+                        <div className="rule-detail-tabs" role="tablist" aria-label="Rule details">
+                            <button
+                                type="button"
+                                id="rule-overview-tab"
+                                role="tab"
+                                aria-controls="rule-overview-panel"
+                                aria-selected={activeTab === "overview"}
+                                className={activeTab === "overview" ? "active" : ""}
+                                onClick={() => setActiveTab("overview")}
+                            >
+                                Overview
+                            </button>
+                            <button
+                                type="button"
+                                id="rule-history-tab"
+                                role="tab"
+                                aria-controls="rule-history-panel"
+                                aria-selected={activeTab === "history"}
+                                className={activeTab === "history" ? "active" : ""}
+                                onClick={() => setActiveTab("history")}
+                            >
+                                Change history
+                            </button>
+                        </div>
+
+                        {activeTab === "overview" ? <div id="rule-overview-panel" aria-labelledby="rule-overview-tab" role="tabpanel" className="rule-detail-tab-panel">
                         <section className="detail-section">
                             <h3>Rule information</h3>
 
@@ -221,6 +249,9 @@ export function RuleDetailsPage({
                                 </Button>
                             </div>
                         )}
+                        </div> : <div id="rule-history-panel" aria-labelledby="rule-history-tab" role="tabpanel" className="rule-detail-tab-panel">
+                            <RuleChangeHistory ruleId={ruleId} />
+                        </div>}
                     </article>
                 )}
             </section>

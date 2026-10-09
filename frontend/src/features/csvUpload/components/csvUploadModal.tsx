@@ -7,7 +7,6 @@ import {
   Flex,
   Modal,
   notification as antdNotification,
-  Progress,
   Space,
   Spin,
   Typography,
@@ -91,6 +90,7 @@ export default function CsvTransactionUploadModal({
   const abortController = useRef<AbortController | null>(null);
   const requiresDecision = pendingDuplicates !== null;
   const busy = isUploading || isResolvingDuplicates || requiresDecision;
+  const canCloseModal = !isUploading && !isResolvingDuplicates;
 
   const resetForm = () => {
     setFile(null);
@@ -134,11 +134,13 @@ export default function CsvTransactionUploadModal({
   };
 
   const closeModal = () => {
-    if (busy) {
+    if (!canCloseModal) {
       return;
     }
     setIsOpen(false);
-    resetForm();
+    if (!requiresDecision) {
+      resetForm();
+    }
   };
 
   const selectFile: UploadProps["beforeUpload"] = (candidate) => {
@@ -379,10 +381,16 @@ export default function CsvTransactionUploadModal({
     : 0;
   const isProcessing = progress?.phase === "processing";
   const isCompleted = progress?.phase === "completed";
-  const progressStatus = isCompleted ? "success" : "active";
   const currentStep = isCompleted ? 3 : isProcessing || requiresDecision ? 2 : isUploading ? 1 : 0;
   const canStartImport = Boolean(file && sourceName.trim()) && !busy;
   const importStages = ["Select file", "Upload", "Processing", "Complete"];
+  const footerMessage = isCompleted
+    ? "The original CSV is available to download."
+    : isProcessing
+      ? "Validating rows and checking for existing transactions."
+      : isUploading
+        ? "The file is being uploaded in parts."
+        : null;
 
   return (
     <>
@@ -404,7 +412,7 @@ export default function CsvTransactionUploadModal({
         width={640}
         title={(
           <Space align="start" size={12}>
-            <CloudUploadOutlined style={{ color: "var(--status-evaluated-text)", fontSize: 24 }} />
+            <CloudUploadOutlined className="csv-upload-title-icon" style={{ fontSize: 24 }} />
             <div>
               <Typography.Title level={4} style={{ margin: 0 }}>
                 {isCompleted
@@ -413,56 +421,48 @@ export default function CsvTransactionUploadModal({
                     ? "Review duplicate transactions"
                     : "Import transactions"}
               </Typography.Title>
-              <Typography.Text type="secondary">
-                {isCompleted
-                  ? "Your transactions are ready. You can download the original CSV."
-                  : requiresDecision
-                    ? "Choose whether to import the remaining transactions."
-                    : "Upload a CSV file and monitor the import in real time."}
-              </Typography.Text>
+              {(isCompleted || requiresDecision) && (
+                <Typography.Text type="secondary">
+                  {isCompleted
+                    ? "Your transactions are ready. You can download the original CSV."
+                    : "Choose whether to import the remaining transactions."}
+                </Typography.Text>
+              )}
             </div>
           </Space>
         )}
         onCancel={closeModal}
-        closable={!busy}
-        mask={{ closable: !busy }}
-        keyboard={!busy}
-        footer={(
-          <Flex justify="space-between" align="center" gap={12} wrap="wrap">
-            <Typography.Text type="secondary">
-              {requiresDecision
-                ? "Duplicate transactions will be skipped if you continue."
-                : isCompleted
-                  ? "The original CSV is available to download."
-                  : isProcessing
-                    ? "Validating rows and checking for existing transactions."
-                    : isUploading
-                      ? "The file is being uploaded in parts."
-                      : "CSV files only"}
-            </Typography.Text>
+        closable={canCloseModal}
+        mask={{ closable: canCloseModal }}
+        keyboard={canCloseModal}
+        footer={requiresDecision ? (
+          <Flex className="csv-upload-duplicate-footer" justify="space-between" align="center" gap={12} wrap="wrap">
+            <Button
+              danger
+              icon={<StopOutlined />}
+              onClick={() => void cancelDuplicateReview()}
+              loading={isResolvingDuplicates}
+              disabled={isDownloadingDuplicates}
+            >
+              Cancel import
+            </Button>
+            <Button
+              type="primary"
+              icon={<CloudUploadOutlined />}
+              onClick={() => void confirmImportWithoutDuplicates()}
+              loading={isResolvingDuplicates}
+              disabled={isDownloadingDuplicates}
+            >
+              Continue without duplicates
+            </Button>
+          </Flex>
+        ) : (
+          <Flex justify={footerMessage ? "space-between" : "flex-end"} align="center" gap={12} wrap="wrap">
+            {footerMessage && (
+              <Typography.Text type="secondary">{footerMessage}</Typography.Text>
+            )}
             <Space wrap>
-              {requiresDecision ? (
-                <>
-                  <Button
-                    danger
-                    icon={<StopOutlined />}
-                    onClick={() => void cancelDuplicateReview()}
-                    loading={isResolvingDuplicates}
-                    disabled={isDownloadingDuplicates}
-                  >
-                    Cancel import
-                  </Button>
-                  <Button
-                    type="primary"
-                    icon={<CloudUploadOutlined />}
-                    onClick={() => void confirmImportWithoutDuplicates()}
-                    loading={isResolvingDuplicates}
-                    disabled={isDownloadingDuplicates}
-                  >
-                    Continue without duplicates
-                  </Button>
-                </>
-              ) : isUploading ? (
+              {isUploading ? (
                 <Button danger icon={<StopOutlined />} onClick={cancelUploadInProgress}>
                   {isProcessing ? "Cancel import" : "Cancel upload"}
                 </Button>
@@ -486,20 +486,25 @@ export default function CsvTransactionUploadModal({
         )}
       >
         <Space direction="vertical" size={18} style={{ width: "100%" }}>
-          <Flex gap={8} role="list" aria-label="Import status">
+          <Flex gap={8} role="list" aria-label="Import status" style={{ marginTop: 6 }}>
             {importStages.map((stage, index) => {
               const isActiveStage = currentStep === index;
               const isFinishedStage = currentStep > index;
-              const stageColor = isActiveStage
-                ? "var(--coral)"
-                : isFinishedStage
-                  ? "var(--status-evaluated-text)"
-                  : "var(--border)";
-              const textColor = isActiveStage
-                ? "var(--text-primary)"
-                : isFinishedStage
-                  ? "var(--status-evaluated-text)"
-                  : "var(--text-muted)";
+              const isCompleteStage = isCompleted && index === importStages.length - 1;
+              const stageColor = isCompleteStage
+                ? "var(--status-evaluated-text)"
+                : isActiveStage
+                  ? "var(--coral)"
+                  : isFinishedStage
+                    ? "var(--status-evaluated-text)"
+                    : "var(--border)";
+              const textColor = isCompleteStage
+                ? "var(--status-evaluated-text)"
+                : isActiveStage
+                  ? "var(--text-primary)"
+                  : isFinishedStage
+                    ? "var(--status-evaluated-text)"
+                    : "var(--text-muted)";
 
               return (
                 <div
@@ -551,6 +556,9 @@ export default function CsvTransactionUploadModal({
 
           {!requiresDecision && !progress && (
             <div>
+              <Typography.Text className="csv-upload-file-note" type="secondary">
+                CSV files only
+              </Typography.Text>
               <Typography.Text strong>Bank / transaction source</Typography.Text>
               <AutoComplete
                 value={sourceName}
@@ -563,8 +571,8 @@ export default function CsvTransactionUploadModal({
                 disabled={busy || isCompleted}
                 style={{ width: "100%", marginTop: 8 }}
               />
-              <Typography.Text type="secondary">
-                Sources are shared between users. Names are matched without case or extra-space differences.
+              <Typography.Text className="csv-upload-sources-note" type="secondary">
+                Sources are shared between users.
               </Typography.Text>
               {sourceLoadError && (
                 <div>
@@ -575,9 +583,9 @@ export default function CsvTransactionUploadModal({
           )}
 
           {file && (
-            <Card size="small">
+            <Card size="small" className="csv-upload-selected-file">
               <Flex align="center" gap={12}>
-                <FileTextOutlined style={{ color: "var(--status-evaluated-text)", fontSize: 22 }} />
+                <FileTextOutlined style={{ color: "var(--coral)", fontSize: 22 }} />
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <Typography.Text strong ellipsis={{ tooltip: file.name }}>
                     {file.name}
@@ -629,6 +637,7 @@ export default function CsvTransactionUploadModal({
               action={(
                 <Button
                   size="small"
+                  className="duplicate-download-button"
                   icon={<DownloadOutlined />}
                   onClick={() => void downloadDuplicates()}
                   loading={isDownloadingDuplicates}
@@ -660,19 +669,21 @@ export default function CsvTransactionUploadModal({
                     {isCompleted ? "Completed" : "In progress"}
                   </Typography.Text>
                 </Flex>
-                {isProcessing ? (
-                  <div
-                    className="csv-upload-processing-track"
-                    role="progressbar"
-                    aria-label="Transaction processing is in progress"
-                  />
-                ) : (
-                  <Progress
-                    percent={isCompleted ? 100 : uploadPercent}
-                    status={progressStatus}
-                    showInfo={false}
-                  />
-                )}
+                <div
+                  className={`csv-upload-progress-track${isProcessing ? " is-indeterminate" : ""}`}
+                  role="progressbar"
+                  aria-label={isProcessing ? "Transaction processing is in progress" : "File upload progress"}
+                  aria-valuemin={isProcessing ? undefined : 0}
+                  aria-valuemax={isProcessing ? undefined : 100}
+                  aria-valuenow={isProcessing ? undefined : isCompleted ? 100 : uploadPercent}
+                >
+                  {!isProcessing && (
+                    <div
+                      className="csv-upload-progress-fill"
+                      style={{ width: `${isCompleted ? 100 : uploadPercent}%` }}
+                    />
+                  )}
+                </div>
                 <Flex justify="space-between" align="center" gap={12}>
                   <Typography.Text
                     type="secondary"
