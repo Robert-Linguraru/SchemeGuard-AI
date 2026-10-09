@@ -16,6 +16,7 @@ const suggestions = [
 
 interface AgentMessage extends AgentTurn {
     invalid?: boolean;
+    createdAt?: number;
 }
 
 interface SelectedTransaction {
@@ -58,18 +59,12 @@ const clampWidth = (value: number, minimum: number, maximum: number) =>
     Math.min(maximum, Math.max(minimum, value));
 const HISTORY_COLLAPSE_THRESHOLD = 240;
 
-const createConversation = (context?: AgentOpenContext): AgentConversation => ({
+const createConversation = (): AgentConversation => ({
     id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
     title: "New chat",
     messages: [],
-    uploadId: context?.uploadId ?? null,
-    selectedTransactions: context
-        ? [{
-            id: context.transaction.id,
-            externalId: context.transaction.externalId,
-            qualificationStatus: context.transaction.qualificationStatus,
-        }]
-        : [],
+    uploadId: null,
+    selectedTransactions: [],
     updatedAt: Date.now(),
 });
 
@@ -102,11 +97,13 @@ const qualificationBadge = (status: string) => status.toUpperCase() === "QUALIFI
 
 export function MyAgentPage({
     userId,
+    userName,
     initialContext,
     onInitialContextConsumed,
     onReturn,
 }: {
     userId: string;
+    userName: string;
     initialContext: AgentOpenContext | null;
     onInitialContextConsumed: () => void;
     onReturn: () => void;
@@ -225,12 +222,23 @@ export function MyAgentPage({
     useEffect(() => {
         if (!initialContext || consumedContextId.current === initialContext.requestId) return;
         consumedContextId.current = initialContext.requestId;
-        const newChat = createConversation(initialContext);
         setChatState((current) => ({
-            conversations: [newChat, ...current.conversations],
-            activeId: newChat.id,
+            ...current,
+            conversations: current.conversations.map((conversation) => conversation.id === current.activeId
+                ? {
+                    ...conversation,
+                    uploadId: initialContext.uploadId,
+                    selectedTransactions: [{
+                        id: initialContext.transaction.id,
+                        externalId: initialContext.transaction.externalId,
+                        qualificationStatus: initialContext.transaction.qualificationStatus,
+                    }],
+                    updatedAt: Date.now(),
+                }
+                : conversation),
         }));
         setTransactionPage(0);
+        setTransactionSearch("");
         setPrompt("");
         setRequestError(null);
         onInitialContextConsumed();
@@ -395,7 +403,7 @@ export function MyAgentPage({
         updateConversation(conversationId, (conversation) => ({
             ...conversation,
             title: conversation.title === "New investigation" || conversation.title === "New chat" ? question.slice(0, 42) : conversation.title,
-            messages: [...conversation.messages, { role: "user", content: question }],
+            messages: [...conversation.messages, { role: "user", content: question, createdAt: Date.now() }],
         }));
         setPrompt("");
         setRequestError(null);
@@ -412,6 +420,7 @@ export function MyAgentPage({
                 role: "assistant",
                 content: response.message,
                 invalid: !response.validQuestion,
+                createdAt: Date.now(),
             };
             const messageIndex = activeConversation.messages.length + 1;
             updateConversation(conversationId, (conversation) => {
@@ -429,6 +438,7 @@ export function MyAgentPage({
                 messages: [...conversation.messages, {
                     role: "assistant",
                     content: "I’m having trouble analyzing that context right now. Please try again in a moment.",
+                    createdAt: Date.now(),
                 }],
             }));
             setRequestError(null);
@@ -500,8 +510,10 @@ export function MyAgentPage({
                 <section className="my-agent-main">
                     <section className="my-agent-chat" aria-label="Chat">
                         {activeConversation?.messages.length === 0 ? (
-                            <div className="my-agent-empty">
-                                <h2>What would you like to know?</h2>
+                            <div className="my-agent-messages my-agent-empty" key={activeConversation.id} aria-label="Conversation">
+                                <div className="my-agent-welcome">
+                                    <h1>Hello {userName}, what can I help you with today?</h1>
+                                </div>
                                 <SuggestionButtons onChoose={chooseSuggestion} />
                             </div>
                         ) : (
@@ -514,19 +526,28 @@ export function MyAgentPage({
                                         : message.content;
                                     return (
                                         <article className={`my-agent-message ${message.role}`} key={`${activeConversation.id}-${index}`}>
-                                            <p>{visibleContent}{isStreaming && <span className="my-agent-typing-caret" aria-hidden="true" />}</p>
-                                            {message.role === "assistant" && message.invalid && (
-                                                <div className="my-agent-invalid-options">
-                                                    <span>Try one of these questions</span>
-                                                    <SuggestionButtons onChoose={chooseSuggestion} />
-                                                </div>
-                                            )}
+                                            <span className="my-agent-message-author">{message.role === "user" ? "You" : "ValiBOT"}</span>
+                                            <div className="my-agent-message-bubble">
+                                                <p>{visibleContent}{isStreaming && <span className="my-agent-typing-caret" aria-hidden="true" />}</p>
+                                                {message.createdAt && <time className="my-agent-message-time" dateTime={new Date(message.createdAt).toISOString()}>
+                                                    {new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                                </time>}
+                                                {message.role === "assistant" && message.invalid && (
+                                                    <div className="my-agent-invalid-options">
+                                                        <span>Try one of these questions</span>
+                                                        <SuggestionButtons onChoose={chooseSuggestion} />
+                                                    </div>
+                                                )}
+                                            </div>
                                         </article>
                                     );
                                 })}
                                 {sendingConversationId === activeConversation?.id && (
                                     <article className="my-agent-message assistant my-agent-thinking">
-                                        <p>Looking through your context<span>…</span></p>
+                                        <span className="my-agent-message-author">ValiBOT</span>
+                                        <div className="my-agent-message-bubble">
+                                            <p>Looking through your context<span>…</span></p>
+                                        </div>
                                     </article>
                                 )}
                                 <div ref={endRef} />
