@@ -32,6 +32,7 @@ public class UploadDocumentWriter {
                 FROM uploads candidate
                 JOIN uploads existing
                   ON existing.user_id = candidate.user_id
+                 AND existing.source_id = candidate.source_id
                 WHERE candidate.id = ?
                   AND existing.id <> candidate.id
                   AND existing.content_sha256 = ?
