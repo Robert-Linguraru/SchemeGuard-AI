@@ -1,4 +1,5 @@
 export type View =
+    | "home-dashboard"
     | "dashboard"
     | "analysis-dashboard"
     | "rules"

@@ -6,6 +6,7 @@ import { AnalysisDashboardPage } from "../features/transactions/pages/AnalysisDa
 import { ProfilePage } from "../features/auth/pages/ProfilePage";
 import { CardSchemesPage } from "../features/cardSchemes/pages/CardSchemesPage";
 import { UploadsPage } from "../features/uploads/pages/UploadsPage";
+import { HomeDashboardPage } from "../features/transactions/pages/HomeDashboardPage";
 import { MyAgentPage } from "../features/agent/pages/MyAgentPage";
 import type { View } from "../shared/types/navigation";
 import type { AgentOpenContext, AgentTransactionContext } from "../shared/types/agent";
@@ -72,6 +73,9 @@ export function AppRouter({
                     selectedUploadId={selectedUploadId}
                 />
             );
+
+        case "home-dashboard":
+            return <HomeDashboardPage userName={agentUserName} onNavigate={onNavigate} onOpenUpload={onOpenUpload} />;
 
         case "upload":
             return (

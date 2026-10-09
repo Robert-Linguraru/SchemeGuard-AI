@@ -40,7 +40,11 @@ function RootRoute() {
         return <LoadingState message="Restoring your session..." />;
     }
 
-    return <Navigate to={user ? "/uploads" : "/login"} replace />;
+    return <Navigate to={user ? "/dashboard" : "/login"} replace />;
+}
+
+function HomeDashboardRoute() {
+    return <ProtectedRoute><App routeView="home-dashboard" /></ProtectedRoute>;
 }
 
 function UploadRoute() {
@@ -48,7 +52,7 @@ function UploadRoute() {
 
     return (
         <ProtectedRoute>
-            <App routeUploadId={uploadId ?? null} />
+            <App routeUploadId={uploadId ?? null} routeView={uploadId ? null : "dashboard"} />
         </ProtectedRoute>
     );
 }
@@ -120,6 +124,7 @@ export function AppRoutes() {
     return (
         <Routes>
             <Route path="/" element={<RootRoute />} />
+            <Route path="/dashboard" element={<HomeDashboardRoute />} />
             <Route path="/login" element={<PublicAuthRoute mode="login" />} />
             <Route path="/register" element={<PublicAuthRoute mode="register" />} />
             <Route path="/uploads" element={<UploadRoute />} />
