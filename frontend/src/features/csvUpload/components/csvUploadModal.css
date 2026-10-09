@@ -19,7 +19,15 @@
 
 .csv-upload-file-note {
   display: block;
+  position: relative;
+  top: -8px;
   margin-bottom: 6px;
+}
+
+.csv-upload-sources-note {
+  display: block;
+  font-size: 12px;
+  padding-left: 1%;
 }
 
 .csv-upload-selected-file.ant-card {

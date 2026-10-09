@@ -208,26 +208,28 @@ const createColumns = (
                         />
                     </span>
                 </Tooltip>
-                <Tooltip
-                    title="Open Details"
-                    color="#FF5640"
-                    styles={{ container: { color: "#ffffff" } }}
-                >
-                    <span className="entity-list-action-tooltip">
-                        <Button
-                            type="default"
-                            className="entity-list-action-button entity-list-action-icon-button"
-                            icon={<RightOutlined />}
-                            onClick={() => onOpenUpload(
-                                upload.id,
-                                upload.fileName,
-                                upload.importStatus,
-                                upload.wasEvaluated
-                            )}
-                            aria-label="Open upload details"
-                        />
-                    </span>
-                </Tooltip>
+                {upload.importStatus !== "DUPLICATES_FOUND" && (
+                    <Tooltip
+                        title="Open Details"
+                        color="#FF5640"
+                        styles={{ container: { color: "#ffffff" } }}
+                    >
+                        <span className="entity-list-action-tooltip">
+                            <Button
+                                type="default"
+                                className="entity-list-action-button entity-list-action-icon-button"
+                                icon={<RightOutlined />}
+                                onClick={() => onOpenUpload(
+                                    upload.id,
+                                    upload.fileName,
+                                    upload.importStatus,
+                                    upload.wasEvaluated
+                                )}
+                                aria-label="Open upload details"
+                            />
+                        </span>
+                    </Tooltip>
+                )}
             </div>
         )
     }
