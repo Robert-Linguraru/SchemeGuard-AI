@@ -4,6 +4,9 @@ interface TransactionDetailsProps {
     details?: TransactionExplanation;
     currency?: string;
     onViewRule?: (ruleId: string) => void;
+    transactionId?: string;
+    externalId?: string;
+    onAskAgent?: () => void;
     unevaluated?: boolean;
 }
 
@@ -13,12 +16,23 @@ const formatFee = (value: number | string | null, currency: string) =>
 const formatRate = (value: number | string | null) =>
     value === null || value === undefined ? "Not available" : `${value}`;
 
-export function TransactionDetails({ details, currency = "", onViewRule, unevaluated = false }: TransactionDetailsProps) {
+export function TransactionDetails({
+    details,
+    currency = "",
+    onViewRule,
+    transactionId,
+    externalId,
+    onAskAgent,
+    unevaluated = false
+}: TransactionDetailsProps) {
     if (unevaluated) {
         return (
             <div className="transaction-details transaction-details-empty-state">
                 <h3>This transaction has not been evaluated yet.</h3>
                 <p>Evaluate the CSV to see qualification details.</p>
+                {onAskAgent && <button type="button" className="secondary-button my-agent-transaction-button" onClick={onAskAgent}>
+                    Ask MY AGENT about {externalId || transactionId || "this transaction"}
+                </button>}
             </div>
         );
     }
@@ -60,6 +74,10 @@ export function TransactionDetails({ details, currency = "", onViewRule, unevalu
                     <p>No rule was applied.</p>
                 )}
             </section>
+
+            {onAskAgent && <button type="button" className="secondary-button my-agent-transaction-button" onClick={onAskAgent}>
+                Ask MY AGENT about {externalId || transactionId || "this transaction"}
+            </button>}
 
             {hasPassed && (
                 <section className="transaction-details-section">

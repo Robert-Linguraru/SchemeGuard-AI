@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes, useLocation, useParams } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation, useParams, useSearchParams } from "react-router-dom";
 import type { ReactNode } from "react";
 import { useAuth } from "./AuthProvider";
 import { App } from "./App";
@@ -53,14 +53,16 @@ function UploadRoute() {
     );
 }
 
-function AssistantRoute() {
-    const { uploadId } = useParams<{ uploadId: string }>();
+function AgentRoute() {
+    const [searchParams] = useSearchParams();
 
     return (
         <ProtectedRoute>
             <App
-                routeAssistantOpen
-                routeUploadId={uploadId ?? null}
+                routeView="my-agent"
+                routeAgentUploadId={searchParams.get("uploadId")}
+                routeAgentTransactionId={searchParams.get("transactionId")}
+                routeAgentReturnPath={searchParams.get("returnTo")}
             />
         </ProtectedRoute>
     );
@@ -121,7 +123,7 @@ export function AppRoutes() {
             <Route path="/login" element={<PublicAuthRoute mode="login" />} />
             <Route path="/register" element={<PublicAuthRoute mode="register" />} />
             <Route path="/uploads" element={<UploadRoute />} />
-            <Route path="/uploads/:uploadId/assistant" element={<AssistantRoute />} />
+            <Route path="/assistant" element={<AgentRoute />} />
             <Route path="/uploads/:uploadId" element={<UploadRoute />} />
             <Route path="/analytics" element={<AnalyticsRoute />} />
             <Route path="/card-schemes" element={<CardSchemesRoute />} />

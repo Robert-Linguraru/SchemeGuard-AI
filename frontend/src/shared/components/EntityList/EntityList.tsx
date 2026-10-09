@@ -37,7 +37,6 @@ interface EntityListProps<T> {
     renderExpanded?: (item: T) => ReactNode;
     rowClassName?: (item: T) => string | undefined;
     expandOnRowClick?: boolean;
-    rowClassName?: (item: T) => string | undefined;
 }
 
 const getSortState = (sort: string) => {

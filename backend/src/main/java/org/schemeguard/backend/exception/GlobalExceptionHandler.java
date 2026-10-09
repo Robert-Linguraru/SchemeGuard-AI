@@ -48,6 +48,18 @@ public class GlobalExceptionHandler {
                     ));
         }
 
+        if ("Upload not found".equals(exceptionMessage)) {
+            return ResponseEntity
+                    .status(HttpStatus.NOT_FOUND)
+                    .body(new ApiError(
+                            HttpStatus.NOT_FOUND.value(),
+                            "Upload could not be found.",
+                            OffsetDateTime.now(),
+                            "UPLOAD_NOT_FOUND",
+                            null
+                    ));
+        }
+
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
                 .body(new ApiError(

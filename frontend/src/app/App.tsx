@@ -7,19 +7,30 @@ import NavBar from "../shared/components/NavBar";
 import { AppRouter } from "./AppRouter";
 import { useTheme } from "./ThemeProvider";
 import type { View } from "../shared/types/navigation";
+import type { AgentOpenContext, AgentTransactionContext } from "../shared/types/agent";
+import type { UploadSummary } from "../features/uploads/types/upload";
+import type { Transaction } from "../shared/types/transaction";
+import { getUploadTransactions } from "../features/uploads/api/uploadsApi";
+
+const safeReturnPath = (path: string | null | undefined): string =>
+    path && path.startsWith("/") && !path.startsWith("//") ? path : "/uploads";
 
 function AuthenticatedApp({
     routeUploadId,
     routeView,
     routeRuleId,
     routeCreationNotice,
-    routeAssistantOpen = false
+    routeAgentUploadId,
+    routeAgentTransactionId,
+    routeAgentReturnPath
 }: {
     routeUploadId: string | null;
     routeView: View | null;
     routeRuleId: string | null;
     routeCreationNotice: string | null;
-    routeAssistantOpen?: boolean;
+    routeAgentUploadId: string | null;
+    routeAgentTransactionId: string | null;
+    routeAgentReturnPath: string | null;
 }) {
     const { user } = useAuth();
     const { theme, toggleTheme } = useTheme();
@@ -41,54 +52,94 @@ function AuthenticatedApp({
     const [selectedUploadWasEvaluated, setSelectedUploadWasEvaluated] =
         useState(false);
     const [ruleCreationNotice, setRuleCreationNotice] = useState<string | null>(routeCreationNotice);
-    const [isAssistantOpen, setIsAssistantOpen] = useState(routeAssistantOpen);
+    const [agentOpenContext, setAgentOpenContext] = useState<AgentOpenContext | null>(null);
+    const [focusedAnalyticsTransaction, setFocusedAnalyticsTransaction] =
+        useState<{ id: string; externalId: string } | null>(null);
     const isAdmin = user?.role?.toUpperCase() === "ADMIN";
 
-    const navigate = (nextView: View) => {
+    const navigate = (
+        nextView: View,
+        options: { path?: string; state?: unknown; agentContext?: AgentOpenContext } = {}
+    ) => {
         setView(nextView);
-        if (nextView === "dashboard") {
-            navigateUrl("/uploads");
+        if (nextView === "my-agent") {
+            const context = options.agentContext ?? agentOpenContext;
+            const query = new URLSearchParams();
+            if (context) {
+                query.set("uploadId", context.uploadId);
+                query.set("transactionId", context.transaction.id);
+            }
+            query.set("returnTo", safeReturnPath(options.path ?? routeAgentReturnPath));
+            navigateUrl(`/assistant?${query.toString()}`);
+            return;
         }
-        if (nextView === "analysis-dashboard") {
-            navigateUrl("/analytics");
-        }
-        if (nextView === "card-schemes") {
-            navigateUrl("/card-schemes");
-        }
-        if (nextView === "profile") {
-            navigateUrl("/profile");
-        }
-        if (nextView === "rules") {
-            navigateUrl("/rules");
-        }
-        if (nextView === "upload") {
-            navigateUrl("/rules/new");
-        }
-        if (nextView !== "upload-details") {
-            setIsAssistantOpen(false);
-        }
+        const defaultPaths: Partial<Record<View, string>> = {
+            dashboard: "/uploads",
+            "analysis-dashboard": "/analytics",
+            "card-schemes": "/card-schemes",
+            profile: "/profile",
+            rules: "/rules",
+            upload: "/rules/new"
+        };
+        const path = options.path ?? defaultPaths[nextView];
+        if (path) navigateUrl(path, { state: options.state });
     };
 
     useEffect(() => {
         if (routeUploadId) {
             setSelectedUploadId(routeUploadId);
             setView("upload-details");
-            setIsAssistantOpen(routeAssistantOpen);
         } else if (routeRuleId) {
             setSelectedUploadId(null);
             setSelectedRuleId(routeRuleId);
             setView("details");
-            setIsAssistantOpen(false);
         } else if (routeView) {
             setSelectedUploadId(null);
             setView(routeView);
-            setIsAssistantOpen(false);
         } else {
             setSelectedUploadId(null);
             setView("dashboard");
-            setIsAssistantOpen(false);
         }
-    }, [routeAssistantOpen, routeRuleId, routeUploadId, routeView]);
+    }, [routeRuleId, routeUploadId, routeView]);
+
+    useEffect(() => {
+        if (!routeAgentUploadId || !routeAgentTransactionId) return;
+        if (agentOpenContext?.uploadId === routeAgentUploadId
+            && agentOpenContext.transaction.id === routeAgentTransactionId) {
+            return;
+        }
+
+        const controller = new AbortController();
+        void (async () => {
+            let page = 0;
+            let totalPages = 1;
+            while (page < totalPages && !controller.signal.aborted) {
+                const result = await getUploadTransactions(
+                    routeAgentUploadId,
+                    { page, size: 100, search: "", sort: "createdAt,desc" },
+                    controller.signal
+                );
+                const transaction = result.items.find((item) => item.id === routeAgentTransactionId);
+                if (transaction) {
+                    setAgentOpenContext({
+                        requestId: Date.now(),
+                        uploadId: routeAgentUploadId,
+                        transaction: {
+                            id: transaction.id,
+                            externalId: transaction.externalId,
+                            qualificationStatus: transaction.qualificationStatus
+                        }
+                    });
+                    return;
+                }
+                totalPages = result.totalPages;
+                page += 1;
+            }
+        })().catch(() => {
+            // The agent remains available without transaction context if the upload cannot be rehydrated.
+        });
+        return () => controller.abort();
+    }, [agentOpenContext, routeAgentTransactionId, routeAgentUploadId]);
 
     useEffect(() => {
         if (!isAdmin && (view === "rules" || view === "upload")) {
@@ -110,48 +161,58 @@ function AuthenticatedApp({
             />
             <AppRouter
                 view={view}
+                agentUserId={user?.id ?? ""}
+                agentOpenContext={agentOpenContext}
+                onAgentOpenContextConsumed={() => setAgentOpenContext(null)}
+                onAskAgentAboutTransaction={(uploadId: string, transaction: AgentTransactionContext) => {
+                    const context = { requestId: Date.now(), uploadId, transaction };
+                    setAgentOpenContext(context);
+                    navigate("my-agent", {
+                        path: `/uploads/${encodeURIComponent(uploadId)}`,
+                        agentContext: context
+                    });
+                }}
                 selectedRuleId={selectedRuleId}
                 selectedUploadId={selectedUploadId}
                 selectedUploadFileName={selectedUploadFileName}
                 selectedUploadImportStatus={selectedUploadImportStatus}
                 selectedUploadWasEvaluated={selectedUploadWasEvaluated}
+                focusedAnalyticsTransaction={focusedAnalyticsTransaction}
+                onOpenAnalyticsTransaction={(upload: UploadSummary, transaction: Transaction) => {
+                    setSelectedUploadId(upload.id);
+                    setSelectedUploadFileName(upload.fileName);
+                    setSelectedUploadImportStatus(upload.importStatus);
+                    setSelectedUploadWasEvaluated(upload.wasEvaluated);
+                    setFocusedAnalyticsTransaction({ id: transaction.id, externalId: transaction.externalId });
+                    navigate("upload-details", {
+                        path: `/uploads/${encodeURIComponent(upload.id)}`
+                    });
+                }}
                 ruleCreationNotice={ruleCreationNotice}
                 onRuleCreationNoticeShown={() => setRuleCreationNotice(null)}
                 onRuleCreated={() => {
                     setRuleCreationNotice("Rule created successfully.");
-                    navigate("rules");
-                    navigateUrl("/rules", {
+                    navigate("rules", {
                         state: { ruleCreationNotice: "Rule created successfully." }
                     });
                 }}
                 onNavigate={navigate}
                 onOpenRule={(id) => {
                     setSelectedRuleId(id);
-                    navigate("details");
-                    navigateUrl(`/rules/${encodeURIComponent(id)}`);
+                    navigate("details", { path: `/rules/${encodeURIComponent(id)}` });
                 }}
                 onOpenUpload={(uploadId, fileName, importStatus, wasEvaluated) => {
                     setSelectedUploadId(uploadId);
                     setSelectedUploadFileName(fileName);
                     setSelectedUploadImportStatus(importStatus);
                     setSelectedUploadWasEvaluated(wasEvaluated);
-                    navigate("upload-details");
-                    navigateUrl(`/uploads/${encodeURIComponent(uploadId)}`);
+                    setFocusedAnalyticsTransaction(null);
+                    navigate("upload-details", {
+                        path: `/uploads/${encodeURIComponent(uploadId)}`
+                    });
                 }}
                 onUploadEvaluated={(wasEvaluated) => setSelectedUploadWasEvaluated(wasEvaluated)}
-                onOpenAssistant={() => {
-                    if (selectedUploadId) {
-                        setIsAssistantOpen(true);
-                        navigateUrl(`/uploads/${encodeURIComponent(selectedUploadId)}/assistant`);
-                    }
-                }}
-                onCloseAssistant={() => {
-                    setIsAssistantOpen(false);
-                    if (selectedUploadId) {
-                        navigateUrl(`/uploads/${encodeURIComponent(selectedUploadId)}`);
-                    }
-                }}
-                isAssistantOpen={isAssistantOpen}
+                onReturnFromAgent={() => navigateUrl(safeReturnPath(routeAgentReturnPath))}
             />
         </div>
     );
@@ -162,13 +223,17 @@ export function App({
     routeView = null,
     routeRuleId = null,
     routeCreationNotice = null,
-    routeAssistantOpen = false
+    routeAgentUploadId = null,
+    routeAgentTransactionId = null,
+    routeAgentReturnPath = null
 }: {
     routeUploadId?: string | null;
     routeView?: View | null;
     routeRuleId?: string | null;
     routeCreationNotice?: string | null;
-    routeAssistantOpen?: boolean;
+    routeAgentUploadId?: string | null;
+    routeAgentTransactionId?: string | null;
+    routeAgentReturnPath?: string | null;
 }) {
     const { user, isLoading } = useAuth();
 
@@ -183,7 +248,9 @@ export function App({
                 routeCreationNotice={routeCreationNotice}
                 routeUploadId={routeUploadId}
                 routeView={routeView}
-                routeAssistantOpen={routeAssistantOpen}
+                routeAgentUploadId={routeAgentUploadId}
+                routeAgentTransactionId={routeAgentTransactionId}
+                routeAgentReturnPath={routeAgentReturnPath}
             />
         )
         : <AuthPage />;

@@ -4,6 +4,7 @@ import {
     detectUploadOutliers,
     evaluateUpload,
     getUploadOutlierIds,
+    getUploadAnomalyJob,
     getUploadStatistics,
     getUploadTransactions
 } from "../../uploads/api/uploadsApi";
@@ -11,7 +12,6 @@ import type { UploadStatistics } from "../../uploads/types/upload";
 import { isAbortError } from "../../../shared/api/httpClient";
 import { LoadingState } from "../../../shared/components/LoadingState";
 import { TransactionStats } from "../components/TransactionStats";
-import { RecommendationAssistant } from "../components/RecommendationAssistant";
 import { getTransactionExplanation, type TransactionExplanation } from "../api/transactionExplanationApi";
 import { TransactionDetails } from "../components/TransactionDetails";
 import { EntityList } from "../../../shared/components/EntityList/EntityList";
@@ -21,28 +21,29 @@ import type {
     EntityListQuery,
     EntityListResponse
 } from "../../../shared/types/list";
+import { Button, Tooltip } from "antd";
+import { ExperimentOutlined } from "@ant-design/icons";
+import type { AgentTransactionContext } from "../../../shared/types/agent";
 
 interface DashboardPageProps {
-    onOpenAssistant: () => void;
-    onCloseAssistant: () => void;
-    isAssistantOpen: boolean;
     onOpenRule: (ruleId: string) => void;
+    onAskAgentAboutTransaction: (uploadId: string, transaction: AgentTransactionContext) => void;
     selectedUploadId?: string | null;
     selectedUploadFileName?: string | null;
     selectedUploadImportStatus?: string | null;
     selectedUploadWasEvaluated?: boolean;
+    focusedAnalyticsTransaction?: { id: string; externalId: string } | null;
     onUploadEvaluated: (wasEvaluated: boolean) => void;
 }
 
 export function DashboardPage({
-    onOpenAssistant,
-    onCloseAssistant,
-    isAssistantOpen,
     onOpenRule,
+    onAskAgentAboutTransaction,
     selectedUploadId,
     selectedUploadFileName,
     selectedUploadImportStatus,
     selectedUploadWasEvaluated = false,
+    focusedAnalyticsTransaction = null,
     onUploadEvaluated
 }: DashboardPageProps) {
     const [uploadStatistics, setUploadStatistics] = useState<UploadStatistics | null>(null);
@@ -59,8 +60,6 @@ export function DashboardPage({
     const [anomalyError, setAnomalyError] = useState<string | null>(null);
     const [anomalyMessage, setAnomalyMessage] = useState<string | null>(null);
     const [showTransactionFilters, setShowTransactionFilters] = useState(false);
-    const [currentPageTransactions, setCurrentPageTransactions] = useState<Transaction[]>([]);
-    const [isLoadingCurrentPageTransactions, setIsLoadingCurrentPageTransactions] = useState(true);
     const [expandedTransactionId, setExpandedTransactionId] = useState<string | null>(null);
     const [transactionDetails, setTransactionDetails] = useState<Record<string, TransactionExplanation>>({});
     const [detailErrors, setDetailErrors] = useState<Record<string, string>>({});
@@ -68,6 +67,7 @@ export function DashboardPage({
     const detailRequest = useRef<AbortController | null>(null);
     const detailCache = useRef(new Map<string, TransactionExplanation>());
     const detectionEpoch = useRef(0);
+    const focusedTransactionHandled = useRef<string | null>(null);
 
     const canEvaluate = selectedUploadImportStatus === "COMPLETED"
         && !selectedUploadWasEvaluated;
@@ -283,23 +283,23 @@ export function DashboardPage({
 
     const handleTransactionResponse = useCallback(
         (response: EntityListResponse<Transaction>) => {
-            setCurrentPageTransactions(response.items);
             detailRequest.current?.abort();
             detailCache.current.clear();
             setExpandedTransactionId(null);
             setTransactionDetails({});
             setDetailErrors({});
             setLoadingDetailId(null);
+            const target = focusedAnalyticsTransaction;
+            if (target && focusedTransactionHandled.current !== target.id) {
+                const transaction = response.items.find((item) => item.id === target.id || item.externalId === target.externalId);
+                if (transaction) {
+                    focusedTransactionHandled.current = target.id;
+                    void loadTransactionDetails(transaction);
+                }
+            }
         },
-        []
+        [focusedAnalyticsTransaction, loadTransactionDetails]
     );
-
-    const handleTransactionPageLoading = useCallback((isLoading: boolean) => {
-        setIsLoadingCurrentPageTransactions(isLoading);
-        if (isLoading) {
-            setCurrentPageTransactions([]);
-        }
-    }, []);
 
     const runOutlierDetection = async () => {
         if (!selectedUploadId || isDetectingOutliers) {
@@ -464,25 +464,45 @@ export function DashboardPage({
 
                     <div className="page-heading-actions">
                         {selectedUploadId && canEvaluate && (
-                            <button
-                                type="button"
-                                className="dashboard-button"
-                                onClick={() => void runEvaluation()}
-                                disabled={isEvaluating}
+                            <Tooltip
+                                title={isEvaluating ? "Evaluating upload..." : "Evaluate this upload"}
+                                color="#f05d53"
+                                styles={{ container: { color: "#ffffff" } }}
                             >
-                                {isEvaluating ? "Evaluating..." : "Evaluate"}
-                            </button>
+                                <span className="action-tooltip-trigger">
+                                    <Button
+                                        type="primary"
+                                        size="large"
+                                        className="standard-action-size"
+                                        icon={<ExperimentOutlined />}
+                                        onClick={() => void runEvaluation()}
+                                        disabled={isEvaluating}
+                                    >
+                                        {isEvaluating ? "Evaluating..." : "Evaluate"}
+                                    </Button>
+                                </span>
+                            </Tooltip>
                         )}
 
-                        <button
-                            type="button"
-                            className="dashboard-button"
-                            onClick={() => void runOutlierDetection()}
-                            disabled={!selectedUploadId || isDetectingOutliers}
-                            title={!canDetectOutliers ? "Evaluate this upload before detecting outliers." : undefined}
-                        >
-                            {isDetectingOutliers ? "Detecting..." : "Detect outliers"}
-                        </button>
+                        {selectedUploadId && canDetectOutliers && (
+                            <Tooltip
+                                title={isDetectingOutliers ? "Detecting outliers..." : "Detect outliers in this upload"}
+                                color="#f05d53"
+                                styles={{ container: { color: "#ffffff" } }}
+                            >
+                                <span className="action-tooltip-trigger">
+                                    <Button
+                                        type="primary"
+                                        size="large"
+                                        className="standard-action-size"
+                                        onClick={() => void runOutlierDetection()}
+                                        disabled={isDetectingOutliers}
+                                    >
+                                        {isDetectingOutliers ? "Detecting..." : "Detect outliers"}
+                                    </Button>
+                                </span>
+                            </Tooltip>
+                        )}
 
                     </div>
                 </div>
@@ -499,7 +519,7 @@ export function DashboardPage({
                     />
                 )}
 
-            <section className="transactions-card">
+            <section className={`transactions-card${showTransactionFilters ? " transactions-card-filters-visible" : ""}`}>
                     {selectedUploadId ? (
                         <EntityList
                             title={selectedUploadFileName ?? "Transaction list"}
@@ -507,9 +527,9 @@ export function DashboardPage({
                             columns={transactionColumns}
                             fetchData={fetchTransactions}
                             onResponse={handleTransactionResponse}
-                            onLoadingChange={handleTransactionPageLoading}
                             expandedItemId={expandedTransactionId}
                             onToggleExpanded={toggleTransactionDetails}
+                            expandOnRowClick
                             renderExpanded={(transaction) => {
                                 const qualificationStatus = transaction.qualificationStatus?.toUpperCase();
                                 const isUnevaluated = transaction.status.toUpperCase() === "NEW"
@@ -517,7 +537,14 @@ export function DashboardPage({
                                     || qualificationStatus === "PENDING"
                                     || qualificationStatus === "UNKNOWN";
                                 if (isUnevaluated) {
-                                    return <TransactionDetails unevaluated />;
+                                    return (
+                                        <TransactionDetails
+                                            unevaluated
+                                            transactionId={transaction.id}
+                                            externalId={transaction.externalId}
+                                            onAskAgent={() => onAskAgentAboutTransaction(selectedUploadId, transaction)}
+                                        />
+                                    );
                                 }
                                 if (loadingDetailId === transaction.id) {
                                     return <LoadingState message="Loading qualification details..." />;
@@ -531,13 +558,16 @@ export function DashboardPage({
                                         details={details}
                                         currency={transaction.currencyCode}
                                         onViewRule={onOpenRule}
+                                        transactionId={transaction.id}
+                                        externalId={transaction.externalId}
+                                        onAskAgent={() => onAskAgentAboutTransaction(selectedUploadId, transaction)}
                                     />
                                 ) : (
                                     <LoadingState message="Loading qualification details..." />
                                 );
                             }}
                             reloadKey={transactionReloadKey}
-                            initialQuery={{ size: 50, sort: "createdAt,desc" }}
+                            initialQuery={{ size: 50, sort: "createdAt,desc", search: focusedAnalyticsTransaction?.externalId ?? "" }}
                             toolbar={({ query, updateQuery }) => (
                                 <>
                                     <button
@@ -616,33 +646,8 @@ export function DashboardPage({
                         <div className="success-box" role="status">{anomalyMessage}</div>
                     )}
 
-                    {anomalyMessage && (
-                        <div className="success-box" role="status">
-                            {anomalyMessage}
-                        </div>
-                    )}
-
                 </section>
             </section>
-            {selectedUploadId && !isAssistantOpen && (
-                <button
-                    type="button"
-                    className="assistant-floating-button"
-                    onClick={onOpenAssistant}
-                    aria-label="Open AI recommendations"
-                    title="AI recommendations"
-                >
-                    AI
-                </button>
-            )}
-            <RecommendationAssistant
-                uploadId={selectedUploadId ?? null}
-                fileName={selectedUploadFileName}
-                transactions={currentPageTransactions}
-                isLoadingTransactions={isLoadingCurrentPageTransactions}
-                isOpen={isAssistantOpen}
-                onClose={onCloseAssistant}
-            />
         </main>
     );
 }
