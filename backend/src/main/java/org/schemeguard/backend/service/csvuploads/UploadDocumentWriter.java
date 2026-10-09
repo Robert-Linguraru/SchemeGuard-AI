@@ -3,6 +3,7 @@ package org.schemeguard.backend.service.csvuploads;
 import org.schemeguard.backend.entity.csvuploads.UploadPart;
 import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,10 +32,17 @@ public class UploadDocumentWriter {
                 FROM uploads candidate
                 JOIN uploads existing
                   ON existing.user_id = candidate.user_id
+                 AND existing.source_id = candidate.source_id
                 WHERE candidate.id = ?
                   AND existing.id <> candidate.id
                   AND existing.content_sha256 = ?
             )
+            """;
+
+    private static final String SET_CONTENT_HASH_SQL = """
+            UPDATE uploads
+            SET content_sha256 = ?
+            WHERE id = ?
             """;
 
     private final JdbcTemplate jdbcTemplate;
@@ -92,6 +100,13 @@ public class UploadDocumentWriter {
         );
         if (Boolean.TRUE.equals(alreadyImported)) {
             throw new DuplicateUploadException();
+        }
+
+        try {
+            jdbcTemplate.update(SET_CONTENT_HASH_SQL, contentSha256, uploadRecordId);
+        } catch (DataIntegrityViolationException exception) {
+            // Keep the per-user file uniqueness guarantee for concurrent imports.
+            throw new DuplicateUploadException(exception);
         }
 
         return contentSha256;

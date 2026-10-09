@@ -19,6 +19,10 @@ public record CreateUploadRequest(
                 regexp = "(?i)^[a-f0-9]{64}$",
                 message = "fileSha256 must be a SHA-256 hex string"
         )
-        String fileSha256
+        String fileSha256,
+
+        @NotBlank
+        @Size(max = 255)
+        String sourceName
 ) {
 }

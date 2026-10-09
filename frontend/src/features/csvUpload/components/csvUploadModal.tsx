@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  Alert,
+  AutoComplete,
   Button,
   Card,
   Flex,
   Modal,
   notification as antdNotification,
-  Progress,
   Space,
   Spin,
-  Tag,
   Typography,
   Upload,
 } from "antd";
@@ -16,13 +16,19 @@ import type { UploadFile, UploadProps } from "antd";
 import {
   CloudUploadOutlined,
   DeleteOutlined,
+  DownloadOutlined,
   FileTextOutlined,
   InboxOutlined,
   LoadingOutlined,
   StopOutlined,
 } from "@ant-design/icons";
 import {
+  cancelUpload,
+  confirmDuplicateImport,
+  downloadDuplicateReport,
+  downloadOriginalCsv,
   DuplicateUploadError,
+  getTransactionSources,
   UploadImportError,
   uploadCsv,
 } from "../api/csvUploadApi";
@@ -30,6 +36,7 @@ import type {
   UploadProgress,
   UploadStatusResponse,
 } from "../../../types/csvUploadType";
+import "./csvUploadModal.css";
 
 const { Dragger } = Upload;
 
@@ -50,28 +57,46 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
 }
 
+function saveBlob(blob: Blob, fileName: string) {
+  const objectUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = objectUrl;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
+}
+
 export default function CsvTransactionUploadModal({
   onCompleted,
 }: TransactionUploadModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const [sourceName, setSourceName] = useState("");
+  const [sources, setSources] = useState<string[]>([]);
+  const [sourceLoadError, setSourceLoadError] = useState<string | null>(null);
   const [progress, setProgress] = useState<UploadProgress | null>(null);
+  const [pendingDuplicates, setPendingDuplicates] =
+    useState<UploadStatusResponse | null>(null);
+  const [completedUpload, setCompletedUpload] =
+    useState<UploadStatusResponse | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isResolvingDuplicates, setIsResolvingDuplicates] = useState(false);
+  const [isDownloadingDuplicates, setIsDownloadingDuplicates] = useState(false);
+  const [isDownloadingOriginal, setIsDownloadingOriginal] = useState(false);
   const [filePickerKey, setFilePickerKey] = useState(0);
   const [notificationApi, notificationContextHolder] = antdNotification.useNotification();
   const abortController = useRef<AbortController | null>(null);
-  const resetTimer = useRef<number | null>(null);
-
-  const clearTimers = () => {
-    if (resetTimer.current !== null) {
-      window.clearTimeout(resetTimer.current);
-      resetTimer.current = null;
-    }
-  };
+  const requiresDecision = pendingDuplicates !== null;
+  const busy = isUploading || isResolvingDuplicates || requiresDecision;
+  const canCloseModal = !isUploading && !isResolvingDuplicates;
 
   const resetForm = () => {
     setFile(null);
     setProgress(null);
+    setPendingDuplicates(null);
+    setCompletedUpload(null);
   };
 
   const showNotification = (nextNotification: UploadNotification) => {
@@ -84,22 +109,38 @@ export default function CsvTransactionUploadModal({
     });
   };
 
-  useEffect(() => () => clearTimers(), []);
+  useEffect(() => {
+    if (!isOpen) {
+      return undefined;
+    }
+    const controller = new AbortController();
+    setSourceLoadError(null);
+    void getTransactionSources(controller.signal)
+      .then((values) => setSources(values.map((source) => source.name)))
+      .catch((error: unknown) => {
+        if (!controller.signal.aborted) {
+          setSourceLoadError(error instanceof Error
+            ? error.message
+            : "Could not load saved sources. You can still enter a new one.");
+        }
+      });
+    return () => controller.abort();
+  }, [isOpen]);
 
   const openModal = () => {
-    clearTimers();
     resetForm();
     setFilePickerKey((currentKey) => currentKey + 1);
     setIsOpen(true);
   };
 
   const closeModal = () => {
-    if (isUploading) {
+    if (!canCloseModal) {
       return;
     }
-    clearTimers();
     setIsOpen(false);
-    resetForm();
+    if (!requiresDecision) {
+      resetForm();
+    }
   };
 
   const selectFile: UploadProps["beforeUpload"] = (candidate) => {
@@ -114,18 +155,39 @@ export default function CsvTransactionUploadModal({
 
     setFile(candidate);
     setProgress(null);
+    setPendingDuplicates(null);
     notificationApi.destroy();
     return false;
   };
 
   const removeFile = () => {
-    if (isUploading) {
+    if (busy) {
       return false;
     }
     setFile(null);
     setProgress(null);
     setFilePickerKey((currentKey) => currentKey + 1);
     return true;
+  };
+
+  const finishImport = (result: UploadStatusResponse, skippedDuplicates = 0) => {
+    setProgress({
+      phase: "completed",
+      completedParts: result.uploadedParts,
+      totalParts: result.expectedTotalParts,
+      processedRows: result.processedRows,
+      status: result.status,
+    });
+    showNotification({
+      kind: "success",
+      title: "Import completed",
+      message: skippedDuplicates > 0
+        ? `Imported ${result.processedRows.toLocaleString()} transactions and skipped ${skippedDuplicates.toLocaleString()} duplicates.`
+        : `Imported ${result.processedRows.toLocaleString()} transactions.`,
+    });
+    setPendingDuplicates(null);
+    setCompletedUpload(result);
+    onCompleted?.(result);
   };
 
   const startUpload = async () => {
@@ -137,6 +199,14 @@ export default function CsvTransactionUploadModal({
       });
       return;
     }
+    if (!sourceName.trim()) {
+      showNotification({
+        kind: "error",
+        title: "Source required",
+        message: "Enter or select a bank or transaction source.",
+      });
+      return;
+    }
 
     const controller = new AbortController();
     abortController.current = controller;
@@ -145,21 +215,22 @@ export default function CsvTransactionUploadModal({
     notificationApi.destroy();
 
     try {
-      const result = await uploadCsv(file, setProgress, controller.signal);
-      const importedMessage = `Imported ${result.processedRows.toLocaleString()} transactions.`;
-      showNotification({
-        kind: "success",
-        title: "Import completed",
-        message: importedMessage,
-      });
-      onCompleted?.(result);
-      resetTimer.current = window.setTimeout(() => {
-        setIsOpen(false);
-        resetForm();
-        resetTimer.current = null;
-      }, 10_000);
+      const result = await uploadCsv(
+        file,
+        sourceName.trim(),
+        setProgress,
+        controller.signal,
+      );
+      if (result.status === "DUPLICATES_FOUND") {
+        setProgress(null);
+        setPendingDuplicates(result);
+        onCompleted?.(result);
+        return;
+      }
+      finishImport(result);
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
+        setProgress(null);
         showNotification({
           kind: "warning",
           title: "Upload cancelled",
@@ -173,6 +244,7 @@ export default function CsvTransactionUploadModal({
           message: error.message,
         });
       } else {
+        setProgress(null);
         const processedRows = error instanceof UploadImportError
           ? error.processedRows
           : 0;
@@ -194,7 +266,104 @@ export default function CsvTransactionUploadModal({
     }
   };
 
-  const cancelUpload = () => {
+  const confirmImportWithoutDuplicates = async () => {
+    if (!pendingDuplicates) {
+      return;
+    }
+    setIsResolvingDuplicates(true);
+    try {
+      const result = await confirmDuplicateImport(pendingDuplicates.uploadId);
+      if (result.status === "DUPLICATES_FOUND") {
+        setPendingDuplicates(result);
+        onCompleted?.(result);
+        showNotification({
+          kind: "warning",
+          title: "Duplicate list updated",
+          message: "Another import changed the duplicate set. Download the refreshed report and review it before continuing.",
+        });
+        return;
+      }
+      if (result.status !== "COMPLETED") {
+        throw new Error(result.errorMessage ?? "Could not complete the import.");
+      }
+      finishImport(result, result.duplicateRows);
+    } catch (error) {
+      showNotification({
+        kind: "error",
+        title: "Could not continue import",
+        message: error instanceof Error ? error.message : "Please try again.",
+      });
+    } finally {
+      setIsResolvingDuplicates(false);
+    }
+  };
+
+  const cancelDuplicateReview = async () => {
+    if (!pendingDuplicates) {
+      return;
+    }
+    setIsResolvingDuplicates(true);
+    try {
+      await cancelUpload(pendingDuplicates.uploadId);
+      onCompleted?.(pendingDuplicates);
+      showNotification({
+        kind: "warning",
+        title: "Import cancelled",
+        message: "No transactions from this file were imported.",
+      });
+      setIsOpen(false);
+      resetForm();
+    } catch (error) {
+      showNotification({
+        kind: "error",
+        title: "Could not cancel import",
+        message: error instanceof Error ? error.message : "Please try again.",
+      });
+    } finally {
+      setIsResolvingDuplicates(false);
+    }
+  };
+
+  const downloadDuplicates = async () => {
+    if (!pendingDuplicates) {
+      return;
+    }
+    setIsDownloadingDuplicates(true);
+    try {
+      const report = await downloadDuplicateReport(pendingDuplicates.uploadId);
+      const baseName = pendingDuplicates.fileName.replace(/\.[^.]+$/, "");
+      saveBlob(report, `${baseName}-duplicates.xlsx`);
+    } catch (error) {
+      showNotification({
+        kind: "error",
+        title: "Could not download report",
+        message: error instanceof Error ? error.message : "Please try again.",
+      });
+    } finally {
+      setIsDownloadingDuplicates(false);
+    }
+  };
+
+  const downloadOriginal = async () => {
+    if (!completedUpload?.uploadRecordId) {
+      return;
+    }
+    setIsDownloadingOriginal(true);
+    try {
+      const originalFile = await downloadOriginalCsv(completedUpload.uploadRecordId);
+      saveBlob(originalFile, completedUpload.fileName);
+    } catch (error) {
+      showNotification({
+        kind: "error",
+        title: "Could not download CSV",
+        message: error instanceof Error ? error.message : "Please try again.",
+      });
+    } finally {
+      setIsDownloadingOriginal(false);
+    }
+  };
+
+  const cancelUploadInProgress = () => {
     abortController.current?.abort();
   };
 
@@ -212,9 +381,16 @@ export default function CsvTransactionUploadModal({
     : 0;
   const isProcessing = progress?.phase === "processing";
   const isCompleted = progress?.phase === "completed";
-  const progressStatus = isCompleted
-    ? "success"
-    : "active";
+  const currentStep = isCompleted ? 3 : isProcessing || requiresDecision ? 2 : isUploading ? 1 : 0;
+  const canStartImport = Boolean(file && sourceName.trim()) && !busy;
+  const importStages = ["Select file", "Upload", "Processing", "Complete"];
+  const footerMessage = isCompleted
+    ? "The original CSV is available to download."
+    : isProcessing
+      ? "Validating rows and checking for existing transactions."
+      : isUploading
+        ? "The file is being uploaded in parts."
+        : null;
 
   return (
     <>
@@ -236,96 +412,241 @@ export default function CsvTransactionUploadModal({
         width={640}
         title={(
           <Space align="start" size={12}>
-            <CloudUploadOutlined style={{ color: "#68b3e7", fontSize: 24 }} />
+            <CloudUploadOutlined className="csv-upload-title-icon" style={{ fontSize: 24 }} />
             <div>
               <Typography.Title level={4} style={{ margin: 0 }}>
-                Import transactions
+                {isCompleted
+                  ? "Import completed"
+                  : requiresDecision
+                    ? "Review duplicate transactions"
+                    : "Import transactions"}
               </Typography.Title>
-              <Typography.Text type="secondary">
-                Upload a CSV file and monitor the import in real time.
-              </Typography.Text>
+              {(isCompleted || requiresDecision) && (
+                <Typography.Text type="secondary">
+                  {isCompleted
+                    ? "Your transactions are ready. You can download the original CSV."
+                    : "Choose whether to import the remaining transactions."}
+                </Typography.Text>
+              )}
             </div>
           </Space>
         )}
         onCancel={closeModal}
-        closable={!isUploading}
-        mask={{ closable: !isUploading }}
-        keyboard={!isUploading}
-        footer={(
-          <Flex justify="space-between" align="center" gap={12}>
-            <Typography.Text type="secondary">
-              {isUploading
-                ? "Please keep this window open."
-                : "CSV files only"}
-            </Typography.Text>
-            <Space>
-              <Button onClick={closeModal} disabled={isUploading}>
-                Close
-              </Button>
+        closable={canCloseModal}
+        mask={{ closable: canCloseModal }}
+        keyboard={canCloseModal}
+        footer={requiresDecision ? (
+          <Flex className="csv-upload-duplicate-footer" justify="space-between" align="center" gap={12} wrap="wrap">
+            <Button
+              danger
+              icon={<StopOutlined />}
+              onClick={() => void cancelDuplicateReview()}
+              loading={isResolvingDuplicates}
+              disabled={isDownloadingDuplicates}
+            >
+              Cancel import
+            </Button>
+            <Button
+              type="primary"
+              icon={<CloudUploadOutlined />}
+              onClick={() => void confirmImportWithoutDuplicates()}
+              loading={isResolvingDuplicates}
+              disabled={isDownloadingDuplicates}
+            >
+              Continue without duplicates
+            </Button>
+          </Flex>
+        ) : (
+          <Flex justify={footerMessage ? "space-between" : "flex-end"} align="center" gap={12} wrap="wrap">
+            {footerMessage && (
+              <Typography.Text type="secondary">{footerMessage}</Typography.Text>
+            )}
+            <Space wrap>
               {isUploading ? (
-                <Button danger icon={<StopOutlined />} onClick={cancelUpload}>
-                  Cancel upload
+                <Button danger icon={<StopOutlined />} onClick={cancelUploadInProgress}>
+                  {isProcessing ? "Cancel import" : "Cancel upload"}
                 </Button>
               ) : (
-                <Button
-                  type="primary"
-                  icon={<CloudUploadOutlined />}
-                  onClick={() => void startUpload()}
-                  disabled={!file}
-                >
-                  Start import
-                </Button>
+                <>
+                  <Button onClick={closeModal}>Close</Button>
+                  {!isCompleted && (
+                    <Button
+                      type="primary"
+                      icon={<CloudUploadOutlined />}
+                      onClick={() => void startUpload()}
+                      disabled={!canStartImport}
+                    >
+                      Start import
+                    </Button>
+                  )}
+                </>
               )}
             </Space>
           </Flex>
         )}
       >
         <Space direction="vertical" size={18} style={{ width: "100%" }}>
-          <Dragger
-            key={filePickerKey}
-            accept=".csv,text/csv"
-            multiple={false}
-            maxCount={1}
-            disabled={isUploading}
-            beforeUpload={selectFile}
-            onRemove={removeFile}
-            fileList={selectedFileList}
-            showUploadList={false}
-          >
-            <p className="ant-upload-drag-icon">
-              <InboxOutlined />
-            </p>
-            <Typography.Title level={5} style={{ marginBottom: 8 }}>
-              Drop your CSV here or click to browse
-            </Typography.Title>
-            <Typography.Text type="secondary">
-              The original file is stored securely for later download.
-            </Typography.Text>
-          </Dragger>
+          <Flex gap={8} role="list" aria-label="Import status" style={{ marginTop: 6 }}>
+            {importStages.map((stage, index) => {
+              const isActiveStage = currentStep === index;
+              const isFinishedStage = currentStep > index;
+              const isCompleteStage = isCompleted && index === importStages.length - 1;
+              const stageColor = isCompleteStage
+                ? "var(--status-evaluated-text)"
+                : isActiveStage
+                  ? "var(--coral)"
+                  : isFinishedStage
+                    ? "var(--status-evaluated-text)"
+                    : "var(--border)";
+              const textColor = isCompleteStage
+                ? "var(--status-evaluated-text)"
+                : isActiveStage
+                  ? "var(--text-primary)"
+                  : isFinishedStage
+                    ? "var(--status-evaluated-text)"
+                    : "var(--text-muted)";
+
+              return (
+                <div
+                  key={stage}
+                  role="listitem"
+                  aria-current={isActiveStage ? "step" : undefined}
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    borderTop: `3px solid ${stageColor}`,
+                    paddingTop: 8,
+                  }}
+                >
+                  <Typography.Text
+                    strong={isActiveStage}
+                    style={{ color: textColor, fontSize: 12 }}
+                  >
+                    {stage}
+                  </Typography.Text>
+                </div>
+              );
+            })}
+          </Flex>
+
+          {!requiresDecision && !progress && (
+            <Dragger
+              key={filePickerKey}
+              className="csv-upload-dropzone"
+              accept=".csv,text/csv"
+              multiple={false}
+              maxCount={1}
+              disabled={busy || isCompleted}
+              beforeUpload={selectFile}
+              onRemove={removeFile}
+              fileList={selectedFileList}
+              showUploadList={false}
+            >
+              <p className="ant-upload-drag-icon">
+                <InboxOutlined />
+              </p>
+              <Typography.Title level={5} style={{ marginBottom: 8 }}>
+                Drop your CSV here or click to browse
+              </Typography.Title>
+              <Typography.Text type="secondary">
+                The original file is stored securely for later download.
+              </Typography.Text>
+            </Dragger>
+          )}
+
+          {!requiresDecision && !progress && (
+            <div>
+              <Typography.Text className="csv-upload-file-note" type="secondary">
+                CSV files only
+              </Typography.Text>
+              <Typography.Text strong>Bank / transaction source</Typography.Text>
+              <AutoComplete
+                value={sourceName}
+                options={sources.map((name) => ({ value: name }))}
+                onChange={setSourceName}
+                placeholder="Type a source or select a saved one"
+                filterOption={(input, option) =>
+                  String(option?.value ?? "").toLowerCase().includes(input.toLowerCase())
+                }
+                disabled={busy || isCompleted}
+                style={{ width: "100%", marginTop: 8 }}
+              />
+              <Typography.Text className="csv-upload-sources-note" type="secondary">
+                Sources are shared between users.
+              </Typography.Text>
+              {sourceLoadError && (
+                <div>
+                  <Typography.Text type="warning">{sourceLoadError}</Typography.Text>
+                </div>
+              )}
+            </div>
+          )}
 
           {file && (
-            <Card size="small">
+            <Card size="small" className="csv-upload-selected-file">
               <Flex align="center" gap={12}>
-                <FileTextOutlined style={{ color: "#68b3e7", fontSize: 22 }} />
+                <FileTextOutlined style={{ color: "var(--coral)", fontSize: 22 }} />
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <Typography.Text strong ellipsis={{ tooltip: file.name }}>
                     {file.name}
                   </Typography.Text>
                   <br />
                   <Typography.Text type="secondary">
-                    {formatFileSize(file.size)}
+                    {[formatFileSize(file.size), sourceName.trim()]
+                      .filter(Boolean)
+                      .join(" · ")}
+                    {isCompleted && completedUpload?.duplicateRows
+                      ? ` · ${completedUpload.duplicateRows.toLocaleString()} duplicates skipped`
+                      : isCompleted
+                        ? " · Import completed"
+                        : ""}
                   </Typography.Text>
                 </div>
-                <Button
-                  type="text"
-                  danger
-                  icon={<DeleteOutlined />}
-                  onClick={removeFile}
-                  disabled={isUploading}
-                  aria-label="Remove selected file"
-                />
+                {isCompleted && completedUpload?.uploadRecordId ? (
+                  <div className="entity-list-actions">
+                    <Button
+                      type="default"
+                      className="entity-list-action-button"
+                      icon={<DownloadOutlined />}
+                      onClick={() => void downloadOriginal()}
+                      loading={isDownloadingOriginal}
+                      aria-label="Download original CSV"
+                    >
+                      Download CSV
+                    </Button>
+                  </div>
+                ) : !busy && !isCompleted ? (
+                  <Button
+                    type="text"
+                    danger
+                    icon={<DeleteOutlined />}
+                    onClick={removeFile}
+                    aria-label="Remove selected file"
+                  />
+                ) : null}
               </Flex>
             </Card>
+          )}
+
+          {pendingDuplicates && (
+            <Alert
+              showIcon
+              type="warning"
+              message={`${pendingDuplicates.duplicateRows.toLocaleString()} duplicate transaction${pendingDuplicates.duplicateRows === 1 ? "" : "s"} found`}
+              description="Download the Excel report to review the rows. Continuing imports the other transactions and skips these duplicates. Cancel stops the whole import."
+              action={(
+                <Button
+                  size="small"
+                  className="duplicate-download-button"
+                  icon={<DownloadOutlined />}
+                  onClick={() => void downloadDuplicates()}
+                  loading={isDownloadingDuplicates}
+                  disabled={isResolvingDuplicates}
+                >
+                  Download Excel
+                </Button>
+              )}
+            />
           )}
 
           {progress && (
@@ -333,41 +654,54 @@ export default function CsvTransactionUploadModal({
               <Space direction="vertical" size={10} style={{ width: "100%" }}>
                 <Flex justify="space-between" align="center" gap={12}>
                   <Space size={8}>
-                    {isProcessing && (
-                      <Spin
-                        size="small"
-                        indicator={<LoadingOutlined spin />}
-                      />
+                    {isUploading && (
+                      <Spin size="small" indicator={<LoadingOutlined spin />} />
                     )}
                     <Typography.Text strong>
                       {isCompleted
                         ? "Import completed"
                         : isProcessing
-                          ? "Importing rows"
-                          : "Uploading file"}
+                          ? "Processing transactions"
+                          : "Uploading file parts"}
                     </Typography.Text>
                   </Space>
-                  <Typography.Text strong>
-                    {isProcessing || isCompleted
-                      ? `${progress.processedRows.toLocaleString()} rows`
-                      : `${uploadPercent}%`}
-                  </Typography.Text>
-                </Flex>
-                <Progress
-                  percent={isProcessing || isCompleted ? 100 : uploadPercent}
-                  status={progressStatus}
-                  showInfo={false}
-                />
-                <Flex justify="space-between" align="center" gap={12}>
                   <Typography.Text type="secondary">
-                    {isProcessing || isCompleted
-                      ? `${progress.processedRows.toLocaleString()} rows processed`
-                      : `${progress.completedParts} / ${progress.totalParts} parts uploaded`}
+                    {isCompleted ? "Completed" : "In progress"}
                   </Typography.Text>
-                  <Tag color={isCompleted ? "success" : isProcessing ? "processing" : "blue"}>
-                    {progress.status ?? "UPLOADING"}
-                  </Tag>
                 </Flex>
+                <div
+                  className={`csv-upload-progress-track${isProcessing ? " is-indeterminate" : ""}`}
+                  role="progressbar"
+                  aria-label={isProcessing ? "Transaction processing is in progress" : "File upload progress"}
+                  aria-valuemin={isProcessing ? undefined : 0}
+                  aria-valuemax={isProcessing ? undefined : 100}
+                  aria-valuenow={isProcessing ? undefined : isCompleted ? 100 : uploadPercent}
+                >
+                  {!isProcessing && (
+                    <div
+                      className="csv-upload-progress-fill"
+                      style={{ width: `${isCompleted ? 100 : uploadPercent}%` }}
+                    />
+                  )}
+                </div>
+                <Flex justify="space-between" align="center" gap={12}>
+                  <Typography.Text
+                    type="secondary"
+                    aria-live={isProcessing ? "polite" : undefined}
+                  >
+                    {isProcessing || isCompleted
+                      ? `${progress.processedRows.toLocaleString()} transactions processed`
+                      : `${progress.completedParts} / ${progress.totalParts} parts sent`}
+                  </Typography.Text>
+                  <Typography.Text type="secondary">
+                    {isProcessing ? "Updates automatically" : null}
+                  </Typography.Text>
+                </Flex>
+                {isProcessing && (
+                  <Typography.Text type="secondary">
+                    Validating rows and checking for existing transactions.
+                  </Typography.Text>
+                )}
               </Space>
             </Card>
           )}

@@ -310,6 +310,12 @@ export function EntityList<T>({
                                     const itemId = (item as { id?: string }).id;
                                     const isExpanded = expandedItemId === itemId;
                                     const toggleExpanded = () => onToggleExpanded?.(item);
+                                    const dataRowClassName = [
+                                        renderExpanded
+                                            ? `entity-list-data-row${isExpanded ? " is-expanded" : ""}${expandOnRowClick ? " is-expandable" : ""}`
+                                            : undefined,
+                                        rowClassName?.(item)
+                                    ].filter(Boolean).join(" ") || undefined;
                                     return (
                                         <Fragment key={(item as { id?: string }).id || index}>
                                         <tr

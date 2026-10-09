@@ -21,7 +21,7 @@
 
 .entity-list-heading p:not(.eyebrow) {
     margin: 0;
-    color: #65738b;
+    color: #5E6A73;
 }
 
 .entity-list-toolbar {
@@ -69,7 +69,7 @@
 
 .entity-list-search input {
     min-height: 42px;
-    background: #fbfdfe;
+    background: #FFFFFF;
 }
 
 .entity-list-filter {
@@ -85,9 +85,9 @@
 .entity-list-filter select {
     min-height: 42px;
     padding: 0 12px;
-    border: 1px solid #c4d2dc;
+    border: 1px solid #D1D5D7;
     border-radius: 8px;
-    background: #fbfdfe;
+    background: #FFFFFF;
     color: var(--navy);
 }
 
@@ -161,7 +161,7 @@
 .entity-list-data-row.is-expandable:hover,
 .entity-list-data-row.is-expandable:focus-visible {
     outline: none;
-    background: var(--surface-raised);
+    background: #E8EAEB;
 }
 
 .entity-list-data-row.is-expandable:focus-visible {
@@ -169,7 +169,7 @@
 }
 
 .entity-list-data-row.is-expanded {
-    background: var(--surface-raised);
+    background: #E8EAEB;
 }
 
 .entity-list-expanded-row > td {
@@ -233,13 +233,13 @@
 
 .transaction-details-empty-state p {
     margin: 8px 0 0;
-    color: #65738b;
+    color: #5E6A73;
 }
 
 .transaction-details-section {
     margin-top: 20px;
     padding-top: 16px;
-    border-top: 1px solid #dce6eb;
+    border-top: 1px solid #D1D5D7;
 }
 
 .transaction-details-section h4 {
@@ -251,7 +251,7 @@
 .transaction-details-section ul {
     margin: 0;
     padding-left: 20px;
-    color: #526579;
+    color: #47555F;
 }
 
 .transaction-details-section li + li {
@@ -268,7 +268,7 @@
 .transaction-rule-summary strong,
 .transaction-rule-summary span {
     min-width: 0;
-    color: #65738b;
+    color: #5E6A73;
     overflow-wrap: anywhere;
     word-break: break-word;
 }
@@ -286,13 +286,13 @@
 
 .transaction-fee-grid div {
     padding: 11px 13px;
-    border: 1px solid #dce6eb;
+    border: 1px solid #D1D5D7;
     border-radius: 8px;
     background: var(--white);
 }
 
 .transaction-fee-grid dt {
-    color: #65738b;
+    color: #5E6A73;
     font-size: 11px;
 }
 
@@ -305,13 +305,13 @@
 .transaction-details-original {
     overflow-wrap: anywhere;
     word-break: break-word;
-    color: #65738b;
+    color: #5E6A73;
 }
 
 .entity-list-sort-button {
     padding: 0;
     background: transparent;
-    color: #65738b;
+    color: #5E6A73;
     font-size: 12px;
     font-weight: 700;
     letter-spacing: 0.5px;
@@ -337,8 +337,8 @@
 }
 
 .entity-list-status.inactive {
-    background: #edf3f6;
-    color: #65738b;
+    background: #E8EAEB;
+    color: #5E6A73;
 }
 
 .entity-list-actions {
@@ -364,9 +364,9 @@
 
 .entity-list-action-button {
     padding: 8px 10px;
-    border: 1px solid #c4d2dc;
+    border: 1px solid #D1D5D7;
     border-radius: 7px;
-    background: #edf3f6;
+    background: #E8EAEB;
     color: var(--navy);
     font-size: 12px;
     font-weight: 700;
@@ -383,9 +383,9 @@
     width: 34px;
     height: 34px;
     padding: 0;
-    border: 1px solid #c4d2dc;
+    border: 1px solid #D1D5D7;
     border-radius: 7px;
-    background: #edf3f6;
+    background: #E8EAEB;
     color: var(--navy);
     font-size: 12px;
     font-weight: 700;
@@ -403,20 +403,20 @@
 }
 
 .entity-list-action-success {
-    border-color: #a9dfc4;
+    border-color: color-mix(in srgb, var(--green) 45%, var(--border));
     background: var(--green-bg);
     color: var(--green);
 }
 
 .entity-list-action-warning {
-    border-color: #f0d29a;
+    border-color: color-mix(in srgb, var(--orange) 45%, var(--border));
     background: var(--orange-bg);
     color: var(--orange);
 }
 
 .entity-list-action-danger {
-    border-color: #f0b7b2;
-    background: #fff1ef;
+    border-color: color-mix(in srgb, var(--red) 45%, var(--border));
+    background: var(--red-bg);
     color: var(--red);
 }
 
@@ -432,7 +432,7 @@
     justify-content: space-between;
     gap: 18px;
     margin-top: 20px;
-    color: #65738b;
+    color: #5E6A73;
     font-size: 13px;
 }
 
@@ -446,14 +446,14 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    color: #65738b;
+    color: #5E6A73;
     font-size: 12px;
 }
 
 .entity-list-pagination select {
     min-height: 36px;
     padding: 0 8px;
-    border: 1px solid #c4d2dc;
+    border: 1px solid #D1D5D7;
     border-radius: 7px;
     background: var(--white);
     color: var(--navy);
@@ -472,7 +472,7 @@
 .entity-list-success {
     margin-top: 18px;
     padding: 12px;
-    border: 1px solid #a9dfc4;
+    border: 1px solid color-mix(in srgb, var(--green) 45%, var(--border));
     border-radius: 8px;
     background: var(--green-bg);
     color: var(--green);
@@ -645,4 +645,18 @@
     .entity-list-dialog {
         padding: 20px;
     }
+}
+.upload-delete-confirm .ant-modal-confirm-btns {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.upload-delete-confirm .ant-modal-confirm-btns > .ant-btn-default {
+    order: 0;
+}
+
+.upload-delete-confirm .ant-modal-confirm-btns > .ant-btn-dangerous {
+    order: 1;
 }

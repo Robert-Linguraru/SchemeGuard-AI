@@ -1,22 +1,38 @@
 import { useCallback, useState } from "react";
 import CsvTransactionUploadModal from "../../csvUpload/components/csvUploadModal";
-import { downloadUpload, evaluateUpload, getUploads } from "../api/uploadsApi";
+import {
+    deleteUploadDocument,
+    downloadUpload,
+    evaluateUpload,
+    getUploads
+} from "../api/uploadsApi";
 import type { UploadSummary } from "../types/upload";
 import { ErrorMessage } from "../../../shared/components/ErrorMessage";
 import { EntityList } from "../../../shared/components/EntityList/EntityList";
 import type { EntityListColumn, EntityListQuery } from "../../../shared/types/list";
 import { UploadComparisonModal } from "../../transactions/components/UploadComparisonModal";
 import {
-  App as AntdApp,
-  Button,
-  Tooltip,
+    App as AntdApp,
+    Alert,
+    Button,
+    Flex,
+    Modal,
+    Space,
+    Tooltip,
 } from "antd";
 import {
+    DeleteOutlined,
     DownloadOutlined,
     ExperimentOutlined,
     RightOutlined,
+    WarningOutlined,
 
 } from "@ant-design/icons";
+import {
+    cancelUpload,
+    confirmDuplicateImport,
+    downloadDuplicateReport,
+} from "../../csvUpload/api/csvUploadApi";
 
 interface UploadsPageProps {
     onOpenUpload: (
@@ -67,12 +83,21 @@ const createColumns = (
     evaluatingUploadId: string | null,
     onEvaluateUpload: (uploadId: string) => void,
     downloadingUploadId: string | null,
-    onDownloadUpload: (uploadId: string, fileName: string) => void
+    onDownloadUpload: (uploadId: string, fileName: string) => void,
+    onReviewDuplicates: (upload: UploadSummary) => void,
+    deletingUploadId: string | null,
+    onDeleteUpload: (upload: UploadSummary) => void
 ): EntityListColumn<UploadSummary>[] => [
     {
         key: "fileName",
         label: "File name",
         sortable: true
+    },
+    {
+        key: "sourceName",
+        label: "Source",
+        sortable: true,
+        render: (upload) => upload.sourceName ?? "—"
     },
     {
         key: "uploadedAt",
@@ -112,11 +137,11 @@ const createColumns = (
         key: "actions",
         label: "Actions",
         render: (upload) => (
-            <div className="entity-list-actions">
+                        <div className="entity-list-actions">
                 {upload.importStatus !== "DUPLICATE" && (
                     <Tooltip
                         title={downloadingUploadId === upload.id ? "Downloading original CSV..." : "Download CSV"}
-                        color="#f05d53"
+                        color="#FF5640"
                         styles={{ container: { color: "#ffffff" } }}
                     >
                         <span className="entity-list-action-tooltip">
@@ -131,30 +156,11 @@ const createColumns = (
                         </span>
                     </Tooltip>
                 )}
-                <Tooltip
-                    title="Open Details"
-                    color="#f05d53"
-                    styles={{ container: { color: "#ffffff" } }}
-                >
-                    <span className="entity-list-action-tooltip">
-                        <Button
-                            type="default"
-                            className="entity-list-action-button entity-list-action-icon-button"
-                            icon={<RightOutlined />}
-                            onClick={() => onOpenUpload(
-                                upload.id,
-                                upload.fileName,
-                                upload.importStatus,
-                                upload.wasEvaluated
-                            )}
-                            aria-label="Open upload details"
-                        />
-                    </span>
-                </Tooltip>
+
                 {upload.importStatus === "COMPLETED" && !upload.wasEvaluated && (
                     <Tooltip
                         title={evaluatingUploadId === upload.id ? "Evaluating upload..." : "Evaluate"}
-                        color="#f05d53"
+                        color="#FF5640"
                         styles={{ container: { color: "#ffffff" } }}
                     >
                         <span className="entity-list-action-tooltip">
@@ -169,6 +175,66 @@ const createColumns = (
                         </span>
                     </Tooltip>
                 )}
+
+                {upload.importStatus === "DUPLICATES_FOUND" && (
+                    <Tooltip
+                        title="Review duplicate transactions"
+                        color="#FF5640"
+                        styles={{ container: { color: "#ffffff" } }}
+                    >
+                        <span className="entity-list-action-tooltip">
+                            <Button
+                                type="primary"
+                                className="entity-list-action-icon-button"
+                                icon={<WarningOutlined />}
+                                onClick={() => onReviewDuplicates(upload)}
+                                aria-label="Review duplicate transactions"
+                            />
+                        </span>
+                    </Tooltip>
+                )}
+
+                <Tooltip
+                    title={deletingUploadId === upload.id ? "Deleting document..." : "Delete document"}
+                    color="var(--danger-button-bg)"
+                    styles={{ container: { color: "#ffffff" } }}
+                >
+                    <span className="entity-list-action-tooltip">
+                        <Button
+                            type="default"
+                            danger
+                            className="entity-list-action-button entity-list-action-icon-button entity-list-action-danger"
+                            icon={<DeleteOutlined />}
+                            loading={deletingUploadId === upload.id}
+                            disabled={deletingUploadId !== null}
+                            onClick={() => onDeleteUpload(upload)}
+                            aria-label="Delete uploaded document and its transactions"
+                        />
+                    </span>
+                </Tooltip>
+
+                {upload.importStatus !== "DUPLICATES_FOUND" && (
+                    <Tooltip
+                        title="Open Details"
+                        color="#FF5640"
+                        styles={{ container: { color: "#ffffff" } }}
+                    >
+                        <span className="entity-list-action-tooltip">
+                            <Button
+                                type="default"
+                                className="entity-list-action-button entity-list-action-icon-button"
+                                icon={<RightOutlined />}
+                                onClick={() => onOpenUpload(
+                                    upload.id,
+                                    upload.fileName,
+                                    upload.importStatus,
+                                    upload.wasEvaluated
+                                )}
+                                aria-label="Open upload details"
+                            />
+                        </span>
+                    </Tooltip>
+                )}
             </div>
         )
     }
@@ -178,12 +244,16 @@ export function UploadsPage({
     onOpenUpload,
     selectedUploadId
 }: UploadsPageProps) {
-    const { notification } = AntdApp.useApp();
+    const { modal, notification } = AntdApp.useApp();
     const [reloadKey, setReloadKey] = useState(0);
     const [evaluatingUploadId, setEvaluatingUploadId] = useState<string | null>(null);
     const [evaluationError, setEvaluationError] = useState<string | null>(null);
     const [downloadingUploadId, setDownloadingUploadId] = useState<string | null>(null);
     const [downloadError, setDownloadError] = useState<string | null>(null);
+    const [deletingUploadId, setDeletingUploadId] = useState<string | null>(null);
+    const [reviewingUpload, setReviewingUpload] = useState<UploadSummary | null>(null);
+    const [isResolvingDuplicates, setIsResolvingDuplicates] = useState(false);
+    const [isDownloadingDuplicateReport, setIsDownloadingDuplicateReport] = useState(false);
     const columns = createColumns(
         onOpenUpload,
         evaluatingUploadId,
@@ -240,6 +310,40 @@ export function UploadsPage({
             } finally {
                 setDownloadingUploadId(null);
             }
+        },
+        (upload) => setReviewingUpload(upload),
+        deletingUploadId,
+        (upload) => {
+            modal.confirm({
+                className: "upload-delete-confirm",
+                title: `Delete ${upload.fileName}?`,
+                content: `This permanently deletes the document and all ${upload.transactionCount.toLocaleString()} associated transaction${upload.transactionCount === 1 ? "" : "s"}, including their analysis results. This cannot be undone.`,
+                okText: "Delete permanently",
+                cancelText: "Cancel",
+                okButtonProps: { danger: true },
+                onOk: async () => {
+                    setDeletingUploadId(upload.id);
+                    try {
+                        await deleteUploadDocument(upload.id);
+                        notification.success({
+                            placement: "topRight",
+                            message: "Document deleted",
+                            description: `${upload.fileName} and its transactions were deleted.`
+                        });
+                        setReloadKey((currentKey) => currentKey + 1);
+                    } catch (requestError: unknown) {
+                        notification.error({
+                            placement: "topRight",
+                            message: "Could not delete document",
+                            description: requestError instanceof Error
+                                ? requestError.message
+                                : "Please try again."
+                        });
+                    } finally {
+                        setDeletingUploadId(null);
+                    }
+                }
+            });
         }
     );
 
@@ -247,6 +351,103 @@ export function UploadsPage({
         (query: EntityListQuery, signal?: AbortSignal) => getUploads(query, signal),
         []
     );
+
+    const downloadDuplicateWorkbook = async () => {
+        if (!reviewingUpload) {
+            return;
+        }
+        setIsDownloadingDuplicateReport(true);
+        try {
+            const blob = await downloadDuplicateReport(reviewingUpload.sessionId);
+            const objectUrl = URL.createObjectURL(blob);
+            const anchor = document.createElement("a");
+            anchor.href = objectUrl;
+            anchor.download = `${reviewingUpload.fileName.replace(/\.[^.]+$/, "")}-duplicates.xlsx`;
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+            window.setTimeout(() => URL.revokeObjectURL(objectUrl), 0);
+        } catch (requestError: unknown) {
+            notification.error({
+                placement: "topRight",
+                message: "Unable to download duplicate report",
+                description: requestError instanceof Error
+                    ? requestError.message
+                    : "Please try again."
+            });
+        } finally {
+            setIsDownloadingDuplicateReport(false);
+        }
+    };
+
+    const continueWithoutDuplicates = async () => {
+        if (!reviewingUpload) {
+            return;
+        }
+        setIsResolvingDuplicates(true);
+        try {
+            const result = await confirmDuplicateImport(reviewingUpload.sessionId);
+            if (result.status === "DUPLICATES_FOUND") {
+                setReviewingUpload({
+                    ...reviewingUpload,
+                    duplicateRows: result.duplicateRows
+                });
+                notification.warning({
+                    placement: "topRight",
+                    message: "Duplicate list updated",
+                    description: "Another import changed this report. Download the updated workbook and review it before continuing."
+                });
+                return;
+            }
+            if (result.status !== "COMPLETED") {
+                throw new Error(result.errorMessage ?? "Could not complete this import.");
+            }
+            notification.success({
+                placement: "topRight",
+                message: "Import completed",
+                description: `Imported ${result.processedRows.toLocaleString()} transactions and skipped ${result.duplicateRows.toLocaleString()} duplicates.`
+            });
+            setReviewingUpload(null);
+            setReloadKey((currentKey) => currentKey + 1);
+        } catch (requestError: unknown) {
+            notification.error({
+                placement: "topRight",
+                message: "Could not continue import",
+                description: requestError instanceof Error
+                    ? requestError.message
+                    : "Please try again."
+            });
+        } finally {
+            setIsResolvingDuplicates(false);
+        }
+    };
+
+    const cancelDuplicateUpload = async () => {
+        if (!reviewingUpload) {
+            return;
+        }
+        setIsResolvingDuplicates(true);
+        try {
+            await cancelUpload(reviewingUpload.sessionId);
+            notification.info({
+                placement: "topRight",
+                message: "Import cancelled",
+                description: "No transactions from this file were imported."
+            });
+            setReviewingUpload(null);
+            setReloadKey((currentKey) => currentKey + 1);
+        } catch (requestError: unknown) {
+            notification.error({
+                placement: "topRight",
+                message: "Could not cancel import",
+                description: requestError instanceof Error
+                    ? requestError.message
+                    : "Please try again."
+            });
+        } finally {
+            setIsResolvingDuplicates(false);
+        }
+    };
 
     return (
         <main className="dashboard uploads-page" data-selected-upload-id={selectedUploadId ?? undefined}>
@@ -283,6 +484,60 @@ export function UploadsPage({
                     searchPlaceholder="Search by file name..."
                     emptyMessage={"No CSV files uploaded yet.\nUpload a CSV file to begin."}
                 />
+                <Modal
+                    open={reviewingUpload !== null}
+                    centered
+                    title="Review duplicate transactions"
+                    onCancel={() => {
+                        if (!isResolvingDuplicates && !isDownloadingDuplicateReport) {
+                            setReviewingUpload(null);
+                        }
+                    }}
+                    closable={!isResolvingDuplicates && !isDownloadingDuplicateReport}
+                    mask={{ closable: !isResolvingDuplicates && !isDownloadingDuplicateReport }}
+                    footer={(
+                        <Flex justify="space-between" align="center" gap={12} style={{ width: "100%" }}>
+                            <Button
+                                danger
+                                icon={<WarningOutlined />}
+                                onClick={() => void cancelDuplicateUpload()}
+                                loading={isResolvingDuplicates}
+                                disabled={isDownloadingDuplicateReport}
+                            >
+                                Cancel import
+                            </Button>
+                            <Button
+                                type="primary"
+                                onClick={() => void continueWithoutDuplicates()}
+                                loading={isResolvingDuplicates}
+                                disabled={isDownloadingDuplicateReport}
+                            >
+                                Continue without duplicates
+                            </Button>
+                        </Flex>
+                    )}
+                >
+                    {reviewingUpload && (
+                        <Alert
+                            showIcon
+                            type="warning"
+                            message={`${reviewingUpload.duplicateRows.toLocaleString()} duplicate transaction${reviewingUpload.duplicateRows === 1 ? "" : "s"} found in ${reviewingUpload.fileName}`}
+                            description="Download the Excel report to review the rows. Continuing imports the other transactions and skips these duplicates. Cancel stops the whole import."
+                            action={(
+                                <Button
+                                    size="small"
+                                    className="duplicate-download-button"
+                                    icon={<DownloadOutlined />}
+                                    onClick={() => void downloadDuplicateWorkbook()}
+                                    loading={isDownloadingDuplicateReport}
+                                    disabled={isResolvingDuplicates}
+                                >
+                                    Download Excel
+                                </Button>
+                            )}
+                        />
+                    )}
+                </Modal>
                 {evaluationError && (
                     <ErrorMessage title="Unable to evaluate upload" message={evaluationError} />
                 )}

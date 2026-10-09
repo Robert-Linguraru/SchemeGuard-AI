@@ -43,9 +43,9 @@ ALTER TABLE transactions
 ALTER TABLE transactions
     ALTER COLUMN upload_id DROP NOT NULL;
 
--- External transaction identifiers are descriptive source values and are not
--- unique. The same value may appear multiple times in one upload or in
--- different uploads/sources.
+-- External transaction identifiers are scoped to the transaction source.
+-- The transaction_sources_and_deduplication migration adds the owner/source
+-- unique key; repeated IDs inside a new upload are reported before final import.
 ALTER TABLE transactions
     DROP CONSTRAINT IF EXISTS transactions_external_id_key;
 

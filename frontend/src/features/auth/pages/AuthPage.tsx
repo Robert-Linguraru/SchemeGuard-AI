@@ -1,12 +1,11 @@
-import { useState } from "react";
 import { LoginForm } from "../components/LoginForm";
 import { RegisterForm } from "../components/RegisterForm";
 import { useTheme } from "../../../app/ThemeProvider";
 import { Button } from "antd";
 import { MoonOutlined, SunOutlined } from "@ant-design/icons";
+import { Link } from "react-router-dom";
 
-export function AuthPage() {
-    const [mode, setMode] = useState<"login" | "register">("login");
+export function AuthPage({ mode = "login" }: { mode?: "login" | "register" }) {
     const { theme, toggleTheme } = useTheme();
 
     return (
@@ -32,8 +31,8 @@ export function AuthPage() {
                 </div>
                 <p className="subtitle">Interchange qualification workspace</p>
                 <div className="tabs">
-                    <Button type={mode === "login" ? "primary" : "text"} className={mode === "login" ? "active" : ""} onClick={() => setMode("login")}>Login</Button>
-                    <Button type={mode === "register" ? "primary" : "text"} className={mode === "register" ? "active" : ""} onClick={() => setMode("register")}>Create account</Button>
+                    <Button type={mode === "login" ? "primary" : "text"} className={mode === "login" ? "active" : ""}><Link to="/login">Login</Link></Button>
+                    <Button type={mode === "register" ? "primary" : "text"} className={mode === "register" ? "active" : ""}><Link to="/register">Create account</Link></Button>
                 </div>
                 {mode === "login" ? <LoginForm /> : <RegisterForm />}
             </section>

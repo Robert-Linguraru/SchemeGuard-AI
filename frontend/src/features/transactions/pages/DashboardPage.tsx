@@ -12,7 +12,6 @@ import type { UploadStatistics } from "../../uploads/types/upload";
 import { isAbortError } from "../../../shared/api/httpClient";
 import { LoadingState } from "../../../shared/components/LoadingState";
 import { TransactionStats } from "../components/TransactionStats";
-import { RecommendationAssistant } from "../components/RecommendationAssistant";
 import { getTransactionExplanation, type TransactionExplanation } from "../api/transactionExplanationApi";
 import { TransactionDetails } from "../components/TransactionDetails";
 import { EntityList } from "../../../shared/components/EntityList/EntityList";
@@ -22,37 +21,36 @@ import type {
     EntityListQuery,
     EntityListResponse
 } from "../../../shared/types/list";
-import { App as AntdApp, Button, Tooltip } from "antd";
+import { Button, Tooltip } from "antd";
 import { ExperimentOutlined } from "@ant-design/icons";
+import type { AgentTransactionContext } from "../../../shared/types/agent";
 
 interface DashboardPageProps {
-    onOpenAssistant: () => void;
-    onCloseAssistant: () => void;
-    isAssistantOpen: boolean;
     onOpenRule: (ruleId: string) => void;
+    onAskAgentAboutTransaction: (uploadId: string, transaction: AgentTransactionContext) => void;
     selectedUploadId?: string | null;
     selectedUploadFileName?: string | null;
     selectedUploadImportStatus?: string | null;
     selectedUploadWasEvaluated?: boolean;
+    focusedAnalyticsTransaction?: { id: string; externalId: string } | null;
     onUploadEvaluated: (wasEvaluated: boolean) => void;
 }
 
 export function DashboardPage({
-    onOpenAssistant,
-    onCloseAssistant,
-    isAssistantOpen,
     onOpenRule,
+    onAskAgentAboutTransaction,
     selectedUploadId,
     selectedUploadFileName,
     selectedUploadImportStatus,
     selectedUploadWasEvaluated = false,
+    focusedAnalyticsTransaction = null,
     onUploadEvaluated
 }: DashboardPageProps) {
-    const { notification } = AntdApp.useApp();
     const [uploadStatistics, setUploadStatistics] = useState<UploadStatistics | null>(null);
     const [isLoadingStatistics, setIsLoadingStatistics] = useState(false);
     const [statisticsError, setStatisticsError] = useState<string | null>(null);
     const [isEvaluating, setIsEvaluating] = useState(false);
+    const [evaluationMessage, setEvaluationMessage] = useState<string | null>(null);
     const [evaluationError, setEvaluationError] = useState<string | null>(null);
     const [transactionReloadKey, setTransactionReloadKey] = useState(0);
     const [outlierIds, setOutlierIds] = useState<Set<string>>(new Set());
@@ -62,8 +60,6 @@ export function DashboardPage({
     const [anomalyError, setAnomalyError] = useState<string | null>(null);
     const [anomalyMessage, setAnomalyMessage] = useState<string | null>(null);
     const [showTransactionFilters, setShowTransactionFilters] = useState(false);
-    const [currentPageTransactions, setCurrentPageTransactions] = useState<Transaction[]>([]);
-    const [isLoadingCurrentPageTransactions, setIsLoadingCurrentPageTransactions] = useState(true);
     const [expandedTransactionId, setExpandedTransactionId] = useState<string | null>(null);
     const [transactionDetails, setTransactionDetails] = useState<Record<string, TransactionExplanation>>({});
     const [detailErrors, setDetailErrors] = useState<Record<string, string>>({});
@@ -71,6 +67,7 @@ export function DashboardPage({
     const detailRequest = useRef<AbortController | null>(null);
     const detailCache = useRef(new Map<string, TransactionExplanation>());
     const detectionEpoch = useRef(0);
+    const focusedTransactionHandled = useRef<string | null>(null);
 
     const canEvaluate = selectedUploadImportStatus === "COMPLETED"
         && !selectedUploadWasEvaluated;
@@ -187,14 +184,11 @@ export function DashboardPage({
         }
 
         setIsEvaluating(true);
+        setEvaluationMessage(null);
         setEvaluationError(null);
         try {
             const result = await evaluateUpload(selectedUploadId);
-            notification.success({
-                placement: "topRight",
-                message: "Evaluation complete",
-                description: result.message
-            });
+            setEvaluationMessage(result.message);
             onUploadEvaluated(result.wasEvaluated);
             setTransactionReloadKey((key) => key + 1);
         } catch (requestError: unknown) {
@@ -289,23 +283,23 @@ export function DashboardPage({
 
     const handleTransactionResponse = useCallback(
         (response: EntityListResponse<Transaction>) => {
-            setCurrentPageTransactions(response.items);
             detailRequest.current?.abort();
             detailCache.current.clear();
             setExpandedTransactionId(null);
             setTransactionDetails({});
             setDetailErrors({});
             setLoadingDetailId(null);
+            const target = focusedAnalyticsTransaction;
+            if (target && focusedTransactionHandled.current !== target.id) {
+                const transaction = response.items.find((item) => item.id === target.id || item.externalId === target.externalId);
+                if (transaction) {
+                    focusedTransactionHandled.current = target.id;
+                    void loadTransactionDetails(transaction);
+                }
+            }
         },
-        []
+        [focusedAnalyticsTransaction, loadTransactionDetails]
     );
-
-    const handleTransactionPageLoading = useCallback((isLoading: boolean) => {
-        setIsLoadingCurrentPageTransactions(isLoading);
-        if (isLoading) {
-            setCurrentPageTransactions([]);
-        }
-    }, []);
 
     const runOutlierDetection = async () => {
         if (!selectedUploadId || isDetectingOutliers) {
@@ -313,6 +307,7 @@ export function DashboardPage({
         }
 
         if (!canDetectOutliers) {
+            setAnomalyMessage(null);
             setAnomalyError("Evaluate this CSV before detecting outliers.");
             return;
         }
@@ -428,14 +423,14 @@ export function DashboardPage({
             render: (transaction) => outlierIds.has(transaction.id) ? (
                 <div className="transaction-anomaly-cell">
                     <span>Outlier</span>
-                    <Button
-                        type="default"
+                    <button
+                        type="button"
                         className="entity-list-action-button"
                         disabled={confirmedOutlierIds.has(transaction.id)}
                         onClick={() => void confirmOutlier(transaction.id)}
                     >
                         {confirmedOutlierIds.has(transaction.id) ? "Checked" : "Check off"}
-                    </Button>
+                    </button>
                 </div>
             ) : null
         }
@@ -532,7 +527,6 @@ export function DashboardPage({
                             columns={transactionColumns}
                             fetchData={fetchTransactions}
                             onResponse={handleTransactionResponse}
-                            onLoadingChange={handleTransactionPageLoading}
                             expandedItemId={expandedTransactionId}
                             onToggleExpanded={toggleTransactionDetails}
                             expandOnRowClick
@@ -543,7 +537,14 @@ export function DashboardPage({
                                     || qualificationStatus === "PENDING"
                                     || qualificationStatus === "UNKNOWN";
                                 if (isUnevaluated) {
-                                    return <TransactionDetails unevaluated />;
+                                    return (
+                                        <TransactionDetails
+                                            unevaluated
+                                            transactionId={transaction.id}
+                                            externalId={transaction.externalId}
+                                            onAskAgent={() => onAskAgentAboutTransaction(selectedUploadId, transaction)}
+                                        />
+                                    );
                                 }
                                 if (loadingDetailId === transaction.id) {
                                     return <LoadingState message="Loading qualification details..." />;
@@ -557,23 +558,26 @@ export function DashboardPage({
                                         details={details}
                                         currency={transaction.currencyCode}
                                         onViewRule={onOpenRule}
+                                        transactionId={transaction.id}
+                                        externalId={transaction.externalId}
+                                        onAskAgent={() => onAskAgentAboutTransaction(selectedUploadId, transaction)}
                                     />
                                 ) : (
                                     <LoadingState message="Loading qualification details..." />
                                 );
                             }}
                             reloadKey={transactionReloadKey}
-                            initialQuery={{ size: 50, sort: "createdAt,desc" }}
+                            initialQuery={{ size: 50, sort: "createdAt,desc", search: focusedAnalyticsTransaction?.externalId ?? "" }}
                             toolbar={({ query, updateQuery }) => (
-                                <div className="transaction-list-filters">
-                                    <Button
-                                        type="default"
+                                <>
+                                    <button
+                                        type="button"
                                         className="entity-list-filter-button"
                                         aria-expanded={showTransactionFilters}
                                         onClick={() => setShowTransactionFilters((visible) => !visible)}
                                     >
                                         {showTransactionFilters ? "Hide filters" : "Filter"}
-                                    </Button>
+                                    </button>
                                     {showTransactionFilters && <>
                                     <label className="entity-list-filter">
                                         <span>Show</span>
@@ -610,7 +614,7 @@ export function DashboardPage({
                                         </select>
                                     </label>
                                     </>}
-                                </div>
+                                </>
                             )}
                             emptyMessage="No transactions available in this CSV upload."
                             rowClassName={(transaction) => outlierIds.has(transaction.id) ? "transaction-anomaly-row" : undefined}
@@ -618,6 +622,12 @@ export function DashboardPage({
                     ) : (
                         <div className="empty-state">
                             <p>Select a CSV upload to view its transactions.</p>
+                        </div>
+                    )}
+
+                    {evaluationMessage && (
+                        <div className="success-box" role="status">
+                            {evaluationMessage}
                         </div>
                     )}
 
@@ -638,25 +648,6 @@ export function DashboardPage({
 
                 </section>
             </section>
-            {selectedUploadId && !isAssistantOpen && (
-                <Button
-                    type="primary"
-                    className="assistant-floating-button"
-                    onClick={onOpenAssistant}
-                    aria-label="Open AI recommendations"
-                    title="AI recommendations"
-                >
-                    AI
-                </Button>
-            )}
-            <RecommendationAssistant
-                uploadId={selectedUploadId ?? null}
-                fileName={selectedUploadFileName}
-                transactions={currentPageTransactions}
-                isLoadingTransactions={isLoadingCurrentPageTransactions}
-                isOpen={isAssistantOpen}
-                onClose={onCloseAssistant}
-            />
         </main>
     );
 }

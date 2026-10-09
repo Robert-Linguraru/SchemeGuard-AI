@@ -15,6 +15,7 @@ public record UploadStatusResponse(
         int uploadedParts,
         int expectedTotalParts,
         long processedRows,
+        long duplicateRows,
         String errorMessage,
         Instant uploadedAt
 ) {

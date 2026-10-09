@@ -1,8 +1,15 @@
-import { useAuth } from "../../app/AuthProvider";
 import { AccountMenu } from "./AccountMenu";
 import type { NavigationItem, View } from "../types/navigation";
-import { Button } from "antd";
-import { MoonOutlined, SunOutlined } from "@ant-design/icons";
+import { Button, Tooltip } from "antd";
+import {
+    ApartmentOutlined,
+    FolderOutlined,
+    MoonOutlined,
+    RobotOutlined,
+    SafetyCertificateOutlined,
+    SunOutlined,
+    WalletOutlined,
+} from "@ant-design/icons";
 import type { ThemeMode } from "../../app/ThemeProvider";
 
 type NavBarProps = {
@@ -15,8 +22,25 @@ type NavBarProps = {
 };
 
 function NavBar({ currentView, isAdmin, onViewChange, onEditProfile, theme, onToggleTheme }: NavBarProps) {
-    const { user } = useAuth();
+    const iconForView = (view: View) => {
+        switch (view) {
+            case "my-agent": return <RobotOutlined />;
+            case "dashboard":
+            case "upload-details": return <FolderOutlined />;
+            case "analysis-dashboard": return <ApartmentOutlined />;
+            case "card-schemes": return <WalletOutlined />;
+            case "rules":
+            case "upload":
+            case "details": return <SafetyCertificateOutlined />;
+            default: return <FolderOutlined />;
+        }
+    };
     const navigationItems: NavigationItem[] = [
+        {
+            view: "my-agent",
+            label: "Chat",
+            active: currentView === "my-agent",
+        },
         {
             view: "dashboard",
             label: "CSV uploads",
@@ -49,25 +73,26 @@ function NavBar({ currentView, isAdmin, onViewChange, onEditProfile, theme, onTo
     return (
         <nav className="app-navbar" aria-label="Main navigation">
             <div className="app-navbar-inner">
-                <span className="app-navbar-brand">
+                <span className="app-navbar-brand" aria-label="SchemeGuard AI">
                     <img className="app-navbar-logo" src="/schemeguard-mark.svg" alt="" aria-hidden="true" />
                     <span>SchemeGuard AI</span>
                 </span>
                 <div className="app-navbar-links">
                     {navigationItems.map((item) => (
-                        <Button
-                            key={item.view}
-                            type="text"
-                            className="app-navbar-link"
-                            aria-current={item.active ? "page" : undefined}
-                            onClick={() => onViewChange(item.view)}
-                        >
-                            {item.label}
-                        </Button>
+                        <Tooltip key={item.view} title={item.label} placement="right">
+                            <Button
+                                type="text"
+                                className="app-navbar-link"
+                                icon={iconForView(item.view)}
+                                aria-label={item.label}
+                                aria-current={item.active ? "page" : undefined}
+                                title={item.label}
+                                onClick={() => onViewChange(item.view)}
+                            />
+                        </Tooltip>
                     ))}
                 </div>
                 <div className="app-navbar-actions">
-                    <span className="app-navbar-welcome">Welcome, {user?.fullName}</span>
                     <AccountMenu onEditProfile={onEditProfile} />
                     <Button
                         className="theme-toggle-button"

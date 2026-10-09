@@ -2,6 +2,7 @@ export type UploadStatus =
   | "UPLOADING"
   | "QUEUED"
   | "PROCESSING"
+  | "DUPLICATES_FOUND"
   | "COMPLETED"
   | "DUPLICATE"
   | "FAILED"
@@ -15,6 +16,11 @@ export type CreateUploadResponse = {
   maxParallelUploads: number;
 };
 
+export type TransactionSource = {
+  id: string;
+  name: string;
+};
+
 export type UploadStatusResponse = {
   uploadId: string;
   uploadRecordId: string | null;
@@ -25,6 +31,7 @@ export type UploadStatusResponse = {
   uploadedParts: number;
   expectedTotalParts: number;
   processedRows: number;
+  duplicateRows: number;
   errorMessage: string | null;
   uploadedAt: string;
 };

@@ -61,6 +61,12 @@ export const getUploads = (
         signal
     }).then(toEntityListResponse);
 
+export const deleteUploadDocument = (uploadId: string): Promise<void> =>
+    request<void>(
+        `/api/uploads/${encodeURIComponent(uploadId)}/document`,
+        { method: "DELETE" }
+    );
+
 export const getAllUploads = async (
     signal?: AbortSignal
 ): Promise<UploadSummary[]> => {

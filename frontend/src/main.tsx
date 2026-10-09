@@ -1,7 +1,8 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App as AntdApp, ConfigProvider, theme as antdTheme } from "antd";
-import { App } from "./app/App";
+import { BrowserRouter } from "react-router-dom";
+import { AppRoutes } from "./app/AppRoutes";
 import { AuthProvider } from "./app/AuthProvider";
 import { ThemeProvider, useTheme } from "./app/ThemeProvider";
 import "./styles/global.css";
@@ -11,6 +12,9 @@ import "./styles/rules.css";
 import "./styles/profile.css";
 import "./styles/entity-list.css";
 import "./styles/theme.css";
+import "./styles/operations-ui.css";
+import "./styles/agent-layout.css";
+import "./styles/analytics-polish.css";
 
 function ThemedApplication() {
     const { theme } = useTheme();
@@ -21,23 +25,23 @@ function ThemedApplication() {
             theme={{
                 algorithm: isDark ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
                 token: {
-                    colorPrimary: "#f05d53",
-                    colorInfo: isDark ? "#68b3e7" : "#397fa8",
-                    colorBgBase: isDark ? "#172b3a" : "#eaf3f8",
-                    colorBgLayout: isDark ? "#172b3a" : "#eaf3f8",
-                    colorBgContainer: isDark ? "#203d50" : "#ffffff",
-                    colorBgElevated: isDark ? "#203d50" : "#ffffff",
-                    colorBorder: isDark ? "#3d6378" : "#cadce8",
-                    colorText: isDark ? "#f4f7fa" : "#20384a",
-                    colorTextSecondary: isDark ? "#a9bbc7" : "#60778a",
-                    borderRadius: 9,
-                    fontFamily: "Arial, sans-serif"
+                    colorPrimary: "#FF5640",
+                    colorInfo: isDark ? "#D1D5D7" : "#47555F",
+                    colorBgBase: isDark ? "#192B37" : "#E8EAEB",
+                    colorBgLayout: isDark ? "#192B37" : "#E8EAEB",
+                    colorBgContainer: isDark ? "#30404B" : "#FFFFFF",
+                    colorBgElevated: isDark ? "#30404B" : "#FFFFFF",
+                    colorBorder: isDark ? "#5E6A73" : "#D1D5D7",
+                    colorText: isDark ? "#FFFFFF" : "#192B37",
+                    colorTextSecondary: isDark ? "#D1D5D7" : "#5E6A73",
+                    borderRadius: 12,
+                    fontFamily: '"Dava Sans", Arial, sans-serif'
                 }
             }}
         >
             <AntdApp>
                 <AuthProvider>
-                    <App />
+                    <AppRoutes />
                 </AuthProvider>
             </AntdApp>
         </ConfigProvider>
@@ -47,7 +51,9 @@ function ThemedApplication() {
 createRoot(document.getElementById("root")!).render(
     <StrictMode>
         <ThemeProvider>
-            <ThemedApplication />
+            <BrowserRouter>
+                <ThemedApplication />
+            </BrowserRouter>
         </ThemeProvider>
     </StrictMode>
 );

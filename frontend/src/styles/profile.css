@@ -35,7 +35,7 @@
 
 .account-avatar.account-avatar--pineapple {
     overflow: hidden;
-    background: #fff0b5;
+    background: #E8EAEB;
 }
 
 .account-avatar.account-avatar--flower {
@@ -83,7 +83,7 @@
 
 .account-summary span {
     overflow: hidden;
-    color: #65738b;
+    color: #5E6A73;
     font-size: 12px;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -101,7 +101,7 @@
 
 .account-dropdown > button:hover,
 .account-dropdown > button:focus-visible {
-    background: #f1f6f8;
+    background: #E8EAEB;
 }
 
 .profile-heading {
@@ -163,7 +163,7 @@
 }
 
 .password-toggle:hover {
-    background: #edf3f6;
+    background: #E8EAEB;
 }
 
 .profile-divider {
@@ -180,6 +180,68 @@
     margin-top: 28px;
 }
 
+.profile-avatar-fieldset {
+    min-width: 0;
+    margin: 24px 0 0;
+    padding: 0;
+    border: 0;
+}
+
+.profile-avatar-fieldset legend {
+    margin-bottom: 5px;
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.profile-avatar-fieldset > p {
+    margin: 0 0 13px;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.profile-avatar-options {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 9px;
+}
+
+.profile-avatar-option {
+    display: grid;
+    min-width: 0;
+    justify-items: center;
+    gap: 7px;
+    padding: 10px 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface-card);
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.profile-avatar-option > span {
+    display: grid;
+    width: 36px;
+    height: 36px;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--surface-subtle);
+    color: var(--text-primary);
+    font-size: 19px;
+    font-weight: 700;
+}
+
+.profile-avatar-option small { color: inherit; font-size: 10px; }
+.profile-avatar-option:hover { border-color: var(--coral); color: var(--text-primary); }
+.profile-avatar-option.selected {
+    border-color: var(--coral);
+    background: color-mix(in srgb, var(--coral) 7%, var(--surface-card));
+    color: var(--text-primary);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--coral) 20%, transparent);
+}
+.profile-avatar-option.selected > span { background: var(--coral); color: #FFFFFF; }
+.profile-avatar-option:focus-visible { outline: 3px solid color-mix(in srgb, var(--coral) 55%, transparent); outline-offset: 2px; }
+
 .profile-saved {
     color: var(--green);
     font-size: 13px;
@@ -195,7 +257,7 @@
 }
 
 .save-profile-button:hover {
-    background: #ff7168;
+    background: color-mix(in srgb, var(--coral) 86%, var(--navy));
 }
 
 @media (max-width: 600px) {
@@ -211,4 +273,6 @@
         align-items: flex-start;
         flex-direction: column;
     }
+
+    .profile-avatar-options { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }

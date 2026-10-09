@@ -11,6 +11,7 @@ import org.schemeguard.backend.entity.ProcessingJob;
 import org.schemeguard.backend.entity.csvuploads.Upload;
 import org.schemeguard.backend.entity.csvuploads.UploadPart;
 import org.schemeguard.backend.entity.csvuploads.UploadSession;
+import org.schemeguard.backend.entity.csvuploads.TransactionSource;
 import org.schemeguard.backend.entity.User;
 import org.schemeguard.backend.entity.enums.JobStatus;
 import org.schemeguard.backend.entity.enums.JobType;
@@ -21,10 +22,13 @@ import org.schemeguard.backend.repository.csvuploads.UploadPartRepository;
 import org.schemeguard.backend.repository.csvuploads.UploadRepository;
 import org.schemeguard.backend.repository.csvuploads.UploadSummaryProjection;
 import org.schemeguard.backend.repository.csvuploads.UploadSessionRepository;
+import org.schemeguard.backend.service.csvuploads.csvUploadTimeLogger.UploadTimeLogger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -42,6 +46,8 @@ import java.util.UUID;
 @Service
 public class UploadService {
 
+    private static final Logger log = LoggerFactory.getLogger(UploadService.class);
+
         private static final int DEFAULT_PAGE_SIZE = 20;
         private static final int MAX_PAGE_SIZE = 100;
 
@@ -55,13 +61,42 @@ public class UploadService {
     private final PartRegistrationService partRegistrationService;
     private final ObjectProvider<CsvImportService> csvImportServiceProvider;
     private final JdbcTemplate jdbcTemplate;
+    private final UploadTimeLogger uploadTimeLogger;
+    private final TransactionSourceService transactionSourceService;
+    private final TransactionDeduplicationService deduplicationService;
 
-    private static final String SET_UPLOAD_CONTENT_SHA256_SQL = """
-            UPDATE uploads
-            SET content_sha256 = ?
-            WHERE id = ?
-            """;
+    @Autowired
+    public UploadService(
+            UploadSessionRepository sessionRepository,
+            UploadRepository uploadRepository,
+            UploadPartRepository partRepository,
+            ProcessingJobRepository processingJobRepository,
+            UploadPolicy policy,
+            StorageService storageService,
+            TransactionBatchWriter transactionBatchWriter,
+            PartRegistrationService partRegistrationService,
+            ObjectProvider<CsvImportService> csvImportServiceProvider,
+            JdbcTemplate jdbcTemplate,
+            UploadTimeLogger uploadTimeLogger,
+            TransactionSourceService transactionSourceService,
+            TransactionDeduplicationService deduplicationService
+    ) {
+        this.sessionRepository = sessionRepository;
+        this.uploadRepository = uploadRepository;
+        this.partRepository = partRepository;
+        this.processingJobRepository = processingJobRepository;
+        this.policy = policy;
+        this.storageService = storageService;
+        this.transactionBatchWriter = transactionBatchWriter;
+        this.partRegistrationService = partRegistrationService;
+        this.csvImportServiceProvider = csvImportServiceProvider;
+        this.jdbcTemplate = jdbcTemplate;
+        this.uploadTimeLogger = uploadTimeLogger;
+        this.transactionSourceService = transactionSourceService;
+        this.deduplicationService = deduplicationService;
+    }
 
+    /** Keeps direct service construction compatible with existing callers. */
     public UploadService(
             UploadSessionRepository sessionRepository,
             UploadRepository uploadRepository,
@@ -74,21 +109,27 @@ public class UploadService {
             ObjectProvider<CsvImportService> csvImportServiceProvider,
             JdbcTemplate jdbcTemplate
     ) {
-        this.sessionRepository = sessionRepository;
-        this.uploadRepository = uploadRepository;
-        this.partRepository = partRepository;
-        this.processingJobRepository = processingJobRepository;
-        this.policy = policy;
-        this.storageService = storageService;
-        this.transactionBatchWriter = transactionBatchWriter;
-        this.partRegistrationService = partRegistrationService;
-        this.csvImportServiceProvider = csvImportServiceProvider;
-        this.jdbcTemplate = jdbcTemplate;
+        this(
+                sessionRepository,
+                uploadRepository,
+                partRepository,
+                processingJobRepository,
+                policy,
+                storageService,
+                transactionBatchWriter,
+                partRegistrationService,
+                csvImportServiceProvider,
+                jdbcTemplate,
+                new UploadTimeLogger(jdbcTemplate),
+                null,
+                null
+        );
     }
 
     @Transactional
     public CreateUploadResponse createUpload(CreateUploadRequest request, User user) {
         policy.validateCreateRequest(request.fileName(), request.fileSizeBytes());
+        TransactionSource source = transactionSourceService.resolveOrCreate(request.sourceName());
         int totalParts = policy.calculateTotalParts(request.fileSizeBytes());
         UUID uploadId = UUID.randomUUID();
 
@@ -99,12 +140,13 @@ public class UploadService {
                 totalParts,
                 normalizeHash(request.fileSha256())
         );
+        session.setUserId(user.getId());
         ProcessingJob processingJob = processingJobRepository.save(
                 newProcessingJob(request.fileName())
         );
         session.setProcessingJobId(processingJob.getId());
         session = sessionRepository.save(session);
-        Upload upload = uploadRepository.save(new Upload(user, session, new byte[0]));
+        Upload upload = uploadRepository.save(new Upload(user, session, source, new byte[0]));
         storageService.createUploadDirectory(uploadId);
 
         return new CreateUploadResponse(
@@ -120,50 +162,63 @@ public class UploadService {
             UUID uploadId,
             int partNumber,
             InputStream input,
-            String clientSha256
+            String clientSha256,
+            UUID userId
     ) {
-        UploadSession session = getSession(uploadId);
-        policy.validatePartNumber(partNumber, session.getExpectedTotalParts());
+        java.time.Instant startedAt = java.time.Instant.now();
+        long startedAtNanos = System.nanoTime();
+        try {
+            UploadSession session = getSession(uploadId);
+            assertUploadOwnedBy(uploadId, userId);
+            policy.validatePartNumber(partNumber, session.getExpectedTotalParts());
 
-        if (session.getStatus() != UploadStatus.UPLOADING) {
-            throw new UploadException(
-                    HttpStatus.CONFLICT,
-                    "UPLOAD_NOT_ACCEPTING_PARTS",
-                    "This upload no longer accepts parts."
+            if (session.getStatus() != UploadStatus.UPLOADING) {
+                throw new UploadException(
+                        HttpStatus.CONFLICT,
+                        "UPLOAD_NOT_ACCEPTING_PARTS",
+                        "This upload no longer accepts parts."
+                );
+            }
+
+            long expectedSize = policy.expectedPartSize(
+                    session.getExpectedFileSizeBytes(),
+                    partNumber
+            );
+            StorageService.TempPart temporaryPart = storageService.writeTemporaryPart(
+                    uploadId,
+                    partNumber,
+                    input,
+                    expectedSize
+            );
+
+            String normalizedClientHash = normalizeHash(clientSha256);
+            if (normalizedClientHash != null
+                    && !normalizedClientHash.equals(temporaryPart.sha256())) {
+                storageService.deleteTemporaryPart(temporaryPart);
+                throw new UploadException(
+                        HttpStatus.BAD_REQUEST,
+                        "PART_CHECKSUM_MISMATCH",
+                        "The upload part checksum is invalid."
+                );
+            }
+
+            return partRegistrationService.registerPart(
+                    uploadId,
+                    partNumber,
+                    temporaryPart
+            );
+        } finally {
+            uploadTimeLogger.recordPartRequest(
+                    uploadId,
+                    startedAt,
+                    System.nanoTime() - startedAtNanos
             );
         }
-
-        long expectedSize = policy.expectedPartSize(
-                session.getExpectedFileSizeBytes(),
-                partNumber
-        );
-        StorageService.TempPart temporaryPart = storageService.writeTemporaryPart(
-                uploadId,
-                partNumber,
-                input,
-                expectedSize
-        );
-
-        String normalizedClientHash = normalizeHash(clientSha256);
-        if (normalizedClientHash != null
-                && !normalizedClientHash.equals(temporaryPart.sha256())) {
-            storageService.deleteTemporaryPart(temporaryPart);
-            throw new UploadException(
-                    HttpStatus.BAD_REQUEST,
-                    "PART_CHECKSUM_MISMATCH",
-                    "The upload part checksum is invalid."
-            );
-        }
-
-        return partRegistrationService.registerPart(
-                uploadId,
-                partNumber,
-                temporaryPart
-        );
     }
 
     @Transactional
-    public CompleteUploadResponse completeUpload(UUID uploadId) {
+    public CompleteUploadResponse completeUpload(UUID uploadId, UUID userId) {
+        assertUploadOwnedBy(uploadId, userId);
         UploadSession session = sessionRepository.findByIdForUpdate(uploadId)
                 .orElseThrow(() -> new UploadException(
                         HttpStatus.NOT_FOUND,
@@ -211,7 +266,8 @@ public class UploadService {
     }
 
     @Transactional(readOnly = true)
-    public UploadStatusResponse getStatus(UUID uploadId) {
+    public UploadStatusResponse getStatus(UUID uploadId, UUID userId) {
+        assertUploadOwnedBy(uploadId, userId);
         return toStatusResponse(getSession(uploadId));
     }
 
@@ -229,7 +285,36 @@ public class UploadService {
         Pageable pageable = PageRequest.of(page, size);
         Page<UploadSummaryProjection> resultPage = uploadRepository
                 .findSummariesByUserId(user.getId(), search, pageable);
+        return toUploadPage(resultPage, page, size);
+    }
 
+    @Transactional(readOnly = true)
+    public UploadPageResponse findUploads(
+            User user,
+            int requestedPage,
+            int requestedSize,
+            String search,
+            String requestedSort
+    ) {
+        int page = Math.max(requestedPage, 0);
+        int size = requestedSize <= 0
+                ? DEFAULT_PAGE_SIZE
+                : Math.min(requestedSize, MAX_PAGE_SIZE);
+        Pageable pageable = PageRequest.of(page, size);
+        SortOptions sort = parseSort(requestedSort);
+        Page<UploadSummaryProjection> resultPage = uploadRepository
+                .findSummariesByUserId(
+                        user.getId(), search, sort.field(), sort.direction(), pageable
+                );
+
+        return toUploadPage(resultPage, page, size);
+    }
+
+    private UploadPageResponse toUploadPage(
+            Page<UploadSummaryProjection> resultPage,
+            int page,
+            int size
+    ) {
         List<UploadSummaryResponse> content = resultPage.getContent().stream()
                 .map(this::toSummaryResponse)
                 .toList();
@@ -243,8 +328,22 @@ public class UploadService {
         );
     }
 
+    private SortOptions parseSort(String requestedSort) {
+        String[] parts = requestedSort == null ? new String[0] : requestedSort.split(",", 2);
+        String field = parts.length > 0 ? parts[0].trim() : "";
+        if (!List.of("fileName", "uploadedAt", "transactionCount")
+                .contains(field)) {
+            field = "uploadedAt";
+        }
+        String direction = parts.length > 1 && "asc".equalsIgnoreCase(parts[1].trim())
+                ? "asc"
+                : "desc";
+        return new SortOptions(field, direction);
+    }
+
     @Transactional
-    public void cancelUpload(UUID uploadId) {
+    public void cancelUpload(UUID uploadId, UUID userId) {
+        assertUploadOwnedBy(uploadId, userId);
         UploadSession session = sessionRepository.findByIdForUpdate(uploadId)
                 .orElseThrow(() -> new UploadException(
                         HttpStatus.NOT_FOUND,
@@ -252,7 +351,8 @@ public class UploadService {
                         "Upload session not found."
                 ));
 
-        if (session.getStatus() == UploadStatus.COMPLETED) {
+        if (session.getStatus() == UploadStatus.COMPLETED
+                || session.getStatus() == UploadStatus.DUPLICATE) {
             throw new UploadException(
                     HttpStatus.CONFLICT,
                     "UPLOAD_CANNOT_CANCEL",
@@ -265,12 +365,83 @@ public class UploadService {
         }
 
         session.setStatus(UploadStatus.CANCELLED);
+        session.setErrorMessage("Upload cancelled.");
         sessionRepository.save(session);
+        finishUploadAfterCommit(uploadId);
         if (session.getProcessingJobId() != null) {
             processingJobRepository.findById(session.getProcessingJobId())
                     .ifPresent(processingJobRepository::delete);
         }
+        uploadRepository.findBySession_Id(session.getId()).ifPresent(upload -> {
+            transactionBatchWriter.clearImportRows(upload.getId());
+            session.detachUpload();
+            uploadRepository.delete(upload);
+        });
         storageService.deleteUpload(uploadId);
+    }
+
+    @Transactional
+    public void deleteUploadDocument(UUID uploadId, UUID userId) {
+        Upload upload = uploadRepository.findByIdAndUser_Id(uploadId, userId)
+                .orElseThrow(() -> new UploadException(
+                        HttpStatus.NOT_FOUND,
+                        "UPLOAD_NOT_FOUND",
+                        "Upload document not found."
+                ));
+        UUID sessionId = upload.getSession().getId();
+        UploadSession session = sessionRepository.findByIdForUpdate(sessionId)
+                .orElseThrow(() -> new UploadException(
+                        HttpStatus.NOT_FOUND,
+                        "UPLOAD_NOT_FOUND",
+                        "Upload document not found."
+                ));
+
+        transactionBatchWriter.clearImportRows(uploadId);
+        session.detachUpload();
+        jdbcTemplate.update(
+                """
+                        DELETE FROM fee_calculations fee
+                        USING qualification_results qr, transactions tx
+                        WHERE fee.qualification_result_id = qr.id
+                          AND qr.transaction_id = tx.id
+                          AND tx.upload_id = ?
+                        """,
+                uploadId
+        );
+        jdbcTemplate.update(
+                """
+                        DELETE FROM qualification_results qr
+                        USING transactions tx
+                        WHERE qr.transaction_id = tx.id
+                          AND tx.upload_id = ?
+                        """,
+                uploadId
+        );
+        jdbcTemplate.update(
+                """
+                        DELETE FROM ml_predictions prediction
+                        USING transactions tx
+                        WHERE prediction.transaction_id = tx.id
+                          AND tx.upload_id = ?
+                        """,
+                uploadId
+        );
+        jdbcTemplate.update("DELETE FROM transactions WHERE upload_id = ?", uploadId);
+        uploadRepository.delete(upload);
+        uploadRepository.flush();
+        sessionRepository.delete(session);
+        sessionRepository.flush();
+        if (session.getProcessingJobId() != null) {
+            processingJobRepository.findById(session.getProcessingJobId())
+                    .ifPresent(processingJobRepository::delete);
+        }
+        runAfterCommit(() -> {
+            try {
+                storageService.deleteUpload(sessionId);
+            } catch (RuntimeException exception) {
+                log.warn("Could not clean temporary files for deleted upload {}", sessionId, exception);
+            }
+        });
     }
 
     public UploadSession getSession(UUID uploadId) {
@@ -302,6 +473,7 @@ public class UploadService {
         session.setStatus(UploadStatus.PROCESSING);
         session.setErrorMessage(null);
         sessionRepository.save(session);
+        runAfterCommit(() -> uploadTimeLogger.markProcessingStarted(uploadId));
         updateProcessingJob(session.getProcessingJobId(), JobStatus.RUNNING, 0, 0, null);
         return true;
     }
@@ -310,24 +482,29 @@ public class UploadService {
     public boolean isCancellationRequested(UUID uploadId) {
         Boolean cancelled = jdbcTemplate.queryForObject(
                 """
-                        SELECT EXISTS (
+                        SELECT NOT EXISTS (
+                            SELECT 1
+                            FROM upload_sessions
+                            WHERE id = ?
+                        ) OR EXISTS (
                             SELECT 1
                             FROM upload_sessions
                             WHERE id = ? AND status = 'CANCELLED'
                         )
                         """,
                 Boolean.class,
+                uploadId,
                 uploadId
         );
         return Boolean.TRUE.equals(cancelled);
     }
 
     @Transactional
-    public void commitImportedTransactions(
+    public UploadStatusResponse commitImportedTransactions(
             UUID uploadId,
             UUID uploadRecordId,
-            String contentSha256,
-            long processedRows
+            long processedRows,
+            boolean analystConfirmed
     ) {
         UploadSession session = sessionRepository.findByIdForUpdate(uploadId)
                 .orElseThrow(() -> new UploadException(
@@ -336,35 +513,102 @@ public class UploadService {
                         "Upload session not found."
                 ));
 
-        if (session.getStatus() != UploadStatus.PROCESSING) {
+        if (session.getStatus() != UploadStatus.PROCESSING
+                && !(analystConfirmed && session.getStatus() == UploadStatus.DUPLICATES_FOUND)) {
             throw new UploadCancelledException();
         }
 
         // The row lock above makes cancellation and the final merge mutually
         // exclusive. A cancellation that wins the race prevents this merge;
         // a merge that wins the race completes the upload before cancellation.
-        try {
-            jdbcTemplate.update(
-                    SET_UPLOAD_CONTENT_SHA256_SQL,
-                    contentSha256,
-                    uploadRecordId
+        boolean reviewingPersistedRows = session.getStatus() == UploadStatus.DUPLICATES_FOUND;
+        deduplicationService.lockSource(uploadRecordId);
+        TransactionDeduplicationService.DuplicateSummary duplicateSummary = reviewingPersistedRows
+                ? deduplicationService.refreshReviewDuplicateMarks(uploadRecordId)
+                : deduplicationService.refreshStagedDuplicateMarks(uploadRecordId);
+        boolean duplicateSetChanged = !java.util.Objects.equals(
+                session.getDuplicateSignature(),
+                duplicateSummary.signature()
+        );
+        if (duplicateSummary.count() > 0
+                && (!analystConfirmed || duplicateSetChanged)) {
+            if (!reviewingPersistedRows) {
+                // The status change and durable row copy share this transaction. A review
+                // session therefore never points at rows held only in unlogged staging.
+                transactionBatchWriter.persistStagedRowsForReview(uploadRecordId);
+            }
+            session.setProcessedRows(processedRows);
+            session.setDuplicateRows(duplicateSummary.count());
+            session.setDuplicateSignature(duplicateSummary.signature());
+            session.setStatus(UploadStatus.DUPLICATES_FOUND);
+            session.setErrorMessage(
+                    "Found " + duplicateSummary.count()
+                            + " duplicate transactions. Review the report to continue."
             );
-        } catch (DataIntegrityViolationException exception) {
-            // The unique index is the final guard for simultaneous imports of
-            // the same content by the same user.
-            throw new DuplicateUploadException(exception);
+            sessionRepository.save(session);
+            updateProcessingJob(
+                    session.getProcessingJobId(),
+                    JobStatus.COMPLETED,
+                    processedRows,
+                    0,
+                    null
+            );
+            finishUploadAfterCommit(uploadId);
+            return toStatusResponse(session);
         }
-        transactionBatchWriter.mergeStagedRows(uploadRecordId);
-        session.setProcessedRows(processedRows);
+        long mergeStartedAtNanos = System.nanoTime();
+        long importedRows = reviewingPersistedRows
+                ? transactionBatchWriter.mergeReviewRows(uploadRecordId)
+                : transactionBatchWriter.mergeStagedRows(uploadRecordId);
+        long mergeElapsedNanos = System.nanoTime() - mergeStartedAtNanos;
+        runAfterCommit(() -> uploadTimeLogger.recordFinalMerge(uploadId, mergeElapsedNanos));
+        session.setProcessedRows(importedRows);
+        session.setDuplicateRows(duplicateSummary.count());
+        session.setDuplicateSignature(duplicateSummary.signature());
         session.setStatus(UploadStatus.COMPLETED);
         session.setErrorMessage(null);
         sessionRepository.save(session);
         updateProcessingJob(
                 session.getProcessingJobId(),
                 JobStatus.COMPLETED,
-                processedRows,
+                importedRows,
                 0,
                 null
+        );
+        finishUploadAfterCommit(uploadId);
+        return toStatusResponse(session);
+    }
+
+    @Transactional
+    public UploadStatusResponse confirmDuplicateImport(UUID uploadId, UUID userId) {
+        assertUploadOwnedBy(uploadId, userId);
+        UploadSession session = sessionRepository.findByIdForUpdate(uploadId)
+                .orElseThrow(() -> new UploadException(
+                        HttpStatus.NOT_FOUND,
+                        "UPLOAD_NOT_FOUND",
+                        "Upload session not found."
+                ));
+        if (session.getStatus() != UploadStatus.DUPLICATES_FOUND) {
+            throw new UploadException(
+                    HttpStatus.CONFLICT,
+                    "UPLOAD_NOT_AWAITING_DUPLICATE_DECISION",
+                    "This upload is not waiting for a duplicate decision."
+            );
+        }
+        UUID uploadRecordId = uploadRepository.findBySession_IdAndUser_Id(
+                        session.getId(), userId
+                )
+                .map(Upload::getId)
+                .orElseThrow(() -> new UploadException(
+                        HttpStatus.NOT_FOUND,
+                        "UPLOAD_NOT_FOUND",
+                        "Upload document not found."
+                ));
+        return commitImportedTransactions(
+                uploadId,
+                uploadRecordId,
+                session.getProcessedRows(),
+                true
         );
     }
 
@@ -406,9 +650,15 @@ public class UploadService {
                 : message.substring(0, Math.min(message.length(), 1000));
         sessionRepository.findById(uploadId).ifPresent(session -> {
             session.setProcessedRows(processedRows);
+            session.setDuplicateRows(0);
+            session.setDuplicateSignature(null);
             session.setStatus(UploadStatus.FAILED);
             session.setErrorMessage(safeMessage);
             sessionRepository.save(session);
+            jdbcTemplate.update(
+                    "UPDATE uploads SET content_sha256 = NULL WHERE session_id = ?",
+                    uploadId
+            );
             updateProcessingJob(
                     session.getProcessingJobId(),
                     JobStatus.FAILED,
@@ -416,6 +666,7 @@ public class UploadService {
                     1,
                     safeMessage
             );
+            finishUploadAfterCommit(uploadId);
         });
     }
 
@@ -433,6 +684,11 @@ public class UploadService {
             session.setStatus(UploadStatus.DUPLICATE);
             session.setErrorMessage(DuplicateUploadException.USER_MESSAGE);
             sessionRepository.save(session);
+            jdbcTemplate.update(
+                    "UPDATE uploads SET content_sha256 = NULL WHERE session_id = ?",
+                    uploadId
+            );
+            finishUploadAfterCommit(uploadId);
             // Duplicate attempts must not appear in upload history or keep a
             // copy of their document. Keep the session briefly so the polling
             // client can still receive the DUPLICATE result.
@@ -498,7 +754,9 @@ public class UploadService {
 
     private UploadStatusResponse toStatusResponse(UploadSession session) {
         StoredUploadMetadata upload = findStoredUploadMetadata(session.getId());
-        if (upload == null && session.getStatus() != UploadStatus.DUPLICATE) {
+        if (upload == null
+                && session.getStatus() != UploadStatus.DUPLICATE
+                && session.getStatus() != UploadStatus.CANCELLED) {
             upload = getStoredUploadMetadata(session.getId());
         }
         return new UploadStatusResponse(
@@ -511,6 +769,7 @@ public class UploadService {
                 session.getUploadedParts(),
                 session.getExpectedTotalParts(),
                 session.getProcessedRows(),
+                session.getDuplicateRows(),
                 session.getErrorMessage(),
                 upload == null ? session.getCreatedAt() : upload.uploadedAt()
         );
@@ -519,7 +778,9 @@ public class UploadService {
     private UploadSummaryResponse toSummaryResponse(UploadSummaryProjection projection) {
         return new UploadSummaryResponse(
                 projection.getId(),
+                projection.getSessionId(),
                 projection.getFileName(),
+                projection.getSourceName(),
                 projection.getUploadedAt(),
                 projection.getImportStatus(),
                 projection.getWasEvaluated(),
@@ -527,7 +788,8 @@ public class UploadService {
                         && projection.getNewTransactionCount() == 0
                         ? "EVALUATED"
                         : "NOT_EVALUATED",
-                projection.getTransactionCount()
+                projection.getTransactionCount(),
+                projection.getDuplicateRows()
         );
         }
 
@@ -552,6 +814,25 @@ public class UploadService {
             );
         }
         return upload;
+    }
+
+    private void finishUploadAfterCommit(UUID uploadId) {
+        runAfterCommit(() -> uploadTimeLogger.finish(uploadId));
+    }
+
+    private void runAfterCommit(Runnable action) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            action.run();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        action.run();
+                    }
+                }
+        );
     }
 
     private StoredUploadMetadata findStoredUploadMetadata(UUID sessionId) {
@@ -589,5 +870,32 @@ public class UploadService {
     }
 
     private record StoredUploadMetadata(UUID id, java.time.Instant uploadedAt) {
+    }
+
+    private record SortOptions(String field, String direction) {
+    }
+
+    private void assertUploadOwnedBy(UUID uploadId, UUID userId) {
+        Boolean owned = jdbcTemplate.queryForObject(
+                """
+                        SELECT EXISTS (
+                            SELECT 1
+                            FROM upload_sessions session
+                            LEFT JOIN uploads upload ON upload.session_id = session.id
+                            WHERE session.id = ?
+                              AND COALESCE(upload.user_id, session.user_id) = ?
+                        )
+                        """,
+                Boolean.class,
+                uploadId,
+                userId
+        );
+        if (!Boolean.TRUE.equals(owned)) {
+            throw new UploadException(
+                    HttpStatus.NOT_FOUND,
+                    "UPLOAD_NOT_FOUND",
+                    "Upload session not found."
+            );
+        }
     }
 }

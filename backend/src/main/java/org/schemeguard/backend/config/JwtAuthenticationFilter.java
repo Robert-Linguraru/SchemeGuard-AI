@@ -27,6 +27,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final UserRepository userRepository;
 
     @Override
+    protected boolean shouldNotFilterAsyncDispatch() {
+        // StreamingResponseBody runs on an async servlet dispatch. Re-run the
+        // JWT filter there because the original thread's security context has
+        // already been cleared by the stateless security chain.
+        return false;
+    }
+
+    @Override
     protected void doFilterInternal(
             HttpServletRequest request,
             HttpServletResponse response,

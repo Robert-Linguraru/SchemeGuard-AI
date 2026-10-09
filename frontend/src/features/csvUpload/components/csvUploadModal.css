@@ -1,0 +1,103 @@
+.csv-upload-dropzone.ant-upload-wrapper .ant-upload-drag {
+  min-height: 200px;
+  border-color: var(--border);
+  background: var(--surface-input);
+}
+
+.csv-upload-dropzone.ant-upload-wrapper .ant-upload-drag:not(.ant-upload-disabled):hover {
+  border-color: var(--coral);
+  background: var(--surface-raised);
+}
+
+.csv-upload-title-icon {
+  color: var(--coral);
+}
+
+.csv-upload-dropzone.ant-upload-wrapper .ant-upload-drag .ant-upload-drag-icon .anticon {
+  color: var(--coral) !important;
+}
+
+.csv-upload-file-note {
+  display: block;
+  position: relative;
+  top: -8px;
+  margin-bottom: 6px;
+}
+
+.csv-upload-sources-note {
+  display: block;
+  font-size: 12px;
+  padding-left: 1%;
+}
+
+.csv-upload-selected-file.ant-card {
+  border-color: var(--border);
+}
+
+.duplicate-download-button.ant-btn {
+  border-color: var(--orange);
+  background: var(--orange);
+  color: #192b37;
+  font-weight: 600;
+}
+
+.duplicate-download-button.ant-btn:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--orange) 84%, #192b37);
+  background: color-mix(in srgb, var(--orange) 84%, #192b37);
+  color: #192b37;
+}
+
+.duplicate-download-button.ant-btn:focus-visible {
+  outline: 2px solid var(--orange);
+  outline-offset: 2px;
+}
+
+:root[data-theme="light"] .duplicate-download-button.ant-btn {
+  border-color: #faad14;
+  background: #faad14;
+}
+
+:root[data-theme="light"] .duplicate-download-button.ant-btn:hover:not(:disabled) {
+  border-color: color-mix(in srgb, #faad14 84%, #192b37);
+  background: color-mix(in srgb, #faad14 84%, #192b37);
+}
+
+.csv-upload-duplicate-footer {
+  width: 100%;
+}
+
+.csv-upload-progress-track {
+  height: 6px;
+  margin: 13px 0 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-subtle);
+}
+
+.csv-upload-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--status-evaluated-text);
+  transition: width 180ms ease-out;
+}
+
+.csv-upload-progress-track.is-indeterminate::after {
+  display: block;
+  width: 36%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--status-evaluated-text);
+  content: "";
+  animation: csv-upload-progress 1.4s ease-in-out infinite alternate;
+}
+
+@keyframes csv-upload-progress {
+  from { transform: translateX(0); }
+  to { transform: translateX(175%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .csv-upload-progress-track.is-indeterminate::after {
+    animation-duration: 3s;
+  }
+}

@@ -6,15 +6,27 @@ import { AnalysisDashboardPage } from "../features/transactions/pages/AnalysisDa
 import { ProfilePage } from "../features/auth/pages/ProfilePage";
 import { CardSchemesPage } from "../features/cardSchemes/pages/CardSchemesPage";
 import { UploadsPage } from "../features/uploads/pages/UploadsPage";
+import { MyAgentPage } from "../features/agent/pages/MyAgentPage";
 import type { View } from "../shared/types/navigation";
+import type { AgentOpenContext, AgentTransactionContext } from "../shared/types/agent";
+import type { Transaction } from "../shared/types/transaction";
+import type { UploadSummary } from "../features/uploads/types/upload";
 
 type AppRouterProps = {
     view: View;
+    agentUserId: string;
+    agentUserName: string;
+    agentOpenContext: AgentOpenContext | null;
+    onAgentOpenContextConsumed: () => void;
+    onAskAgentAboutTransaction: (uploadId: string, transaction: AgentTransactionContext) => void;
     selectedRuleId: string | null;
     selectedUploadId: string | null;
     selectedUploadFileName: string | null;
     selectedUploadImportStatus: string | null;
     selectedUploadWasEvaluated: boolean;
+    focusedAnalyticsTransaction: { id: string; externalId: string } | null;
+    onReturnFromAgent: () => void;
+    onOpenAnalyticsTransaction: (upload: UploadSummary, transaction: Transaction) => void;
     ruleCreationNotice: string | null;
     onRuleCreationNoticeShown: () => void;
     onRuleCreated: () => void;
@@ -27,18 +39,23 @@ type AppRouterProps = {
         wasEvaluated: boolean
     ) => void;
     onUploadEvaluated: (wasEvaluated: boolean) => void;
-    onOpenAssistant: () => void;
-    onCloseAssistant: () => void;
-    isAssistantOpen: boolean;
 };
 
 export function AppRouter({
     view,
+    agentUserId,
+    agentUserName,
+    agentOpenContext,
+    onAgentOpenContextConsumed,
+    onAskAgentAboutTransaction,
     selectedRuleId,
     selectedUploadId,
     selectedUploadFileName,
     selectedUploadImportStatus,
     selectedUploadWasEvaluated,
+    focusedAnalyticsTransaction,
+    onReturnFromAgent,
+    onOpenAnalyticsTransaction,
     ruleCreationNotice,
     onRuleCreationNoticeShown,
     onRuleCreated,
@@ -46,9 +63,6 @@ export function AppRouter({
     onOpenRule,
     onOpenUpload,
     onUploadEvaluated,
-    onOpenAssistant,
-    onCloseAssistant,
-    isAssistantOpen,
 }: AppRouterProps) {
     switch (view) {
         case "dashboard":
@@ -75,10 +89,21 @@ export function AppRouter({
             );
 
         case "analysis-dashboard":
-            return <AnalysisDashboardPage />;
+            return <AnalysisDashboardPage onOpenTransaction={onOpenAnalyticsTransaction} />;
 
         case "card-schemes":
             return <CardSchemesPage />;
+
+        case "my-agent":
+            return (
+                <MyAgentPage
+                    userId={agentUserId}
+                    userName={agentUserName}
+                    initialContext={agentOpenContext}
+                    onInitialContextConsumed={onAgentOpenContextConsumed}
+                    onReturn={onReturnFromAgent}
+                />
+            );
 
         case "details":
             return selectedRuleId ? (
@@ -102,14 +127,13 @@ export function AppRouter({
         case "upload-details":
             return (
                 <DashboardPage
-                    onOpenAssistant={onOpenAssistant}
-                    onCloseAssistant={onCloseAssistant}
-                    isAssistantOpen={isAssistantOpen}
                     onOpenRule={onOpenRule}
+                    onAskAgentAboutTransaction={onAskAgentAboutTransaction}
                     selectedUploadId={selectedUploadId}
                     selectedUploadFileName={selectedUploadFileName}
                     selectedUploadImportStatus={selectedUploadImportStatus}
                     selectedUploadWasEvaluated={selectedUploadWasEvaluated}
+                    focusedAnalyticsTransaction={focusedAnalyticsTransaction}
                     onUploadEvaluated={onUploadEvaluated}
                 />
             );

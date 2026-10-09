@@ -9,9 +9,9 @@
 .secondary-button,
 .success-box button {
     padding: 10px 14px;
-    border: 1px solid #c4d2dc;
+    border: 1px solid #D1D5D7;
     border-radius: 8px;
-    background: #edf3f6;
+    background: #E8EAEB;
     color: var(--navy);
     font-weight: 700;
 }
@@ -24,7 +24,7 @@
 
 .create-rule-button:hover,
 .success-box button:hover {
-    background: #ff7168;
+    background: color-mix(in srgb, var(--coral) 86%, var(--navy));
     color: var(--white);
 }
 
@@ -86,20 +86,20 @@
 .rule-form input,
 .rule-form select {
     min-height: 44px;
-    background: #fbfdfe;
+    background: #FFFFFF;
     color: var(--navy);
 }
 
 .rule-form select {
     width: 100%;
     padding: 0 12px;
-    border: 1px solid #c4d2dc;
+    border: 1px solid #D1D5D7;
     border-radius: 8px;
 }
 
 .field-help,
 .optional {
-    color: #65738b;
+    color: #5E6A73;
     font-size: 12px;
     font-weight: 400;
     line-height: 1.45;
@@ -108,7 +108,7 @@
 .field-help code {
     padding: 2px 4px;
     border-radius: 4px;
-    background: #edf3f6;
+    background: #E8EAEB;
 }
 
 .conditions-fieldset {
@@ -129,7 +129,7 @@
     padding: 14px;
     border: 1px solid var(--border);
     border-radius: 10px;
-    background: #f7fafb;
+    background: #E8EAEB;
 }
 
 .remove-condition {
@@ -181,7 +181,7 @@
     align-items: center;
     gap: 5px;
     padding: 16px;
-    border: 1px solid #a9dfc4;
+    border: 1px solid color-mix(in srgb, var(--green) 45%, var(--border));
     border-radius: 8px;
     background: var(--green-bg);
     color: var(--green);
@@ -189,7 +189,7 @@
 
 .success-box button {
     margin-left: auto;
-    border-color: #a9dfc4;
+    border-color: color-mix(in srgb, var(--green) 45%, var(--border));
     background: var(--white);
     color: var(--green);
 }
@@ -289,7 +289,7 @@
 
 .rule-category {
     margin: 0;
-    color: #65738b;
+    color: #5E6A73;
     font-size: 14px;
 }
 
@@ -305,7 +305,7 @@
 }
 
 .rule-card-meta span {
-    color: #65738b;
+    color: #5E6A73;
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -327,18 +327,18 @@
 }
 
 .danger-button {
-    border-color: #f0b7b2;
-    background: #fff1ef;
+    border-color: color-mix(in srgb, var(--red) 45%, var(--border));
+    background: var(--red-bg);
     color: var(--red);
 }
 
 .danger-button:hover {
-    background: #ffe1dd;
+    background: color-mix(in srgb, var(--red) 20%, var(--surface-card));
 }
 
 .view-rule-button {
-    border: 1px solid #c4d2dc;
-    background: #edf3f6;
+    border: 1px solid #D1D5D7;
+    background: #E8EAEB;
     color: var(--navy);
 }
 
@@ -391,14 +391,14 @@
 
 .rule-scheme {
     margin: 8px 0 0;
-    color: #526078;
+    color: #47555F;
     font-size: 13px;
     font-weight: 700;
 }
 
 .rule-validity {
     margin: 18px 0 0;
-    color: #65738b;
+    color: #5E6A73;
     font-size: 12px;
 }
 
@@ -417,8 +417,8 @@
 }
 
 .rule-status.inactive {
-    background: #edf3f6;
-    color: #65738b;
+    background: #E8EAEB;
+    color: #5E6A73;
 }
 
 .rule-detail-card {
@@ -670,11 +670,11 @@
     min-width: 0;
     padding: 15px;
     border-radius: 10px;
-    background: #f7fafb;
+    background: #E8EAEB;
 }
 
 .details-grid span {
-    color: #65738b;
+    color: #5E6A73;
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.5px;
@@ -704,7 +704,7 @@
     padding: 14px;
     border: 1px solid var(--border);
     border-radius: 10px;
-    background: #f7fafb;
+    background: #E8EAEB;
 }
 
 .condition-number {
@@ -720,7 +720,7 @@
 }
 
 .condition-operator {
-    color: #65738b;
+    color: #5E6A73;
     font-size: 13px;
 }
 
