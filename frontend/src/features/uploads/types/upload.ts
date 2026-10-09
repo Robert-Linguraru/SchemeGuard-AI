@@ -5,6 +5,7 @@ export type UploadImportStatus =
     | "UPLOADING"
     | "QUEUED"
     | "PROCESSING"
+    | "DUPLICATES_FOUND"
     | "COMPLETED"
     | "DUPLICATE"
     | "FAILED"
@@ -22,12 +23,15 @@ export type UploadEvaluationStatus =
 
 export interface UploadSummary {
     id: string;
+    sessionId: string;
     fileName: string;
+    sourceName: string | null;
     uploadedAt: string;
     importStatus: UploadImportStatus;
     wasEvaluated: boolean;
     evaluationStatus: UploadEvaluationStatus;
     transactionCount: number;
+    duplicateRows: number;
 }
 
 export interface UploadTransactionPage extends EntityListResponse<Transaction> {}

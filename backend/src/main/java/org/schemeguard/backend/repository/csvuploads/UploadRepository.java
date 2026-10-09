@@ -21,14 +21,18 @@ public interface UploadRepository extends JpaRepository<Upload, UUID> {
 
     @Query(value = """
         SELECT u.id AS id,
+           s.id AS sessionId,
            s.original_file_name AS fileName,
+           ts.name AS sourceName,
            u.uploaded_at AS uploadedAt,
            s.status AS importStatus,
-               u.was_evaluated AS wasEvaluated,
+           u.was_evaluated AS wasEvaluated,
+               s.duplicate_rows AS duplicateRows,
                    COUNT(t.id) AS transactionCount,
                    COALESCE(SUM(CASE WHEN t.status = 'NEW' THEN 1 ELSE 0 END), 0) AS newTransactionCount
         FROM uploads u
         JOIN upload_sessions s ON s.id = u.session_id
+        LEFT JOIN transaction_sources ts ON ts.id = u.source_id
         LEFT JOIN transactions t ON t.upload_id = u.id
                 WHERE u.user_id = :userId
                     AND (
@@ -36,8 +40,22 @@ public interface UploadRepository extends JpaRepository<Upload, UUID> {
                             OR BTRIM(:search) = ''
                             OR LOWER(s.original_file_name) LIKE LOWER(CONCAT('%', BTRIM(:search), '%'))
                     )
-        GROUP BY u.id, s.original_file_name, u.uploaded_at, s.status, u.was_evaluated
-        ORDER BY u.uploaded_at DESC, u.id DESC
+        GROUP BY u.id, s.id, s.original_file_name, ts.name, u.uploaded_at, s.status,
+                 u.was_evaluated, s.duplicate_rows
+        ORDER BY
+            CASE WHEN :sortField = 'fileName' AND :sortDirection = 'asc'
+                THEN LOWER(s.original_file_name) END ASC NULLS LAST,
+            CASE WHEN :sortField = 'fileName' AND :sortDirection = 'desc'
+                THEN LOWER(s.original_file_name) END DESC NULLS LAST,
+            CASE WHEN :sortField = 'uploadedAt' AND :sortDirection = 'asc'
+                THEN u.uploaded_at END ASC NULLS LAST,
+            CASE WHEN :sortField = 'uploadedAt' AND :sortDirection = 'desc'
+                THEN u.uploaded_at END DESC NULLS LAST,
+            CASE WHEN :sortField = 'transactionCount' AND :sortDirection = 'asc'
+                THEN COUNT(t.id) END ASC,
+            CASE WHEN :sortField = 'transactionCount' AND :sortDirection = 'desc'
+                THEN COUNT(t.id) END DESC,
+            u.uploaded_at DESC, u.id DESC
         """,
         countQuery = """
             SELECT COUNT(u.id)
@@ -47,17 +65,32 @@ public interface UploadRepository extends JpaRepository<Upload, UUID> {
                             AND (
                                     :search IS NULL
                                     OR BTRIM(:search) = ''
-                                    OR LOWER(s.original_file_name) LIKE LOWER(CONCAT('%', BTRIM(:search), '%'))
+                            OR LOWER(s.original_file_name) LIKE LOWER(CONCAT('%', BTRIM(:search), '%'))
                             )
+                            AND CAST(:sortField AS text) IS NOT NULL
+                            AND CAST(:sortDirection AS text) IS NOT NULL
             """,
         nativeQuery = true)
     Page<UploadSummaryProjection> findSummariesByUserId(
         @Param("userId") UUID userId,
-            @Param("search") String search,
+        @Param("search") String search,
+        @Param("sortField") String sortField,
+        @Param("sortDirection") String sortDirection,
         Pageable pageable
     );
 
+    /** Backward-compatible entry point for callers that do not provide a sort. */
+    default Page<UploadSummaryProjection> findSummariesByUserId(
+            UUID userId,
+            String search,
+            Pageable pageable
+    ) {
+        return findSummariesByUserId(userId, search, "uploadedAt", "desc", pageable);
+    }
+
     Optional<Upload> findBySession_Id(UUID sessionId);
+
+    Optional<Upload> findBySession_IdAndUser_Id(UUID sessionId, UUID userId);
 
     Optional<Upload> findByIdAndUser_Id(UUID uploadId, UUID userId);
 
