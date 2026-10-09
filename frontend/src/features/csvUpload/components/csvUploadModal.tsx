@@ -571,7 +571,7 @@ export default function CsvTransactionUploadModal({
                 disabled={busy || isCompleted}
                 style={{ width: "100%", marginTop: 8 }}
               />
-              <Typography.Text type="secondary">
+              <Typography.Text className="csv-upload-sources-note" type="secondary">
                 Sources are shared between users.
               </Typography.Text>
               {sourceLoadError && (

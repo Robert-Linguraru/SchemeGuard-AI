@@ -4,6 +4,35 @@ Acest document descrie tabelele definite sau extinse de [upload_system.sql](uplo
 Scriptul se bazează pe schema principală creată de `db/create_schema.sql`; tabelele
 `users`, `processing_jobs`, `transactions`, `merchants` și `card_schemes` trebuie să existe deja.
 
+## Diagramă relațională
+
+Diagrama include și `users`, `processing_jobs` și `transactions`, care există în schema
+principală. `transactions` este extins de scriptul de upload.
+
+```mermaid
+erDiagram
+    USERS ||--o{ UPLOADS : owns
+    USERS o|--o{ UPLOAD_SESSIONS : starts
+    PROCESSING_JOBS o|--o{ UPLOAD_SESSIONS : tracks
+
+    UPLOAD_SESSIONS ||--o{ UPLOAD_PARTS : receives
+    UPLOAD_SESSIONS ||--o| UPLOADS : persists
+    TRANSACTION_SOURCES o|--o{ UPLOADS : identifies
+
+    UPLOADS ||--o{ TRANSACTION_IMPORT_STAGING : stages
+    UPLOADS ||--o{ TRANSACTION_IMPORT_REVIEW : reviews
+    UPLOADS o|--o{ TRANSACTIONS : imports
+    TRANSACTION_SOURCES o|--o{ TRANSACTIONS : scopes
+
+    UPLOADS ||--o{ TRANSACTION_OUTLIERS : flags
+    TRANSACTIONS ||--o{ TRANSACTION_OUTLIERS : records
+    UPLOADS ||--o| ANOMALY_DETECTION_JOBS : schedules
+    ANOMALY_DETECTION_JOBS ||--o| ANOMALY_DETECTION_INPUTS : fingerprints
+```
+
+`o|` indică o legătură opțională, `||` o singură înregistrare obligatorie, iar `o{`
+zero sau mai multe înregistrări.
+
 ## Tabele
 
 | Tabel | Rol | Legături principale |
