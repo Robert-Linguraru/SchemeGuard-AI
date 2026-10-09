@@ -14,6 +14,7 @@ import {
     App as AntdApp,
     Alert,
     Button,
+    Flex,
     Modal,
     Space,
     Tooltip,
@@ -191,7 +192,7 @@ const createColumns = (
                 )}
                 <Tooltip
                     title={deletingUploadId === upload.id ? "Deleting document..." : "Delete document"}
-                    color="#f05d53"
+                    color="var(--danger-button-bg)"
                     styles={{ container: { color: "#ffffff" } }}
                 >
                     <span className="entity-list-action-tooltip">
@@ -307,6 +308,7 @@ export function UploadsPage({
         deletingUploadId,
         (upload) => {
             modal.confirm({
+                className: "upload-delete-confirm",
                 title: `Delete ${upload.fileName}?`,
                 content: `This permanently deletes the document and all ${upload.transactionCount.toLocaleString()} associated transaction${upload.transactionCount === 1 ? "" : "s"}, including their analysis results. This cannot be undone.`,
                 okText: "Delete permanently",
@@ -486,7 +488,7 @@ export function UploadsPage({
                     closable={!isResolvingDuplicates && !isDownloadingDuplicateReport}
                     mask={{ closable: !isResolvingDuplicates && !isDownloadingDuplicateReport }}
                     footer={(
-                        <Space>
+                        <Flex justify="space-between" align="center" gap={12} style={{ width: "100%" }}>
                             <Button
                                 danger
                                 icon={<WarningOutlined />}
@@ -504,7 +506,7 @@ export function UploadsPage({
                             >
                                 Continue without duplicates
                             </Button>
-                        </Space>
+                        </Flex>
                     )}
                 >
                     {reviewingUpload && (
@@ -516,6 +518,7 @@ export function UploadsPage({
                             action={(
                                 <Button
                                     size="small"
+                                    className="duplicate-download-button"
                                     icon={<DownloadOutlined />}
                                     onClick={() => void downloadDuplicateWorkbook()}
                                     loading={isDownloadingDuplicateReport}

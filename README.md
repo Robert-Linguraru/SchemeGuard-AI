@@ -106,24 +106,16 @@ the following order:
 2. `create_schema.sql` creates the main tables.
 3. `rule_interpreter.sql` creates fallback rates and evaluation indexes.
 4. `seed_reference_data.sql` inserts roles, card schemes, and 249 country mappings.
-5. `upload_tables.sql` creates the upload tables and the transaction-import staging table.
-6. `upload_content_hash.sql` adds per-user exact-file deduplication and removes stored document rows for duplicate attempts. Existing documents are not hashed retroactively.
-7. `transaction_sources_and_deduplication.sql` adds shared, normalized sources and per-user/per-source transaction deduplication. It preserves existing rows and leaves historical uploads without a known source unassigned.
-8. `transaction_outliers.sql` creates the upload-scoped anomaly table used by outlier detection.
-9. `anomaly_detection_jobs.sql` creates the persistent queue and status table for asynchronous outlier detection.
-10. `anomaly_detection_inputs.sql` creates the cache identity table used to invalidate older detector results.
+5. `db/csvuploads/upload_system.sql` creates the upload sessions, parts, upload records, staging and review tables, transaction sources and deduplication indexes, upload timing columns, and upload-scoped anomaly detection tables.
 
-If the database already exists, run both `upload_content_hash.sql` and
-`transaction_sources_and_deduplication.sql` before deploying or restarting the
-backend with these upload features. The first migration enables per-user exact-file
-deduplication and removes duplicate-attempt rows already present in upload history
-while leaving their sessions for normal cleanup. Existing uploads keep a `NULL`
-content hash and are not checked as prior files. The second migration enables shared
-transaction sources and per-user/source transaction deduplication; historical uploads
-remain unassigned to a source, so their transactions are not used as prior source-scoped
-duplicates until a source is explicitly associated with them. Run `transaction_outliers.sql`,
-`anomaly_detection_jobs.sql`, and `anomaly_detection_inputs.sql` after deploying the
-anomaly feature. These scripts are safe to rerun.
+If the database already exists, run `db/csvuploads/upload_system.sql` after
+`db/create_schema.sql` has been applied and before starting or restarting the backend.
+Its DDL is idempotent. The script also preserves known transaction/source associations,
+moves pending duplicate review rows from staging into the review table, and removes
+empty upload records for sessions already marked `DUPLICATE` while retaining those
+sessions. Existing uploads keep a `NULL` content hash, and historical uploads without
+an explicitly associated source remain source-less; those rows are not used for
+exact-file or source-scoped duplicate detection.
 
 Detection returns a job from `POST /api/uploads/{uploadId}/anomalies/detect` (HTTP 202).
 Poll `/anomalies/status`, then retrieve transaction IDs from `/anomalies` when the job
