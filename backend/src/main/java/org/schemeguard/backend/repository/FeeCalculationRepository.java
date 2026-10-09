@@ -4,11 +4,17 @@ import org.schemeguard.backend.entity.FeeCalculation;
 import org.springframework.data.repository.CrudRepository;
 
 import java.util.Optional;
+import java.util.Collection;
+import java.util.List;
 import java.util.UUID;
 
 public interface FeeCalculationRepository extends CrudRepository<FeeCalculation, UUID> {
 
     Optional<FeeCalculation> findByQualificationResultId(
             UUID qualificationResultId
+    );
+
+    List<FeeCalculation> findByQualificationResultIdIn(
+            Collection<UUID> qualificationResultIds
     );
 }

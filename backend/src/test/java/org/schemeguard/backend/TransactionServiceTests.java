@@ -27,7 +27,6 @@ import org.springframework.data.domain.Pageable;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -36,6 +35,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -57,8 +57,8 @@ class TransactionServiceTests {
         );
         when(qualificationResultRepository.findForTransactions(any()))
                 .thenReturn(List.of());
-        when(feeCalculationRepository.findByQualificationResultId(any()))
-                .thenReturn(Optional.empty());
+        when(feeCalculationRepository.findByQualificationResultIdIn(any()))
+                .thenReturn(List.of());
     }
 
     @Test
@@ -71,6 +71,7 @@ class TransactionServiceTests {
         assertEquals(List.of(), response.content());
         assertEquals(0, response.totalElements());
         assertEquals(0, response.totalPages());
+        verify(feeCalculationRepository, never()).findByQualificationResultIdIn(any());
     }
 
     @Test
@@ -198,6 +199,7 @@ class TransactionServiceTests {
         assertNull(response.qualificationCategory());
         assertNull(response.qualificationExplanation());
         assertNull(response.evaluatedAt());
+        verify(feeCalculationRepository, never()).findByQualificationResultIdIn(any());
     }
 
     @Test
@@ -211,13 +213,14 @@ class TransactionServiceTests {
         result.setExplanation("All conditions passed.");
         result.setEvaluatedAt(Instant.parse("2026-09-15T10:00:00Z"));
         FeeCalculation fee = new FeeCalculation();
+        fee.setQualificationResult(result);
         fee.setTotalFee(new BigDecimal("0.42"));
         when(transactionRepository.findAllByOrderByCreatedAtDescIdDesc(any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(transaction)));
         when(qualificationResultRepository.findForTransactions(any()))
                 .thenReturn(List.of(result));
-        when(feeCalculationRepository.findByQualificationResultId(result.getId()))
-                .thenReturn(Optional.of(fee));
+        when(feeCalculationRepository.findByQualificationResultIdIn(any()))
+                .thenReturn(List.of(fee));
 
         TransactionResponse response = transactionService.findTransactions(0, 50)
                 .content().getFirst();
@@ -226,7 +229,31 @@ class TransactionServiceTests {
         assertEquals("EU_POS", response.qualificationCategory());
         assertEquals("All conditions passed.", response.qualificationExplanation());
         assertEquals(result.getEvaluatedAt(), response.evaluatedAt());
-                assertEquals(new BigDecimal("0.42"), response.estimatedFee());
+        assertEquals(new BigDecimal("0.42"), response.estimatedFee());
+        verify(feeCalculationRepository, times(1)).findByQualificationResultIdIn(any());
+    }
+
+    @Test
+    void batchesFeeLookupForAllEvaluatedTransactionsOnPage() {
+        Transaction firstTransaction = transaction("TX-1");
+        Transaction secondTransaction = transaction("TX-2");
+        QualificationResult firstResult = qualificationResult(firstTransaction);
+        QualificationResult secondResult = qualificationResult(secondTransaction);
+        FeeCalculation firstFee = fee(firstResult, "0.42");
+        FeeCalculation secondFee = fee(secondResult, "0.84");
+        when(transactionRepository.findAllByOrderByCreatedAtDescIdDesc(any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(firstTransaction, secondTransaction)));
+        when(qualificationResultRepository.findForTransactions(any()))
+                .thenReturn(List.of(firstResult, secondResult));
+        when(feeCalculationRepository.findByQualificationResultIdIn(any()))
+                .thenReturn(List.of(firstFee, secondFee));
+
+        TransactionPageResponse response = transactionService.findTransactions(0, 50);
+
+        assertEquals(List.of(new BigDecimal("0.42"), new BigDecimal("0.84")),
+                response.content().stream().map(TransactionResponse::estimatedFee).toList());
+        verify(feeCalculationRepository, times(1)).findByQualificationResultIdIn(any());
+        verify(feeCalculationRepository, never()).findByQualificationResultId(any());
     }
 
     @Test
@@ -301,4 +328,22 @@ class TransactionServiceTests {
         transaction.setCreatedAt(Instant.parse("2026-09-15T09:00:00Z"));
         return transaction;
     }
+
+        private QualificationResult qualificationResult(Transaction transaction) {
+                QualificationResult result = new QualificationResult();
+                result.setId(UUID.randomUUID());
+                result.setTransaction(transaction);
+                result.setQualificationStatus(QualificationStatus.QUALIFIED);
+                result.setQualificationCategory("EU_POS");
+                result.setExplanation("All conditions passed.");
+                result.setEvaluatedAt(Instant.parse("2026-09-15T10:00:00Z"));
+                return result;
+        }
+
+        private FeeCalculation fee(QualificationResult result, String totalFee) {
+                FeeCalculation fee = new FeeCalculation();
+                fee.setQualificationResult(result);
+                fee.setTotalFee(new BigDecimal(totalFee));
+                return fee;
+        }
 }
