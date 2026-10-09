@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "./AuthProvider";
 import { AuthPage } from "../features/auth/pages/AuthPage";
@@ -55,6 +55,7 @@ function AuthenticatedApp({
     const [agentOpenContext, setAgentOpenContext] = useState<AgentOpenContext | null>(null);
     const [focusedAnalyticsTransaction, setFocusedAnalyticsTransaction] =
         useState<{ id: string; externalId: string } | null>(null);
+    const hydratedAgentRouteContext = useRef<string | null>(null);
     const isAdmin = user?.role?.toUpperCase() === "ADMIN";
 
     const navigate = (
@@ -104,8 +105,11 @@ function AuthenticatedApp({
 
     useEffect(() => {
         if (!routeAgentUploadId || !routeAgentTransactionId) return;
+        const routeContextKey = `${routeAgentUploadId}:${routeAgentTransactionId}`;
+        if (hydratedAgentRouteContext.current === routeContextKey) return;
         if (agentOpenContext?.uploadId === routeAgentUploadId
             && agentOpenContext.transaction.id === routeAgentTransactionId) {
+            hydratedAgentRouteContext.current = routeContextKey;
             return;
         }
 
@@ -121,6 +125,7 @@ function AuthenticatedApp({
                 );
                 const transaction = result.items.find((item) => item.id === routeAgentTransactionId);
                 if (transaction) {
+                    hydratedAgentRouteContext.current = routeContextKey;
                     setAgentOpenContext({
                         requestId: Date.now(),
                         uploadId: routeAgentUploadId,
@@ -162,6 +167,7 @@ function AuthenticatedApp({
             <AppRouter
                 view={view}
                 agentUserId={user?.id ?? ""}
+                agentUserName={user?.fullName || "there"}
                 agentOpenContext={agentOpenContext}
                 onAgentOpenContextConsumed={() => setAgentOpenContext(null)}
                 onAskAgentAboutTransaction={(uploadId: string, transaction: AgentTransactionContext) => {

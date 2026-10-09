@@ -1,6 +1,7 @@
 import { type FormEvent, useState } from "react";
 import { useAuth } from "../../../app/AuthProvider";
 import { App as AntdApp, Button } from "antd";
+import { PROFILE_AVATAR_OPTIONS, readProfileAvatar, saveProfileAvatar, type ProfileAvatarId } from "../../../shared/profile/profileAvatar";
 
 interface ProfilePageProps {
     onBack: () => void;
@@ -15,6 +16,7 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
+    const [profileAvatarId, setProfileAvatarId] = useState<ProfileAvatarId | null>(() => user ? readProfileAvatar(user.id) : null);
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -26,6 +28,7 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
                 email: email.trim(),
                 ...(password ? { password } : {})
             });
+            if (user) saveProfileAvatar(user.id, profileAvatarId);
             setPassword("");
             notification.success({
                 placement: "topRight",
@@ -81,6 +84,35 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
                             maxLength={320}
                         />
                     </label>
+
+                    <fieldset className="profile-avatar-fieldset">
+                        <legend>Profile icon</legend>
+                        <div className="profile-avatar-options" role="radiogroup" aria-label="Profile icon">
+                            {PROFILE_AVATAR_OPTIONS.map(({ id, label, Icon }) => (
+                                <button
+                                    type="button"
+                                    role="radio"
+                                    aria-checked={profileAvatarId === id}
+                                    className={`profile-avatar-option${profileAvatarId === id ? " selected" : ""}`}
+                                    key={id}
+                                    onClick={() => setProfileAvatarId(id)}
+                                >
+                                    <span><Icon /></span>
+                                    <small>{label}</small>
+                                </button>
+                            ))}
+                            <button
+                                type="button"
+                                role="radio"
+                                aria-checked={profileAvatarId === null}
+                                className={`profile-avatar-option${profileAvatarId === null ? " selected" : ""}`}
+                                onClick={() => setProfileAvatarId(null)}
+                            >
+                                <span>{fullName.trim().charAt(0).toUpperCase() || "A"}</span>
+                                <small>None</small>
+                            </button>
+                        </div>
+                    </fieldset>
 
                     <div className="profile-divider" />
                     {error && <div className="form-error" role="alert">{error}</div>}

@@ -15,6 +15,7 @@ import type { UploadSummary } from "../features/uploads/types/upload";
 type AppRouterProps = {
     view: View;
     agentUserId: string;
+    agentUserName: string;
     agentOpenContext: AgentOpenContext | null;
     onAgentOpenContextConsumed: () => void;
     onAskAgentAboutTransaction: (uploadId: string, transaction: AgentTransactionContext) => void;
@@ -43,6 +44,7 @@ type AppRouterProps = {
 export function AppRouter({
     view,
     agentUserId,
+    agentUserName,
     agentOpenContext,
     onAgentOpenContextConsumed,
     onAskAgentAboutTransaction,
@@ -96,6 +98,7 @@ export function AppRouter({
             return (
                 <MyAgentPage
                     userId={agentUserId}
+                    userName={agentUserName}
                     initialContext={agentOpenContext}
                     onInitialContextConsumed={onAgentOpenContextConsumed}
                     onReturn={onReturnFromAgent}
