@@ -282,6 +282,11 @@ CREATE TABLE IF NOT EXISTS transaction_outliers (
 CREATE INDEX IF NOT EXISTS idx_transaction_outliers_upload_id
     ON transaction_outliers(upload_id);
 
+CREATE TABLE IF NOT EXISTS transaction_outlier_explanations (
+    outlier_id UUID PRIMARY KEY REFERENCES transaction_outliers(id) ON DELETE CASCADE,
+    reasons JSONB NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS anomaly_detection_jobs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     upload_id UUID NOT NULL UNIQUE REFERENCES uploads(id) ON DELETE CASCADE,

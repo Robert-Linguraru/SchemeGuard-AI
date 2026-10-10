@@ -14,6 +14,7 @@ import { LoadingState } from "../../../shared/components/LoadingState";
 import { TransactionStats } from "../components/TransactionStats";
 import { getTransactionExplanation, type TransactionExplanation } from "../api/transactionExplanationApi";
 import { TransactionDetails } from "../components/TransactionDetails";
+import { TransactionAnomalyDetails } from "../components/TransactionAnomalyDetails";
 import { EntityList } from "../../../shared/components/EntityList/EntityList";
 import type { Transaction } from "../../../shared/types/transaction";
 import type {
@@ -22,8 +23,10 @@ import type {
     EntityListResponse
 } from "../../../shared/types/list";
 import { Button, Tooltip } from "antd";
-import { ExperimentOutlined } from "@ant-design/icons";
+import { ExperimentOutlined, FilterOutlined } from "@ant-design/icons";
 import type { AgentTransactionContext } from "../../../shared/types/agent";
+import { FloatingBackground } from "../../../shared/components/FloatingBackground";
+import { setUploadEvaluationInProgress, useIsUploadEvaluationInProgress } from "../../uploads/hooks/useUploadEvaluation";
 
 interface DashboardPageProps {
     onOpenRule: (ruleId: string) => void;
@@ -50,6 +53,7 @@ export function DashboardPage({
     const [isLoadingStatistics, setIsLoadingStatistics] = useState(false);
     const [statisticsError, setStatisticsError] = useState<string | null>(null);
     const [isEvaluating, setIsEvaluating] = useState(false);
+    const isEvaluationInProgress = useIsUploadEvaluationInProgress(selectedUploadId);
     const [evaluationMessage, setEvaluationMessage] = useState<string | null>(null);
     const [evaluationError, setEvaluationError] = useState<string | null>(null);
     const [transactionReloadKey, setTransactionReloadKey] = useState(0);
@@ -71,6 +75,7 @@ export function DashboardPage({
 
     const canEvaluate = selectedUploadImportStatus === "COMPLETED"
         && !selectedUploadWasEvaluated;
+    const evaluationLocked = isEvaluating || isEvaluationInProgress;
     const canDetectOutliers = selectedUploadImportStatus === "COMPLETED"
         && selectedUploadWasEvaluated;
 
@@ -179,15 +184,17 @@ export function DashboardPage({
     }, [selectedUploadId, isDetectingOutliers, isQueuingDetection]);
 
     const runEvaluation = async () => {
-        if (!selectedUploadId || !canEvaluate || isEvaluating) {
+        const uploadId = selectedUploadId;
+        if (!uploadId || !canEvaluate || evaluationLocked) {
             return;
         }
 
         setIsEvaluating(true);
+        setUploadEvaluationInProgress(uploadId, true);
         setEvaluationMessage(null);
         setEvaluationError(null);
         try {
-            const result = await evaluateUpload(selectedUploadId);
+            const result = await evaluateUpload(uploadId);
             setEvaluationMessage(result.message);
             onUploadEvaluated(result.wasEvaluated);
             setTransactionReloadKey((key) => key + 1);
@@ -199,6 +206,7 @@ export function DashboardPage({
             );
         } finally {
             setIsEvaluating(false);
+            setUploadEvaluationInProgress(uploadId, false);
         }
     };
 
@@ -438,34 +446,18 @@ export function DashboardPage({
 
     return (
         <main className="dashboard">
-            <div
-                className="brand-decoration"
-                aria-hidden="true"
-            >
-                <span className="orb orb-blue orb-one"></span>
-                <span className="orb orb-coral orb-two"></span>
-                <span className="orb orb-white orb-three"></span>
-                <span className="orb orb-blue orb-four"></span>
-            </div>
+            <FloatingBackground />
 
             <section className="content">
                 <div className="page-heading">
                     <div>
-                        <p className="eyebrow">
-                            PAYMENTS WORKSPACE
-                        </p>
-
                         <h2>Upload transactions</h2>
-
-                        <p>
-                            Monitor interchange qualification and fees.
-                        </p>
                     </div>
 
                     <div className="page-heading-actions">
-                        {selectedUploadId && canEvaluate && (
+                        {selectedUploadId && (canEvaluate || isEvaluationInProgress) && (
                             <Tooltip
-                                title={isEvaluating ? "Evaluating upload..." : "Evaluate this upload"}
+                                title={evaluationLocked ? "Evaluating upload..." : "Evaluate this upload"}
                                 color="#f05d53"
                                 styles={{ container: { color: "#ffffff" } }}
                             >
@@ -476,9 +468,9 @@ export function DashboardPage({
                                         className="standard-action-size"
                                         icon={<ExperimentOutlined />}
                                         onClick={() => void runEvaluation()}
-                                        disabled={isEvaluating}
+                                        disabled={evaluationLocked}
                                     >
-                                        {isEvaluating ? "Evaluating..." : "Evaluate"}
+                                        {evaluationLocked ? "Evaluating..." : "Evaluate"}
                                     </Button>
                                 </span>
                             </Tooltip>
@@ -523,7 +515,6 @@ export function DashboardPage({
                     {selectedUploadId ? (
                         <EntityList
                             title={selectedUploadFileName ?? "Transaction list"}
-                            description="Transactions imported from this CSV upload."
                             columns={transactionColumns}
                             fetchData={fetchTransactions}
                             onResponse={handleTransactionResponse}
@@ -531,6 +522,7 @@ export function DashboardPage({
                             onToggleExpanded={toggleTransactionDetails}
                             expandOnRowClick
                             renderExpanded={(transaction) => {
+                                const renderQualification = () => {
                                 const qualificationStatus = transaction.qualificationStatus?.toUpperCase();
                                 const isUnevaluated = transaction.status.toUpperCase() === "NEW"
                                     || qualificationStatus === "NOT_EVALUATED"
@@ -565,20 +557,28 @@ export function DashboardPage({
                                 ) : (
                                     <LoadingState message="Loading qualification details..." />
                                 );
+                                };
+                                return <>
+                                    {expandedTransactionId === transaction.id && outlierIds.has(transaction.id) &&
+                                        <TransactionAnomalyDetails uploadId={selectedUploadId} transactionId={transaction.id} />}
+                                    {renderQualification()}
+                                </>;
                             }}
                             reloadKey={transactionReloadKey}
                             initialQuery={{ size: 50, sort: "createdAt,desc", search: focusedAnalyticsTransaction?.externalId ?? "" }}
                             toolbar={({ query, updateQuery }) => (
-                                <>
+                                <div className="transaction-list-filters">
                                     <button
                                         type="button"
                                         className="entity-list-filter-button"
                                         aria-expanded={showTransactionFilters}
+                                        aria-controls={showTransactionFilters ? "transaction-filter-controls" : undefined}
                                         onClick={() => setShowTransactionFilters((visible) => !visible)}
                                     >
+                                        <FilterOutlined />
                                         {showTransactionFilters ? "Hide filters" : "Filter"}
                                     </button>
-                                    {showTransactionFilters && <>
+                                    {showTransactionFilters && <div id="transaction-filter-controls" className="transaction-filter-controls">
                                     <label className="entity-list-filter">
                                         <span>Show</span>
                                         <select
@@ -613,8 +613,8 @@ export function DashboardPage({
                                             <option value="qualificationStatus,asc">Qualification: A–Z</option>
                                         </select>
                                     </label>
-                                    </>}
-                                </>
+                                    </div>}
+                                </div>
                             )}
                             emptyMessage="No transactions available in this CSV upload."
                             rowClassName={(transaction) => outlierIds.has(transaction.id) ? "transaction-anomaly-row" : undefined}

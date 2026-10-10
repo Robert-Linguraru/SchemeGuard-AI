@@ -17,6 +17,7 @@ export interface AnalyticsResponse {
     notQualifiedTransactions: number;
     totalAmount: number | string;
     totalFees: number | string;
+    potentialFeesSaved: number | string;
     averageTransactionAmount: number | string;
     qualificationRate: number | string;
     qualificationResults: AnalyticsMetric[];

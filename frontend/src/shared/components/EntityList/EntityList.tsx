@@ -216,7 +216,6 @@ export function EntityList<T>({
         <section className="entity-list-card" ref={listCardRef}>
             <div className="entity-list-heading">
                 <div>
-                    <p className="eyebrow">LIST VIEW</p>
                     <h2>{title}</h2>
                     {description && <p>{description}</p>}
                 </div>

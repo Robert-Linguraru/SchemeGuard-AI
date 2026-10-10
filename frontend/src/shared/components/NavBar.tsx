@@ -3,6 +3,7 @@ import type { NavigationItem, View } from "../types/navigation";
 import { Button, Tooltip } from "antd";
 import {
     ApartmentOutlined,
+    AppstoreOutlined,
     FolderOutlined,
     MoonOutlined,
     RobotOutlined,
@@ -25,6 +26,7 @@ function NavBar({ currentView, isAdmin, onViewChange, onEditProfile, theme, onTo
     const iconForView = (view: View) => {
         switch (view) {
             case "my-agent": return <RobotOutlined />;
+            case "home-dashboard": return <AppstoreOutlined />;
             case "dashboard":
             case "upload-details": return <FolderOutlined />;
             case "analysis-dashboard": return <ApartmentOutlined />;
@@ -36,6 +38,7 @@ function NavBar({ currentView, isAdmin, onViewChange, onEditProfile, theme, onTo
         }
     };
     const navigationItems: NavigationItem[] = [
+        { view: "home-dashboard", label: "Home", active: currentView === "home-dashboard" },
         {
             view: "my-agent",
             label: "Chat",

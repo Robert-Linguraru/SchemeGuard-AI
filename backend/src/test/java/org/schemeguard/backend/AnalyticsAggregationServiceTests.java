@@ -75,6 +75,7 @@ class AnalyticsAggregationServiceTests {
                 0,
                 new BigDecimal("100.00"),
                 new BigDecimal("2.00"),
+                new BigDecimal("0.25"),
                 new BigDecimal("50.00"),
                 missingRates
         );

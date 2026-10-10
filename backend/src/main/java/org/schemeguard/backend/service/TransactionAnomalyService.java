@@ -4,6 +4,7 @@ import org.schemeguard.backend.dto.*;
 import org.schemeguard.backend.entity.AnomalyDetectionJob;
 import org.schemeguard.backend.entity.AnomalyDetectionInput;
 import org.schemeguard.backend.entity.TransactionOutlier;
+import org.schemeguard.backend.entity.TransactionOutlierExplanation;
 import org.schemeguard.backend.entity.User;
 import org.schemeguard.backend.entity.enums.AnomalyJobStatus;
 import org.schemeguard.backend.exception.ConflictException;
@@ -28,11 +29,13 @@ public class TransactionAnomalyService {
     private final AnomalyRulesEngine rulesEngine;
     private final AnomalyDetectionInputRepository inputRepository;
     private final TransactionTemplate workerTransaction;
+    private final TransactionOutlierExplanationRepository explanationRepository;
 
     public TransactionAnomalyService(UploadRepository uploadRepository,
             TransactionRepository transactionRepository, TransactionOutlierRepository outlierRepository,
             AnomalyDetectionJobRepository jobRepository, AnomalyRulesEngine rulesEngine,
-            AnomalyDetectionInputRepository inputRepository, PlatformTransactionManager transactionManager) {
+            AnomalyDetectionInputRepository inputRepository, PlatformTransactionManager transactionManager,
+            TransactionOutlierExplanationRepository explanationRepository) {
         this.uploadRepository = uploadRepository;
         this.transactionRepository = transactionRepository;
         this.outlierRepository = outlierRepository;
@@ -40,6 +43,7 @@ public class TransactionAnomalyService {
         this.rulesEngine = rulesEngine;
         this.inputRepository = inputRepository;
         this.workerTransaction = new TransactionTemplate(transactionManager);
+        this.explanationRepository = explanationRepository;
     }
 
     @Transactional
@@ -112,16 +116,21 @@ public class TransactionAnomalyService {
             if (transactions.isEmpty() || transactions.size() != transactionRepository.countByUpload_Id(uploadId)) {
                 throw new ConflictException("Some transactions have no active evaluation or fee. Evaluate the complete upload before detecting outliers.");
             }
-            List<UUID> outlierIds = rulesEngine.detect(transactions);
+            var findings = rulesEngine.analyze(transactions);
+            List<UUID> outlierIds = findings.keySet().stream().sorted().toList();
             // Preserve manual review flags for transactions that remain outliers.
             var detected = new java.util.HashSet<>(outlierIds);
             var existing = outlierRepository.findAllByUploadId(uploadId);
             outlierRepository.deleteAll(existing.stream().filter(o -> !detected.contains(o.getTransaction().getId())).toList());
             var existingIds = existing.stream().map(o -> o.getTransaction().getId()).collect(java.util.stream.Collectors.toSet());
+            var outlierMap = existing.stream().collect(java.util.stream.Collectors.toMap(o -> o.getTransaction().getId(), o -> o));
             var transactionMap = transactionRepository.findAllById(outlierIds).stream()
                     .collect(java.util.stream.Collectors.toMap(t -> t.getId(), t -> t));
             for (UUID id : outlierIds) {
-                if (existingIds.contains(id)) continue;
+                if (existingIds.contains(id)) {
+                    saveExplanation(outlierMap.get(id), findings.get(id));
+                    continue;
+                }
                 var transaction = transactionMap.get(id);
                 if (transaction != null && transaction.getUpload() != null
                         && uploadId.equals(transaction.getUpload().getId())) {
@@ -129,7 +138,7 @@ public class TransactionAnomalyService {
                     outlier.setUpload(job.getUpload());
                     outlier.setTransaction(transaction);
                     outlier.setDetectedAt(Instant.now());
-                    outlierRepository.save(outlier);
+                    saveExplanation(outlierRepository.save(outlier), findings.get(id));
                 }
             }
             if (!fingerprint.equals(fingerprint(uploadId))) {
@@ -144,6 +153,22 @@ public class TransactionAnomalyService {
             inputRepository.save(input);
             job.setStatus(AnomalyJobStatus.COMPLETED);
             job.setUpdatedAt(Instant.now());
+    }
+
+    @Transactional(readOnly = true)
+    public List<AnomalyReason> findReasons(User user, UUID uploadId, UUID transactionId) {
+        ownedUpload(user, uploadId);
+        var outlier = outlierRepository.findByUploadIdAndTransactionId(uploadId, transactionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Transaction is not marked as an outlier"));
+        return explanationRepository.findById(outlier.getId())
+                .map(TransactionOutlierExplanation::getReasons).orElseGet(List::of);
+    }
+
+    private void saveExplanation(TransactionOutlier outlier, List<AnomalyReason> reasons) {
+        var explanation = new TransactionOutlierExplanation();
+        explanation.setOutlierId(outlier.getId());
+        explanation.setReasons(reasons);
+        explanationRepository.save(explanation);
     }
 
     @Transactional(readOnly = true)

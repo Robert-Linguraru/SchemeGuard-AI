@@ -38,7 +38,7 @@ function AuthenticatedApp({
     const [view, setView] = useState<View>(
         routeUploadId
             ? "upload-details"
-            : routeView ?? "dashboard"
+            : routeView ?? "home-dashboard"
     );
 
     const [selectedRuleId, setSelectedRuleId] =
@@ -75,6 +75,7 @@ function AuthenticatedApp({
             return;
         }
         const defaultPaths: Partial<Record<View, string>> = {
+            "home-dashboard": "/dashboard",
             dashboard: "/uploads",
             "analysis-dashboard": "/analytics",
             "card-schemes": "/card-schemes",
@@ -99,7 +100,7 @@ function AuthenticatedApp({
             setView(routeView);
         } else {
             setSelectedUploadId(null);
-            setView("dashboard");
+            setView("home-dashboard");
         }
     }, [routeRuleId, routeUploadId, routeView]);
 
@@ -148,9 +149,9 @@ function AuthenticatedApp({
 
     useEffect(() => {
         if (!isAdmin && (view === "rules" || view === "upload")) {
-            setView("dashboard");
+            setView("home-dashboard");
             setSelectedRuleId(null);
-            navigateUrl("/uploads");
+            navigateUrl("/dashboard");
         }
     }, [isAdmin, navigateUrl, view]);
 

@@ -22,8 +22,9 @@ class TransactionAnomalyServiceTests {
     private final AnomalyDetectionInputRepository inputs = mock(AnomalyDetectionInputRepository.class);
     private final AnomalyRulesEngine engine = mock(AnomalyRulesEngine.class);
     private final PlatformTransactionManager manager = mock(PlatformTransactionManager.class);
+    private final TransactionOutlierExplanationRepository explanations = mock(TransactionOutlierExplanationRepository.class);
     private final TransactionAnomalyService service = new TransactionAnomalyService(
-            uploads, transactions, outliers, jobs, engine, inputs, manager);
+            uploads, transactions, outliers, jobs, engine, inputs, manager, explanations);
     private final UUID uploadId = UUID.randomUUID();
     private final User user = new User();
     private final AnomalyDetectionJob job = new AnomalyDetectionJob();
@@ -74,5 +75,40 @@ class TransactionAnomalyServiceTests {
         verify(manager).rollback(any());
         verify(manager, times(2)).commit(any());
         verifyNoInteractions(outliers, engine);
+    }
+
+    @Test
+    void backgroundJobSavesTheSameEvidenceProducedByTheDetector() {
+        completedJob("old-input");
+        job.setStatus(AnomalyJobStatus.PENDING);
+        when(manager.getTransaction(any())).thenAnswer(ignored -> new SimpleTransactionStatus());
+        when(jobs.lockNextJob(any())).thenReturn(Optional.of(job));
+        when(jobs.lockById(job.getId())).thenReturn(Optional.of(job));
+        UUID transactionId = UUID.randomUUID();
+        var projection = mock(MlTransactionProjection.class);
+        when(projection.getId()).thenReturn(transactionId);
+        when(transactions.findMlTransactionsForUpload(uploadId)).thenReturn(List.of(projection));
+        when(transactions.countByUpload_Id(uploadId)).thenReturn(1L);
+        var reason = new org.schemeguard.backend.dto.AnomalyReason("OPERATIONAL", "Incomplete data and late clearing",
+                null, null, null, null, java.math.BigDecimal.valueOf(5));
+        when(engine.analyze(anyList())).thenReturn(Map.of(transactionId, List.of(reason)));
+        when(outliers.findAllByUploadId(uploadId)).thenReturn(List.of());
+        var transaction = new Transaction();
+        transaction.setId(transactionId);
+        transaction.setUpload(job.getUpload());
+        when(transactions.findAllById(any())).thenReturn(List.of(transaction));
+        UUID outlierId = UUID.randomUUID();
+        when(outliers.save(any())).thenAnswer(invocation -> {
+            TransactionOutlier saved = invocation.getArgument(0);
+            saved.setId(outlierId);
+            return saved;
+        });
+        assertTrue(service.processNextPendingJob());
+        assertEquals(AnomalyJobStatus.COMPLETED, job.getStatus());
+        var evidence = org.mockito.ArgumentCaptor.forClass(TransactionOutlierExplanation.class);
+        verify(explanations).save(evidence.capture());
+        assertEquals(outlierId, evidence.getValue().getOutlierId());
+        assertEquals(List.of(reason), evidence.getValue().getReasons());
+        verify(engine).analyze(anyList());
     }
 }

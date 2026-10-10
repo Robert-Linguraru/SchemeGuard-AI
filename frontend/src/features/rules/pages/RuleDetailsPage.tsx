@@ -8,6 +8,7 @@ import type {
     RuleDetailsResponse
 } from "../types/rule";
 import { App as AntdApp, Button } from "antd";
+import { FloatingBackground } from "../../../shared/components/FloatingBackground";
 
 interface RuleDetailsPageProps {
     ruleId: string;
@@ -76,6 +77,7 @@ export function RuleDetailsPage({
 
     return (
         <main className="dashboard rules-page">
+            <FloatingBackground />
             <section className="content">
                 {isAdmin && (
                 <Button

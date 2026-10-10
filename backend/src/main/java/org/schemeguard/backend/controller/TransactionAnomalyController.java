@@ -1,6 +1,7 @@
 package org.schemeguard.backend.controller;
 
 import org.schemeguard.backend.dto.AnomalyJobResponse;
+import org.schemeguard.backend.dto.AnomalyReason;
 import org.schemeguard.backend.entity.User;
 import org.schemeguard.backend.service.TransactionAnomalyService;
 import org.springframework.http.ResponseEntity;
@@ -42,6 +43,13 @@ public class TransactionAnomalyController {
             @AuthenticationPrincipal User user
     ) {
         return ResponseEntity.ok(anomalyService.findOutlierIds(user, uploadId));
+    }
+
+    @GetMapping("/{transactionId}/explanation")
+    public ResponseEntity<List<AnomalyReason>> explanation(
+            @PathVariable UUID uploadId, @PathVariable UUID transactionId,
+            @AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(anomalyService.findReasons(user, uploadId, transactionId));
     }
 
     @PostMapping("/{transactionId}/confirm")

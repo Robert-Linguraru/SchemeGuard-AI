@@ -47,7 +47,11 @@ public class AnalyticsQueryRepository {
                        COALESCE(fc.total_fee, CAST(0 AS numeric)) * CASE
                            WHEN t.currency_code = CAST(:targetCurrency AS text) THEN CAST(1 AS numeric)
                            ELSE cr.rate
-                       END AS converted_fee
+                       END AS converted_fee,
+                       COALESCE(fc.potential_saving, CAST(0 AS numeric)) * CASE
+                           WHEN t.currency_code = CAST(:targetCurrency AS text) THEN CAST(1 AS numeric)
+                           ELSE cr.rate
+                       END AS converted_potential_saving
                 FROM transactions t
                 JOIN uploads u ON u.id = t.upload_id AND u.user_id = :userId
                 JOIN merchants m ON m.id = t.merchant_id
@@ -79,6 +83,7 @@ public class AnalyticsQueryRepository {
                    COUNT(*) FILTER (WHERE qualification_status = 'NOT_QUALIFIED') AS not_qualified_transactions,
                    COALESCE(SUM(converted_amount), CAST(0 AS numeric)) AS total_amount,
                    COALESCE(SUM(converted_fee), CAST(0 AS numeric)) AS total_fees,
+                   COALESCE(SUM(converted_potential_saving), CAST(0 AS numeric)) AS potential_fees_saved,
                    COALESCE(AVG(converted_amount), CAST(0 AS numeric)) AS average_transaction_amount,
                    COUNT(*) FILTER (WHERE conversion_rate IS NULL) AS missing_conversion_rates
             FROM filtered
@@ -147,6 +152,7 @@ public class AnalyticsQueryRepository {
                         resultSet.getLong("not_qualified_transactions"),
                         resultSet.getBigDecimal("total_amount"),
                         resultSet.getBigDecimal("total_fees"),
+                        resultSet.getBigDecimal("potential_fees_saved"),
                         resultSet.getBigDecimal("average_transaction_amount"),
                         resultSet.getLong("missing_conversion_rates")
                 )
@@ -217,11 +223,12 @@ public class AnalyticsQueryRepository {
             long notQualifiedTransactions,
             BigDecimal totalAmount,
             BigDecimal totalFees,
+            BigDecimal potentialFeesSaved,
             BigDecimal averageTransactionAmount,
             long missingConversionRates
     ) {
         private static AnalyticsSummary empty() {
-            return new AnalyticsSummary(0, 0, 0, 0, 0, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, 0);
+            return new AnalyticsSummary(0, 0, 0, 0, 0, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, 0);
         }
     }
 
