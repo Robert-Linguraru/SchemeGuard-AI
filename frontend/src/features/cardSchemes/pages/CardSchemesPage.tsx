@@ -117,9 +117,7 @@ export function CardSchemesPage() {
             <section className="content">
                 <div className="page-heading">
                     <div>
-                        <p className="eyebrow">CARD SCHEMES WORKSPACE</p>
                         <h2>Card schemes</h2>
-                        <p>Search, sort and manage payment card schemes.</p>
                     </div>
                     {user?.role === "ADMIN" && (
                         <div className="heading-actions">
@@ -144,7 +142,6 @@ export function CardSchemesPage() {
                 {actionError && <div className="form-error" role="alert">{actionError}</div>}
                 <EntityList
                     title="All card schemes"
-                    description="Active schemes are shown by default. Administrators can include inactive schemes."
                     columns={cardSchemeColumns}
                     fetchData={fetchCardSchemes}
                     actions={actions}

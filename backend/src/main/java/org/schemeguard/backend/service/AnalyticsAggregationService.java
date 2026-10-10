@@ -76,6 +76,7 @@ public class AnalyticsAggregationService {
                 summary.notQualifiedTransactions(),
                 summary.totalAmount(),
                 summary.totalFees(),
+                summary.potentialFeesSaved(),
                 summary.averageTransactionAmount().setScale(2, RoundingMode.HALF_UP),
                 qualificationRate,
                 metrics.qualificationResults(),

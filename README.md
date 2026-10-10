@@ -118,6 +118,11 @@ an explicitly associated source remain source-less; those rows are not used for
 exact-file or source-scoped duplicate detection.
 
 Detection returns a job from `POST /api/uploads/{uploadId}/anomalies/detect` (HTTP 202).
+For stored outlier explanations, also run `db/transaction_outlier_explanations.sql`
+before restarting the backend. This adds a separate table without altering existing ones.
+Run Detect outliers again for historical results; the detector version invalidates the
+previous cache once. Expanded transaction details retrieve the saved evidence from
+`GET /api/uploads/{uploadId}/anomalies/{transactionId}/explanation` without rerunning detection.
 Poll `/anomalies/status`, then retrieve transaction IDs from `/anomalies` when the job
 is completed. The scheduler applies Java rules in the background; there are no model
 or token calls for this computation. Unchanged completed jobs are reused, while changes

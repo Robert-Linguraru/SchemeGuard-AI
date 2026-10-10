@@ -6,6 +6,7 @@ import type { UploadSummary } from "../../uploads/types/upload";
 import type { Transaction } from "../../../shared/types/transaction";
 import type { AgentOpenContext } from "../../../shared/types/agent";
 import { chatWithAgent, type AgentTurn } from "../api/agentApi";
+import { FloatingBackground } from "../../../shared/components/FloatingBackground";
 
 const suggestions = [
     "Why is this transaction not qualified?",
@@ -450,6 +451,7 @@ export function MyAgentPage({
 
     return (
         <main className="dashboard my-agent-page">
+            <FloatingBackground />
             <section
                 className={`my-agent-shell${isContextOpen ? " with-context" : ""}${isHistoryCollapsed ? " history-collapsed" : ""}`}
                 style={{ "--agent-history-width": `${historyWidth}px`, "--agent-context-width": `${contextWidth}px` } as CSSProperties}

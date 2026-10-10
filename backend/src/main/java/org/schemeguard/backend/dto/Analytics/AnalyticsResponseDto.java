@@ -12,6 +12,7 @@ public record AnalyticsResponseDto(
         long notQualifiedTransactions,
         BigDecimal totalAmount,
         BigDecimal totalFees,
+        BigDecimal potentialFeesSaved,
         BigDecimal averageTransactionAmount,
         BigDecimal qualificationRate,
         List<AnalyticsMetricDto> qualificationResults,

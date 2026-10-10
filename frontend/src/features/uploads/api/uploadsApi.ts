@@ -212,6 +212,20 @@ export interface AnomalyJobResponse {
     errorMessage: string | null;
 }
 
+export interface AnomalyReason {
+    type: "OPERATIONAL" | "RATE_HIGH" | "RATE_LOW";
+    message: string;
+    actualRate: number | null;
+    expectedLowerRate: number | null;
+    expectedUpperRate: number | null;
+    peerCount: number | null;
+    clearingDelayDays: number | null;
+}
+
+export const getUploadOutlierReasons = (uploadId: string, transactionId: string, signal?: AbortSignal): Promise<AnomalyReason[]> =>
+    request<AnomalyReason[]>(`/api/uploads/${encodeURIComponent(uploadId)}/anomalies/${encodeURIComponent(transactionId)}/explanation`,
+        { method: "GET", signal });
+
 export const getUploadOutlierIds = (
     uploadId: string,
     signal?: AbortSignal

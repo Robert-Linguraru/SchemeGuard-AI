@@ -66,6 +66,28 @@ class AnomalyRulesEngineTests {
         return row(i, rate, "NOT_QUALIFIED", "FALLBACK", null, true, "2", country);
     }
 
+    @Test
+    void explanationRecordsHighRateAndExactExpectedBounds() {
+        var rows = List.of(normal(0, "0.003", "US"), normal(1, "0.003", "US"),
+                normal(2, "0.003", "US"), normal(3, "0.008", "US"));
+        var reason = engine.analyze(rows).get(rows.get(3).id()).getFirst();
+        assertEquals("RATE_HIGH", reason.type());
+        assertEquals(0, new BigDecimal("0.008").compareTo(reason.actualRate()));
+        assertEquals(0, new BigDecimal("0.003").compareTo(reason.expectedLowerRate()));
+        assertEquals(reason.expectedLowerRate(), reason.expectedUpperRate());
+        assertEquals(4, reason.peerCount());
+    }
+
+    @Test
+    void bothOperationalAndRateReasonsAreRetained() {
+        var candidate = row(3, "0.001", "NOT_QUALIFIED", "FALLBACK", null, false, "5", "US");
+        var rows = List.of(normal(0, "0.003", "US"), normal(1, "0.003", "US"), normal(2, "0.003", "US"), candidate);
+        var reasons = engine.analyze(rows).get(candidate.id());
+        assertEquals(List.of("OPERATIONAL", "RATE_LOW"), reasons.stream().map(r -> r.type()).toList());
+        assertEquals(new BigDecimal("5"), reasons.getFirst().clearingDelayDays());
+        assertNull(reasons.getFirst().expectedLowerRate());
+    }
+
     private MlTransaction row(int i, String rate, String status, String category, String rule,
                               boolean complete, String delay, String country) {
         return new MlTransaction(new UUID(0, i + 1), "TX-" + i, "VISA", BigDecimal.TEN,

@@ -33,6 +33,8 @@ import {
     confirmDuplicateImport,
     downloadDuplicateReport,
 } from "../../csvUpload/api/csvUploadApi";
+import { useUploadEvaluationIds, setUploadEvaluationInProgress } from "../hooks/useUploadEvaluation";
+import { FloatingBackground } from "../../../shared/components/FloatingBackground";
 
 interface UploadsPageProps {
     onOpenUpload: (
@@ -51,6 +53,9 @@ const formatUploadedAt = (uploadedAt: string) => {
 
 const statusClassName = (status: string) => {
     const normalizedStatus = status.toUpperCase();
+    if (["QUEUED", "PROCESSING", "EVALUATING"].includes(normalizedStatus)) {
+        return "entity-list-status evaluating";
+    }
     if (normalizedStatus === "COMPLETED" || normalizedStatus === "EVALUATED") {
         return "entity-list-status active";
     }
@@ -80,7 +85,7 @@ const getDownloadFileName = (contentDisposition: string | null): string | null =
 
 const createColumns = (
     onOpenUpload: UploadsPageProps["onOpenUpload"],
-    evaluatingUploadId: string | null,
+    evaluatingUploadIds: ReadonlySet<string>,
     onEvaluateUpload: (uploadId: string) => void,
     downloadingUploadId: string | null,
     onDownloadUpload: (uploadId: string, fileName: string) => void,
@@ -119,13 +124,17 @@ const createColumns = (
         key: "evaluationStatus",
         label: "Evaluation status",
         align: "center",
-        render: (upload) => (
-            <span className={evaluatingUploadId === upload.id
-                ? "entity-list-status evaluating"
-                : statusClassName(upload.evaluationStatus)}>
-                {evaluatingUploadId === upload.id ? "EVALUATING" : upload.evaluationStatus}
-            </span>
-        )
+        render: (upload) => {
+            const isEvaluating = evaluatingUploadIds.has(upload.id)
+                || ["QUEUED", "PROCESSING", "EVALUATING"].includes(upload.evaluationStatus.toUpperCase());
+            return (
+                <span className={isEvaluating
+                    ? "entity-list-status evaluating"
+                    : statusClassName(upload.evaluationStatus)}>
+                    {isEvaluating ? "EVALUATING" : upload.evaluationStatus}
+                </span>
+            );
+        }
     },
     {
         key: "transactionCount",
@@ -136,8 +145,11 @@ const createColumns = (
     {
         key: "actions",
         label: "Actions",
-        render: (upload) => (
-                        <div className="entity-list-actions">
+        render: (upload) => {
+            const isEvaluating = evaluatingUploadIds.has(upload.id)
+                || ["QUEUED", "PROCESSING", "EVALUATING"].includes(upload.evaluationStatus.toUpperCase());
+            return (
+                <div className="entity-list-actions">
                 {upload.importStatus !== "DUPLICATE" && (
                     <Tooltip
                         title={downloadingUploadId === upload.id ? "Downloading original CSV..." : "Download CSV"}
@@ -159,7 +171,7 @@ const createColumns = (
 
                 {upload.importStatus === "COMPLETED" && !upload.wasEvaluated && (
                     <Tooltip
-                        title={evaluatingUploadId === upload.id ? "Evaluating upload..." : "Evaluate"}
+                        title={isEvaluating ? "Evaluating upload..." : "Evaluate"}
                         color="#FF5640"
                         styles={{ container: { color: "#ffffff" } }}
                     >
@@ -168,9 +180,9 @@ const createColumns = (
                                 type="primary"
                                 className="entity-list-action-icon-button"
                                 icon={<ExperimentOutlined />}
-                                disabled={evaluatingUploadId === upload.id}
+                                disabled={isEvaluating}
                                 onClick={() => onEvaluateUpload(upload.id)}
-                                aria-label="Evaluate upload"
+                                aria-label={isEvaluating ? "Upload is being evaluated" : "Evaluate upload"}
                             />
                         </span>
                     </Tooltip>
@@ -235,8 +247,9 @@ const createColumns = (
                         </span>
                     </Tooltip>
                 )}
-            </div>
-        )
+                </div>
+            );
+        }
     }
 ];
 
@@ -246,7 +259,7 @@ export function UploadsPage({
 }: UploadsPageProps) {
     const { modal, notification } = AntdApp.useApp();
     const [reloadKey, setReloadKey] = useState(0);
-    const [evaluatingUploadId, setEvaluatingUploadId] = useState<string | null>(null);
+    const evaluatingUploadIds = useUploadEvaluationIds();
     const [evaluationError, setEvaluationError] = useState<string | null>(null);
     const [downloadingUploadId, setDownloadingUploadId] = useState<string | null>(null);
     const [downloadError, setDownloadError] = useState<string | null>(null);
@@ -256,9 +269,9 @@ export function UploadsPage({
     const [isDownloadingDuplicateReport, setIsDownloadingDuplicateReport] = useState(false);
     const columns = createColumns(
         onOpenUpload,
-        evaluatingUploadId,
+        evaluatingUploadIds,
         async (uploadId) => {
-        setEvaluatingUploadId(uploadId);
+        setUploadEvaluationInProgress(uploadId, true);
         setEvaluationError(null);
         try {
             await evaluateUpload(uploadId);
@@ -275,7 +288,7 @@ export function UploadsPage({
                     : "Could not evaluate this upload"
             );
         } finally {
-            setEvaluatingUploadId(null);
+            setUploadEvaluationInProgress(uploadId, false);
         }
         },
         downloadingUploadId,
@@ -451,19 +464,12 @@ export function UploadsPage({
 
     return (
         <main className="dashboard uploads-page" data-selected-upload-id={selectedUploadId ?? undefined}>
-            <div className="brand-decoration" aria-hidden="true">
-                <span className="orb orb-blue orb-one"></span>
-                <span className="orb orb-coral orb-two"></span>
-                <span className="orb orb-white orb-three"></span>
-                <span className="orb orb-blue orb-four"></span>
-            </div>
+            <FloatingBackground />
 
             <section className="content">
                 <div className="page-heading">
                     <div>
-                        <p className="eyebrow">UPLOADS WORKSPACE</p>
                         <h2>CSV uploads</h2>
-                        <p>Upload transaction files and review their import history.</p>
                     </div>
 
                     <div className="page-heading-actions">
@@ -476,7 +482,6 @@ export function UploadsPage({
 
                 <EntityList
                     title="Upload history"
-                    description="Review every CSV document submitted to SchemeGuard AI."
                     columns={columns}
                     fetchData={fetchUploads}
                     reloadKey={reloadKey}

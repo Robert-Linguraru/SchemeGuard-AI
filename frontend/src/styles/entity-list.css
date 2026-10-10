@@ -236,6 +236,20 @@
     color: #5E6A73;
 }
 
+.transaction-anomaly-details {
+    padding: 16px;
+    margin-bottom: 16px;
+    border: 1px solid var(--orange);
+    border-radius: 12px;
+    background: var(--orange-bg);
+    color: var(--text-primary);
+    overflow-wrap: anywhere;
+}
+
+.transaction-anomaly-details h4 { margin: 0 0 12px; }
+.transaction-anomaly-reason + .transaction-anomaly-reason { margin-top: 16px; }
+.transaction-anomaly-reason p { line-height: 1.5; }
+
 .transaction-details-section {
     margin-top: 20px;
     padding-top: 16px;

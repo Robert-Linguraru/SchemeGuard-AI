@@ -52,16 +52,13 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
             </div>
             <section className="content">
                 <div className="profile-heading">
-                    <p className="eyebrow">ACCOUNT SETTINGS</p>
                     <h2>Edit profile</h2>
-                    <p>Keep your SchemeGuard account details up to date.</p>
                 </div>
 
                 <form className="profile-card" onSubmit={handleSubmit}>
                     <div className="profile-card-heading">
                         <div>
                             <h3>Personal information</h3>
-                            <p>Update the name and email address associated with your account.</p>
                         </div>
                     </div>
 
@@ -119,7 +116,6 @@ export function ProfilePage({ onBack }: ProfilePageProps) {
                     <div className="profile-card-heading">
                         <div>
                             <h3>Change password</h3>
-                            <p>Enter a new password if you want to update your sign-in credentials.</p>
                         </div>
                     </div>
                     <label>
