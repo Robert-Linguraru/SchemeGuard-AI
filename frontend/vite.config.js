@@ -8,8 +8,9 @@ export default defineConfig({
         port: 5173,
         proxy: {
             "/api": {
-                target: "http://backend:8080",
-                changeOrigin: true
+                target: process.env.VITE_API_URL || "http://backend:8080",
+                changeOrigin: true,
+                secure: true
             }
         }
     }
