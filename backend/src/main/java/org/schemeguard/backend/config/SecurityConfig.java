@@ -40,7 +40,6 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
-                                "/api/auth/register",
                                 "/api/auth/login",
                                 "/api/rule/getRule",
                                 "/v3/api-docs",
@@ -51,6 +50,7 @@ public class SecurityConfig {
                                 "/error"
                         )
                         .permitAll()
+                        .requestMatchers("/api/auth/register").denyAll()
                         .requestMatchers("/api/rule/**")
                         .hasRole("ADMIN")
                         .anyRequest()
