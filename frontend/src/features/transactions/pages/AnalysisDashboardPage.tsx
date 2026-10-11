@@ -549,7 +549,12 @@ export function AnalysisDashboardPage({
                         </Tooltip>
                     </div>
                 </div>
-                <section className="analysis-filter-panel" aria-label="Dashboard filters">
+                <section
+                    id="analytics-filter-panel"
+                    className="analysis-filter-panel"
+                    aria-label="Dashboard filters"
+                    hidden={!areFiltersOpen}
+                >
                     <div className="analysis-filter-grid">
                         <div className="analysis-filter-field">
                             <span>From</span>

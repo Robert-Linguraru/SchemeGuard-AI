@@ -30,6 +30,10 @@
     animation: analytics-panel-in 180ms ease-out both;
 }
 
+.analysis-dashboard .analysis-filter-panel[hidden] {
+    display: none !important;
+}
+
 .analysis-chart-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 16px;

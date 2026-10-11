@@ -219,7 +219,6 @@ function AuthenticatedApp({
                     });
                 }}
                 onUploadEvaluated={(wasEvaluated) => setSelectedUploadWasEvaluated(wasEvaluated)}
-                onReturnFromAgent={() => navigateUrl(safeReturnPath(routeAgentReturnPath))}
             />
         </div>
     );
