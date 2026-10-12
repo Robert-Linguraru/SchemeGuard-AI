@@ -147,6 +147,18 @@
     </dependencies>
 
     <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+            <resource>
+                <directory>${project.basedir}/../db/utils</directory>
+                <targetPath>db/utils</targetPath>
+                <includes>
+                    <include>Nuke.sql</include>
+                </includes>
+            </resource>
+        </resources>
         <plugins>
 
             <plugin>

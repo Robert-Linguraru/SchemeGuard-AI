@@ -53,6 +53,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/register").denyAll()
                         .requestMatchers("/api/rule/**")
                         .hasRole("ADMIN")
+                        .requestMatchers("/api/admin/nuke")
+                        .hasRole("ADMIN")
                         .anyRequest()
                         .authenticated()
                 )

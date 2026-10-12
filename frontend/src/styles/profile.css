@@ -260,6 +260,251 @@
     background: color-mix(in srgb, var(--coral) 86%, var(--navy));
 }
 
+.profile-danger-zone {
+    width: min(100%, 760px);
+    margin-top: 22px;
+    padding: 24px 28px;
+    border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--border));
+    border-radius: 18px;
+    background: var(--surface-card);
+    color: var(--text-primary);
+}
+
+.profile-danger-zone-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.profile-danger-zone-heading h3 {
+    margin: 0 0 4px;
+    color: var(--danger);
+    font-size: 18px;
+}
+
+.profile-danger-zone-heading p,
+.profile-danger-zone-description {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+.profile-danger-zone-badge {
+    flex: 0 0 auto;
+    padding: 5px 9px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.profile-danger-zone-description {
+    margin: 18px 0;
+    max-width: 600px;
+    line-height: 1.55;
+}
+
+.profile-danger-zone .ant-btn-dangerous {
+    min-height: 40px;
+    font-weight: 700;
+}
+
+.profile-bomb-icon {
+    font-size: 16px;
+    line-height: 1;
+}
+
+.profile-nuke-modal-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.profile-nuke-modal-title .anticon {
+    color: var(--danger);
+}
+
+.profile-nuke-warning {
+    color: var(--text-primary);
+    line-height: 1.6;
+}
+
+.profile-nuke-warning p {
+    margin: 0 0 14px;
+}
+
+.profile-nuke-warning p:last-child {
+    margin-bottom: 0;
+    font-weight: 700;
+}
+
+.profile-nuke-confirmation-label {
+    display: block;
+    margin: 18px 0 8px;
+    color: var(--text-primary);
+}
+
+.profile-nuke-confirmation-label strong {
+    color: var(--danger);
+    letter-spacing: 0.035em;
+}
+
+.profile-nuke-warning code {
+    padding: 2px 5px;
+    border-radius: 5px;
+    background: var(--surface-subtle);
+    color: var(--text-primary);
+}
+
+.nuke-explosion-overlay {
+    position: fixed;
+    z-index: 1200;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    background: rgba(25, 43, 55, 0.28);
+    pointer-events: none;
+    animation: nuke-overlay-fade 1600ms ease-out both;
+}
+
+.nuke-explosion-art {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 1px;
+    height: 1px;
+}
+
+.nuke-explosion-flash,
+.nuke-explosion-core,
+.nuke-explosion-smoke {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: block;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.nuke-explosion-flash {
+    width: 16px;
+    height: 16px;
+    background: #fff7c2;
+    box-shadow: 0 0 26px 12px rgba(255, 247, 194, 0.9);
+    animation: nuke-flash 700ms cubic-bezier(0.16, 0.75, 0.3, 1) both;
+}
+
+.nuke-explosion-core {
+    width: 28px;
+    height: 28px;
+    background: radial-gradient(circle, #fff7c2 0 8%, #ffb52e 32%, #ff5640 67%, rgba(212, 64, 59, 0) 72%);
+    animation: nuke-core 1100ms cubic-bezier(0.12, 0.75, 0.22, 1) both;
+}
+
+.nuke-explosion-smoke {
+    width: 80px;
+    height: 80px;
+    background: rgba(48, 64, 75, 0.55);
+    filter: blur(10px);
+    animation: nuke-smoke 1250ms 120ms ease-out both;
+}
+
+.nuke-explosion-art > i {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 11px;
+    height: 19px;
+    border-radius: 4px;
+    background: #ffb52e;
+    box-shadow: 0 0 9px rgba(255, 181, 46, 0.65);
+    opacity: 0;
+    animation: nuke-particle-burst 1050ms cubic-bezier(0.12, 0.68, 0.18, 1) both;
+}
+
+.nuke-explosion-art > i:nth-of-type(4n + 1) { background: #ff5640; }
+.nuke-explosion-art > i:nth-of-type(4n + 2) { background: #fff7c2; }
+.nuke-explosion-art > i:nth-of-type(4n + 3) { background: #f99c11; }
+.nuke-explosion-art > i:nth-of-type(1) { --burst-x: 0px; --burst-y: -145px; }
+.nuke-explosion-art > i:nth-of-type(2) { --burst-x: 58px; --burst-y: -128px; }
+.nuke-explosion-art > i:nth-of-type(3) { --burst-x: 108px; --burst-y: -91px; }
+.nuke-explosion-art > i:nth-of-type(4) { --burst-x: 143px; --burst-y: -34px; }
+.nuke-explosion-art > i:nth-of-type(5) { --burst-x: 139px; --burst-y: 42px; }
+.nuke-explosion-art > i:nth-of-type(6) { --burst-x: 97px; --burst-y: 105px; }
+.nuke-explosion-art > i:nth-of-type(7) { --burst-x: 39px; --burst-y: 142px; }
+.nuke-explosion-art > i:nth-of-type(8) { --burst-x: -31px; --burst-y: 148px; }
+.nuke-explosion-art > i:nth-of-type(9) { --burst-x: -93px; --burst-y: 112px; }
+.nuke-explosion-art > i:nth-of-type(10) { --burst-x: -137px; --burst-y: 52px; }
+.nuke-explosion-art > i:nth-of-type(11) { --burst-x: -145px; --burst-y: -23px; }
+.nuke-explosion-art > i:nth-of-type(12) { --burst-x: -111px; --burst-y: -85px; }
+.nuke-explosion-art > i:nth-of-type(13) { --burst-x: -64px; --burst-y: -125px; }
+.nuke-explosion-art > i:nth-of-type(14) { --burst-x: -54px; --burst-y: 95px; }
+.nuke-explosion-art > i:nth-of-type(15) { --burst-x: 78px; --burst-y: 64px; }
+.nuke-explosion-art > i:nth-of-type(16) { --burst-x: 23px; --burst-y: -76px; }
+
+.nuke-explosion-message {
+    position: relative;
+    display: grid;
+    justify-items: center;
+    gap: 5px;
+    margin-top: 205px;
+    color: #ffffff;
+    text-align: center;
+    text-shadow: 0 2px 12px rgba(25, 43, 55, 0.75);
+    animation: nuke-message-pop 900ms 180ms cubic-bezier(0.16, 0.8, 0.2, 1) both;
+}
+
+.nuke-explosion-message strong {
+    font-size: clamp(38px, 8vw, 72px);
+    line-height: 1;
+    letter-spacing: 0.06em;
+}
+
+.nuke-explosion-message span {
+    font-size: 13px;
+    font-weight: 700;
+}
+
+@keyframes nuke-overlay-fade {
+    0% { opacity: 0; }
+    12% { opacity: 1; }
+    72% { opacity: 1; }
+    100% { opacity: 0; }
+}
+
+@keyframes nuke-flash {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.2); }
+    12% { opacity: 1; }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(16); }
+}
+
+@keyframes nuke-core {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.2); }
+    18% { opacity: 1; }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(13); }
+}
+
+@keyframes nuke-smoke {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.35); }
+    25% { opacity: 0.65; }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(6); }
+}
+
+@keyframes nuke-particle-burst {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3) rotate(0); }
+    12% { opacity: 1; }
+    100% { opacity: 0; transform: translate(calc(-50% + var(--burst-x)), calc(-50% + var(--burst-y))) scale(0.15) rotate(250deg); }
+}
+
+@keyframes nuke-message-pop {
+    0% { opacity: 0; transform: scale(0.5) translateY(12px); }
+    40% { opacity: 1; transform: scale(1.08) translateY(0); }
+    100% { opacity: 1; transform: scale(1); }
+}
+
 @media (max-width: 600px) {
     .account-dropdown {
         right: -4px;
@@ -275,4 +520,15 @@
     }
 
     .profile-avatar-options { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .profile-danger-zone { padding: 20px; }
+    .profile-danger-zone-heading { flex-direction: column; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .nuke-explosion-overlay,
+    .nuke-explosion-art *,
+    .nuke-explosion-message {
+        animation-duration: 1ms !important;
+        animation-delay: 0ms !important;
+    }
 }

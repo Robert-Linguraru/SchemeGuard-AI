@@ -15,6 +15,7 @@ import java.math.RoundingMode;
 import java.util.Currency;
 import java.util.Locale;
 import java.util.List;
+import java.util.TreeSet;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 
@@ -23,6 +24,13 @@ import java.time.ZoneOffset;
 public class CurrencyRateService {
 
     private final CurrencyRateRepository repository;
+
+    @Transactional(readOnly = true)
+    public List<String> getAvailableCurrencies() {
+        var currencies = new TreeSet<>(repository.findAvailableCurrencies());
+        currencies.add("EUR");
+        return List.copyOf(currencies);
+    }
 
     @Transactional
     public int saveRates(List<FrankfurterRateResponse> rates) {

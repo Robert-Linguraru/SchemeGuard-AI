@@ -475,7 +475,7 @@ export function UploadsPage({
                     <div className="page-heading-actions">
                         <UploadComparisonModal />
                         <CsvTransactionUploadModal
-                            onCompleted={() => setReloadKey((currentKey) => currentKey + 1)}
+                            onListChanged={() => setReloadKey((currentKey) => currentKey + 1)}
                         />
                     </div>
                 </div>

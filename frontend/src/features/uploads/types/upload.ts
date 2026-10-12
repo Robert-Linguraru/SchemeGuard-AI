@@ -5,6 +5,7 @@ export type UploadImportStatus =
     | "UPLOADING"
     | "QUEUED"
     | "PROCESSING"
+    | "FINALIZING"
     | "DUPLICATES_FOUND"
     | "COMPLETED"
     | "DUPLICATE"

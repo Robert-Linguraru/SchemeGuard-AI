@@ -1,10 +1,11 @@
 package org.schemeguard.backend.service;
 
-import lombok.RequiredArgsConstructor;
 import org.schemeguard.backend.dto.Analytics.AnalyticsResponseDto;
 import org.schemeguard.backend.entity.enums.TransactionStatus;
 import org.schemeguard.backend.exception.CurrencyConversionException;
 import org.schemeguard.backend.repository.AnalyticsQueryRepository;
+import org.schemeguard.backend.service.currency.CurrencyRateService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,12 +20,24 @@ import java.util.Set;
 import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
 public class AnalyticsAggregationService {
     private static final String DEFAULT_ANALYTICS_CURRENCY = "EUR";
-    private static final Set<String> SUPPORTED_ANALYTICS_CURRENCIES = Set.of(DEFAULT_ANALYTICS_CURRENCY);
 
     private final AnalyticsQueryRepository analyticsQueryRepository;
+    private final CurrencyRateService currencyRateService;
+
+    @Autowired
+    public AnalyticsAggregationService(
+            AnalyticsQueryRepository analyticsQueryRepository,
+            CurrencyRateService currencyRateService
+    ) {
+        this.analyticsQueryRepository = analyticsQueryRepository;
+        this.currencyRateService = currencyRateService;
+    }
+
+    public AnalyticsAggregationService(AnalyticsQueryRepository analyticsQueryRepository) {
+        this(analyticsQueryRepository, null);
+    }
 
     @Transactional(readOnly = true)
     public AnalyticsResponseDto aggregate(
@@ -90,10 +103,14 @@ public class AnalyticsAggregationService {
         String normalized = value == null || value.isBlank()
                 ? DEFAULT_ANALYTICS_CURRENCY
                 : value.trim().toUpperCase(Locale.ROOT);
-        if (!SUPPORTED_ANALYTICS_CURRENCIES.contains(normalized)) {
+        Set<String> supportedCurrencies = currencyRateService == null
+                ? Set.of(DEFAULT_ANALYTICS_CURRENCY)
+                : Set.copyOf(currencyRateService.getAvailableCurrencies());
+        if (!supportedCurrencies.contains(normalized)) {
             throw new CurrencyConversionException(
                     HttpStatus.BAD_REQUEST,
-                    "Analytics currently supports only " + DEFAULT_ANALYTICS_CURRENCY + "."
+                    "Analytics does not support target currency " + normalized
+                            + " because no conversion rates are configured for it."
             );
         }
         return normalized;

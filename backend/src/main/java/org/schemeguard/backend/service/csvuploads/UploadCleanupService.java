@@ -45,6 +45,7 @@ public class UploadCleanupService {
         List<UploadSession> staleSessions = sessionRepository.findStaleSessions(
                 List.of(
                         UploadStatus.UPLOADING,
+                        UploadStatus.FINALIZING,
                         UploadStatus.DUPLICATES_FOUND,
                         UploadStatus.FAILED,
                         UploadStatus.DUPLICATE,

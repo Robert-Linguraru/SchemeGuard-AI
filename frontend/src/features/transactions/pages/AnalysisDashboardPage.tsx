@@ -11,6 +11,8 @@ import {
 import { Button, Card, DatePicker, Input, Modal, Progress, Select, Spin, Tooltip } from "antd";
 import { ErrorMessage } from "../../../shared/components/ErrorMessage";
 import {
+    ANALYTICS_CURRENCY,
+    getAvailableCurrencies,
     getAnalytics,
     type AnalyticsFilters,
     type AnalyticsMetric,
@@ -38,7 +40,8 @@ const emptyFilters: Filters = {
     scheme: "",
     country: "",
     merchant: "",
-    qualification: ""
+    qualification: "",
+    targetCurrency: ANALYTICS_CURRENCY
 };
 
 const filterKeys = Object.keys(emptyFilters) as Array<keyof Filters>;
@@ -370,6 +373,7 @@ export function AnalysisDashboardPage({
     onOpenTransaction: (upload: UploadSummary, transaction: Transaction) => void;
 }) {
     const [analytics, setAnalytics] = useState<AnalyticsResponse | null>(null);
+    const [availableCurrencies, setAvailableCurrencies] = useState<string[]>([ANALYTICS_CURRENCY]);
     const [filters, setFilters] = useState<Filters>(emptyFilters);
     const [appliedFilters, setAppliedFilters] = useState<Filters>(emptyFilters);
     const [isLoading, setIsLoading] = useState(true);
@@ -379,6 +383,19 @@ export function AnalysisDashboardPage({
     const [isApplyingFilters, setIsApplyingFilters] = useState(false);
     const [areFiltersOpen, setAreFiltersOpen] = useState(false);
     const [drilldown, setDrilldown] = useState<DrilldownConfig | null>(null);
+
+    useEffect(() => {
+        const controller = new AbortController();
+        getAvailableCurrencies(controller.signal)
+            .then((currencies) => {
+                setAvailableCurrencies(Array.from(new Set([ANALYTICS_CURRENCY, ...currencies])).sort());
+            })
+            .catch(() => {
+                if (!controller.signal.aborted) setAvailableCurrencies([ANALYTICS_CURRENCY]);
+            });
+
+        return () => controller.abort();
+    }, []);
 
     useEffect(() => {
         let isMounted = true;
@@ -448,7 +465,11 @@ export function AnalysisDashboardPage({
 
     const setFilter = (key: keyof Filters, value: string) => setFilters((current) => ({ ...current, [key]: value }));
     const hasPendingFilterChanges = requestWasCancelled || !filtersMatch(filters, appliedFilters);
-    const hasFilterValues = filterKeys.some((key) => Boolean(filters[key]) || Boolean(appliedFilters[key]));
+    const hasFilterValues = filterKeys.some(
+        (key) => key !== "targetCurrency" && (Boolean(filters[key]) || Boolean(appliedFilters[key]))
+    )
+        || filters.targetCurrency !== ANALYTICS_CURRENCY
+        || appliedFilters.targetCurrency !== ANALYTICS_CURRENCY;
     const applyFilters = () => {
         if (!hasPendingFilterChanges) return;
         setRequestWasCancelled(false);
@@ -574,6 +595,15 @@ export function AnalysisDashboardPage({
                                 format="YYYY-MM-DD"
                                 placeholder="End date"
                                 onChange={(date) => setFilter("to", date ? date.format("YYYY-MM-DD") : "")}
+                            />
+                        </div>
+                        <div className="analysis-filter-field">
+                            <span>Currency</span>
+                            <Select
+                                className="analysis-filter-control"
+                                value={filters.targetCurrency}
+                                options={availableCurrencies.map((value) => ({ value, label: value }))}
+                                onChange={(value) => setFilter("targetCurrency", value)}
                             />
                         </div>
                         <div className="analysis-filter-field">
