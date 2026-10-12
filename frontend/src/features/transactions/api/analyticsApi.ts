@@ -32,6 +32,14 @@ export interface AnalyticsFilters {
     country: string;
     merchant: string;
     qualification: string;
+    targetCurrency: string;
+}
+
+export function getAvailableCurrencies(signal?: AbortSignal): Promise<string[]> {
+    return request<string[]>("/api/currency/available", {
+        method: "GET",
+        signal
+    });
 }
 
 export function getAnalytics(filters: AnalyticsFilters, signal?: AbortSignal): Promise<AnalyticsResponse> {
@@ -39,7 +47,7 @@ export function getAnalytics(filters: AnalyticsFilters, signal?: AbortSignal): P
     Object.entries(filters).forEach(([key, value]) => {
         if (value) params.set(key, value);
     });
-    params.set("targetCurrency", ANALYTICS_CURRENCY);
+    params.set("targetCurrency", filters.targetCurrency || ANALYTICS_CURRENCY);
     const query = params.toString();
     return request<AnalyticsResponse>(`/api/analytics${query ? `?${query}` : ""}`, {
         method: "GET",

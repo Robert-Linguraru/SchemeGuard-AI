@@ -2,12 +2,6 @@
 
 SchemeGuardAI manages card-scheme rules, qualifies imported transactions, and calculates interchange fees.
 
-!! You have to run the container that pulls the ollama model before running the entire project
-```
-
-docker compose up ollama-model
-```
-
 ```bash
 py -m generate_csv --rows [n_rows] --output [file_name.csv] --seed 42
 
@@ -65,17 +59,18 @@ docker compose up --build --remove-orphans
 | --- | --- |
 | Web application | http://localhost:5173 |
 | Backend API | http://localhost:8080 |
-| ML API documentation | http://localhost:8000/docs |
-| ML health check | http://localhost:8000/health |
-| Ollama API | http://localhost:11434 |
+| ML service API documentation | http://localhost:8000/docs |
+| ML service health check | http://localhost:8000/health |
+| ML service outlier endpoint | `POST http://localhost:8000/detect-outliers` |
 
 ### OpenAPI contract generation
 
 The backend generates its OpenAPI 3 contract from Spring controllers and DTOs using
 springdoc. After starting the backend, inspect the specification at
 `http://localhost:8080/v3/api-docs` or Swagger UI at `http://localhost:8080/swagger-ui.html`.
-`TransactionUploadController` is excluded because of its chunked binary upload endpoint;
-the separate anomaly controller remains documented.
+The whole `TransactionUploadController` is hidden from the generated specification because
+it includes a chunked binary upload endpoint; this means the other upload routes in that
+controller are hidden from Swagger too. The separate anomaly controller remains documented.
 
 To generate frontend TypeScript contract types from the running backend, run from
 `frontend/`:
@@ -139,16 +134,15 @@ file or a cancellation cannot leave a partial transaction import.
 External transaction IDs are not treated as unique. The same identifier may appear multiple
 times in one upload or across different banking systems.
 
-### Recommendation assistant security boundary
+### MY AGENT security boundary
 
-The recommendation endpoint checks that the authenticated user owns the upload and that
-the selected transaction belongs to that upload before loading transaction context. The
-assistant receives only that transaction's evaluated context and retrieved reference text.
-It has no tools or database/action interface, so model output cannot delete transactions or
-invoke backend operations. The backend remains the authorization boundary; prompt wording
-is an additional instruction to treat user text, transaction fields, and retrieved snippets
-as untrusted data, not a security control by itself. Recommendation messages are limited to
-2,000 characters.
+`POST /api/agent/chat` checks that the authenticated user owns the selected upload and that
+each selected transaction belongs to it before loading transaction and qualification data
+from PostgreSQL. A request can include up to two transaction IDs and recent conversation
+history. The backend sends this context to the configured OpenAI-compatible Chat Completions
+API when `OPENAI_API_KEY` is set. The agent is read-only and has no action tools; backend
+ownership checks remain the authorization boundary. Prompts and transaction fields are
+treated as untrusted data, not as a security control.
 
 The backend uses `spring.jpa.hibernate.ddl-auto=validate`, so startup fails with a clear
 schema-validation error if these tables have not yet been created in Supabase.
@@ -168,10 +162,15 @@ Backend defaults and upload limits are defined in [application.properties](backe
 | `APP_JWT_SECRET` | JWT signing secret of at least 32 characters; required |
 | `UPLOAD_STORAGE_DIRECTORY` | Temporary upload storage; `/tmp/schemeguard-transaction-uploads` |
 | `UPLOAD_PROGRESS_UPDATE_INTERVAL_MS` | Minimum interval for persisted import progress updates; `2000` |
-| `OLLAMA_URL` | Ollama base URL; Compose supplies `http://ollama:11434` |
-| `OLLAMA_MODEL` | Model pulled and used by the backend; `qwen3:4b` |
-| `OLLAMA_PORT` | Ollama port exposed on the host; `11434` |
-| `OLLAMA_IMAGE` | Ollama Docker image; `ollama/ollama:latest` |
+| `OPENAI_API_KEY` | API key for MY AGENT; optional, but required for model-generated answers |
+| `OPENAI_MODEL` | Chat Completions model; `gpt-4o-mini` |
+| `OPENAI_BASE_URL` | OpenAI-compatible API base URL; `https://api.openai.com/v1` |
+| `CURRENCY_RATES_ENABLED` | Enable scheduled ECB rate synchronization through Frankfurter; `true` |
+| `CURRENCY_RATES_CRON` | Rate refresh schedule; `0 0 18 * * MON-FRI` |
+| `CURRENCY_RATES_ZONE` | Schedule time zone; `Europe/Bucharest` |
+| `CURRENCY_RATES_CURRENCIES` | Currency codes to synchronize; `EUR,RON,USD,GBP,CHF` |
+| `CURRENCY_RATES_REFRESH_ON_STARTUP` | Fetch rates when the backend starts; `true` |
+| `VITE_API_BASE_URL` | Base path used by the browser's chunked upload client; defaults to `/api` |
 
 Spring imports `.env` from either the repository root or the `backend` module's parent
 directory. This supports starting the backend from IntelliJ or Maven. Docker Compose also
@@ -186,58 +185,142 @@ SPRING_DATASOURCE_USERNAME=your-supabase-database-user
 SPRING_DATASOURCE_PASSWORD=your-supabase-database-password
 ```
 
-## API overview
+## API reference
+
+The React application calls the Spring Boot API on the same origin under `/api`. In local
+development, Vite proxies `/api` to `http://backend:8080`. The browser sends the JWT access
+token as `Authorization: Bearer <token>` for protected requests. Registration, login, and
+`GET /api/rule/getRule` are public; other application API routes require authentication.
+Rule management, card-scheme mutations, and the database nuke operation require an admin
+role. Upload and transaction endpoints check ownership against the signed-in user.
+
+The tables below list the routes used or supported by current web-client API modules.
+`{uploadId}` and other braced path values are identifiers returned by the API.
 
 ### Authentication and profile
 
-| Endpoint | Purpose |
+| Method and path | Purpose / request |
 | --- | --- |
-| `POST /api/auth/register`, `POST /api/auth/login` | Register or sign in |
-| `GET /api/auth/me`, `PUT /api/auth/profile` | Read or update the current account |
+| `POST /api/auth/register` | Create an account; JSON registration fields; public |
+| `POST /api/auth/login` | Sign in; returns the access token and account profile; public |
+| `GET /api/auth/me` | Load the signed-in account after page refresh |
+| `PUT /api/auth/profile` | Update the current account's email, name, and optional password |
 
 ### Card schemes
 
-| Endpoint | Purpose |
+| Method and path | Purpose / query or body |
 | --- | --- |
-| `GET /api/card-schemes` | List active schemes; supports `includeInactive`, `search`, `page`, `size` and `sort` |
-| `GET /api/card-schemes/{id}` | Read one active scheme; admins can use `includeInactive=true` |
-| `POST /api/card-schemes` | Create a card scheme |
-| `PATCH /api/card-schemes/{id}` | Update the scheme `code` and `name` |
-| `PATCH /api/card-schemes/{id}/activate` | Activate the scheme; `{ "cascade": true }` also activates associated entities |
-| `PATCH /api/card-schemes/{id}/deactivate` | Deactivate the scheme and associated rules, transactions and results |
-| `DELETE /api/card-schemes/{id}` | Hard-delete the scheme and its dependent rules, transactions and results |
+| `GET /api/card-schemes` | Search and page through schemes; `search`, `page`, `size`, `sort`, `includeInactive` |
+| `GET /api/card-schemes/{cardSchemeId}` | Read scheme details; `includeInactive=true` is admin-only. A client helper exists, though no current page calls it. |
+| `POST /api/card-schemes` | Create a scheme; `{ "code": "...", "name": "..." }`; admin |
+| `PATCH /api/card-schemes/{cardSchemeId}` | Update scheme code and name; admin |
+| `PATCH /api/card-schemes/{cardSchemeId}/activate` | Activate; optional `{ "cascade": true }`; admin |
+| `PATCH /api/card-schemes/{cardSchemeId}/deactivate` | Deactivate the scheme and associated data; admin |
+| `DELETE /api/card-schemes/{cardSchemeId}` | Delete the scheme and dependent data; admin |
 
 ### Rules
 
-| Endpoint | Purpose |
+| Method and path | Purpose / query or body |
 | --- | --- |
-| `GET /api/rule/getRules`, `GET /api/rule/getRule?id=...` | List rules or read one rule |
-| `POST /api/rule/upload`, `POST /api/rule/delete?id=...` | Create or delete a rule |
+| `GET /api/rule/getRules` | List rules; admin |
+| `GET /api/rule/getRule?id={ruleId}` | Read one rule; this route is public |
+| `POST /api/rule/upload` | Create a rule using the rule JSON structure shown below; admin |
+| `POST /api/rule/delete?id={ruleId}` | Delete a rule; admin |
 
-### Transactions and uploads
+### Transaction sources and CSV uploads
 
-| Endpoint | Purpose |
+| Method and path | Purpose / query or body |
 | --- | --- |
-| `GET /api/transactions` | Retrieve paginated transactions and their latest qualification results |
-| `GET /api/transaction-sources` | List saved shared sources for the upload dropdown |
-| `POST /api/uploads` | Create an upload session with a required `sourceName` |
-| `PUT /api/uploads/{id}/parts/{partNumber}` | Upload a binary file chunk |
-| `POST /api/uploads/{id}/complete` | Queue the CSV import |
-| `GET /api/uploads/{id}`, `DELETE /api/uploads/{id}` | Check progress or cancel an upload |
-| `GET /api/uploads/{id}/duplicates.xlsx` | Download the duplicate transaction report while review is pending |
-| `POST /api/uploads/{id}/duplicates/confirm` | Continue the import while skipping duplicate transactions |
+| `GET /api/transaction-sources` | List saved sources for the CSV upload form |
+| `POST /api/uploads` | Create an upload session; JSON includes `fileName`, `fileSizeBytes`, and `sourceName` |
+| `GET /api/uploads` | List uploads; supports `page`, `size`, `search`, and `sort` |
+| `PUT /api/uploads/{uploadId}/parts/{partNumber}` | Send one binary chunk (`application/octet-stream`); optional `X-Chunk-SHA256` checksum |
+| `POST /api/uploads/{uploadId}/complete` | Finish sending chunks and queue CSV import |
+| `GET /api/uploads/{uploadId}` | Read upload/import status and progress; response is not cached |
+| `DELETE /api/uploads/{uploadId}` | Cancel an upload session or in-progress import |
+| `POST /api/uploads/{uploadId}/duplicates/confirm` | Confirm import while skipping the reported duplicate transactions |
+| `GET /api/uploads/{uploadId}/duplicates.xlsx` | Download an XLSX report when duplicate review is pending |
+| `DELETE /api/uploads/{uploadId}/document` | Delete the stored original CSV document |
+| `GET /api/uploads/{uploadId}/transactions` | List transactions in one upload; supports `page`, `size`, `search`, `sort`, and `anomaliesOnly` |
+| `POST /api/uploads/{uploadId}/evaluate` | Evaluate all transactions in an upload against rules and calculate fees |
+| `GET /api/uploads/{uploadId}/statistics` | Read upload-level transaction and qualification statistics |
+| `GET /api/uploads/{uploadId}/download` | Download the original CSV file |
 
-### Machine learning
+The upload client creates a session, uploads chunks in parallel (with retry on throttling or
+server errors), completes the session, and polls its status until import finishes. Import
+statuses include `QUEUED`, `PROCESSING`, `FINALIZING`, `COMPLETED`, `DUPLICATES_FOUND`,
+`DUPLICATE`, `FAILED`, and `CANCELLED`.
 
-| Endpoint | Purpose |
+### Outlier detection and review
+
+| Method and path | Purpose |
 | --- | --- |
-| `POST /predict` (ML service) | Placeholder prediction endpoint |
-| `POST /api/qualifications/evaluate` | Compute qualifications and fees |
-| `POST /api/assistant/recommendations` | Generate Romanian improvement recommendations from qualification conditions through Ollama |
+| `POST /api/uploads/{uploadId}/anomalies/detect` | Queue anomaly detection; returns HTTP `202 Accepted` and a job ID |
+| `GET /api/uploads/{uploadId}/anomalies/status` | Check the job status (`PENDING`, `RUNNING`, `COMPLETED`, or `FAILED`) |
+| `GET /api/uploads/{uploadId}/anomalies` | Return transaction IDs marked as outliers |
+| `POST /api/uploads/{uploadId}/anomalies/{transactionId}/confirm` | Mark an outlier as manually reviewed |
 
-Protected backend requests use `Authorization: Bearer <token>`. Current access rules are defined in [SecurityConfig.java](backend/src/main/java/org/schemeguard/backend/config/SecurityConfig.java).
+The current web flow calls the Spring API. The backend processes anomaly jobs with its Java
+rules engine; it does not send these requests to the separate FastAPI ML service.
 
-For a transaction CSV example, see [transactions_40.csv](transactions_40.csv). Required columns are defined in [CsvImportService.java](backend/src/main/java/org/schemeguard/backend/service/csvUpload/CsvImportService.java).
+### Analytics and transaction explanations
+
+| Method and path | Purpose / query |
+| --- | --- |
+| `GET /api/currency/available` | Load currencies available for the analytics selector |
+| `GET /api/analytics` | Load dashboard metrics; optional `from`, `to`, `scheme`, `country`, `merchant`, `qualification`, `status`, and `targetCurrency` filters |
+| `GET /api/results/explanation` | Explain a transaction's qualification and fees; requires `transactionId` and `uploadId` |
+
+### MY AGENT
+
+| Method and path | Purpose / JSON body |
+| --- | --- |
+| `POST /api/agent/chat` | Ask about an upload's transactions; body contains `message`, nullable `uploadId`, `transactionIds` (up to two), and `history` |
+
+The backend checks upload and transaction ownership, loads the relevant transaction and
+qualification context, and calls the configured OpenAI-compatible `POST
+{OPENAI_BASE_URL}/chat/completions` endpoint. `OPENAI_API_KEY` is sent by the backend as a
+Bearer token and is never sent directly by the browser. If no key is configured, deterministic
+anomaly-list requests can still be answered, while model-generated chat is unavailable.
+
+### Admin operation
+
+| Method and path | Purpose |
+| --- | --- |
+| `POST /api/admin/nuke` | Execute `db/utils/Nuke.sql` after admin confirmation; permanently removes application data |
+
+### Other backend and service endpoints
+
+These routes are available in the services but are not called directly by the current React
+client:
+
+| Service | Method and path | Purpose |
+| --- | --- | --- |
+| Spring Boot | `GET /api/currency/convert?sourceCurrency=...&targetCurrency=...&sourceValue=...` | Convert a value using stored currency rates |
+| Spring Boot | `POST /api/qualifications/evaluate?file_id={uploadId}` | Alternate upload-evaluation route; the web client uses `/api/uploads/{uploadId}/evaluate` |
+| FastAPI ML service | `GET /health` | Service health response |
+| FastAPI ML service | `POST /detect-outliers` | Outlier calculation endpoint; current backend anomaly jobs use Java instead |
+
+The FastAPI service does not currently expose `/predict`. The PostgreSQL database configured
+in `.env` is accessed by the backend through JDBC; the browser does not call the database or
+Supabase REST APIs directly.
+
+### External APIs and API documentation
+
+| API | How SchemeGuard uses it |
+| --- | --- |
+| Frankfurter, `GET https://api.frankfurter.dev/v2/providers/ecb/rates` | Backend imports configured ECB currency pairs at startup and on its weekday schedule; rates are stored locally for analytics and conversion |
+| OpenAI-compatible Chat Completions, `POST {OPENAI_BASE_URL}/chat/completions` | Optional backend integration used by MY AGENT when `OPENAI_API_KEY` is configured |
+| Springdoc OpenAPI | `http://localhost:8080/v3/api-docs` serves the backend specification; Swagger UI is at `http://localhost:8080/swagger-ui.html` |
+
+`TransactionUploadController` is hidden from the generated OpenAPI contract because it
+contains the chunked binary upload route, so its upload, status, transaction, evaluation,
+statistics, and download endpoints are documented above but omitted from generated OpenAPI.
+The separate anomaly controller is included in the contract. To regenerate frontend contract
+types after documented backend API changes, run `npm run api:types` from `frontend/`.
+
+Generate a transaction CSV fixture with `py misc/generate_csv.py`. Required columns are
+defined in [CsvImportService.java](backend/src/main/java/org/schemeguard/backend/service/csvuploads/CsvImportService.java).
 
 # Rule-based component example
 ```json
@@ -368,30 +451,3 @@ Unqualified
 }
 
 ```
-
-## RAG knowledge retrieval
-
-The recommendation assistant keeps exact transaction and qualification data in PostgreSQL and optionally enriches the prompt with semantically retrieved rule/documentation snippets.
-
-Before using RAG, run `db/rag_documents.sql` against the application database. The backend uses Ollama's `embeddinggemma` model by default and pulls it through Docker Compose.
-
-After the schema and model are available, an administrator can index the existing interchange rules:
-
-```http
-POST /api/rag/rules/reindex
-```
-
-Additional documentation can be indexed through:
-
-```http
-POST /api/rag/documents
-Content-Type: application/json
-
-{
-  "title": "Card scheme guidance",
-  "source": "docs/card-scheme-guidance.md",
-  "content": "Documentation text to split into chunks and index."
-}
-```
-
-RAG is optional at runtime: if the vector schema or embedding model is unavailable, the assistant falls back to the exact transaction context and continues to answer normally.

@@ -976,7 +976,7 @@ button.my-agent-transaction-button {
 
 .analysis-filter-grid {
 	display: grid;
-	grid-template-columns: repeat(8, minmax(0, 1fr));
+	grid-template-columns: repeat(9, minmax(0, 1fr));
 	gap: 14px;
 }
 

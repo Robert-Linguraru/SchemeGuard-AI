@@ -29,6 +29,7 @@ import {
   downloadOriginalCsv,
   DuplicateUploadError,
   getTransactionSources,
+  UploadCleanupError,
   UploadImportError,
   uploadCsv,
 } from "../api/csvUploadApi";
@@ -41,7 +42,7 @@ import "./csvUploadModal.css";
 const { Dragger } = Upload;
 
 type TransactionUploadModalProps = {
-  onCompleted?: (result: UploadStatusResponse) => void;
+  onListChanged?: (result?: UploadStatusResponse) => void;
 };
 
 type UploadNotification = {
@@ -69,7 +70,7 @@ function saveBlob(blob: Blob, fileName: string) {
 }
 
 export default function CsvTransactionUploadModal({
-  onCompleted,
+  onListChanged,
 }: TransactionUploadModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -89,6 +90,9 @@ export default function CsvTransactionUploadModal({
   const [notificationApi, notificationContextHolder] = antdNotification.useNotification();
   const abortController = useRef<AbortController | null>(null);
   const requiresDecision = pendingDuplicates !== null;
+  const allRowsAreDuplicates = pendingDuplicates !== null
+    && pendingDuplicates.processedRows > 0
+    && pendingDuplicates.duplicateRows >= pendingDuplicates.processedRows;
   const busy = isUploading || isResolvingDuplicates || requiresDecision;
   const canCloseModal = !isUploading && !isResolvingDuplicates;
 
@@ -187,7 +191,7 @@ export default function CsvTransactionUploadModal({
     });
     setPendingDuplicates(null);
     setCompletedUpload(result);
-    onCompleted?.(result);
+    onListChanged?.(result);
   };
 
   const startUpload = async () => {
@@ -224,12 +228,20 @@ export default function CsvTransactionUploadModal({
       if (result.status === "DUPLICATES_FOUND") {
         setProgress(null);
         setPendingDuplicates(result);
-        onCompleted?.(result);
+        onListChanged?.(result);
         return;
       }
       finishImport(result);
     } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") {
+      onListChanged?.();
+      if (error instanceof UploadCleanupError) {
+        setProgress(null);
+        showNotification({
+          kind: "error",
+          title: "Could not clean up upload",
+          message: error.message,
+        });
+      } else if (error instanceof DOMException && error.name === "AbortError") {
         setProgress(null);
         showNotification({
           kind: "warning",
@@ -275,7 +287,7 @@ export default function CsvTransactionUploadModal({
       const result = await confirmDuplicateImport(pendingDuplicates.uploadId);
       if (result.status === "DUPLICATES_FOUND") {
         setPendingDuplicates(result);
-        onCompleted?.(result);
+        onListChanged?.(result);
         showNotification({
           kind: "warning",
           title: "Duplicate list updated",
@@ -305,7 +317,7 @@ export default function CsvTransactionUploadModal({
     setIsResolvingDuplicates(true);
     try {
       await cancelUpload(pendingDuplicates.uploadId);
-      onCompleted?.(pendingDuplicates);
+      onListChanged?.(pendingDuplicates);
       showNotification({
         kind: "warning",
         title: "Import cancelled",
@@ -314,6 +326,7 @@ export default function CsvTransactionUploadModal({
       setIsOpen(false);
       resetForm();
     } catch (error) {
+      onListChanged?.();
       showNotification({
         kind: "error",
         title: "Could not cancel import",
@@ -380,8 +393,10 @@ export default function CsvTransactionUploadModal({
     ? Math.round((progress.completedParts / progress.totalParts) * 100)
     : 0;
   const isProcessing = progress?.phase === "processing";
+  const isFinalizing = progress?.phase === "finalizing";
+  const isWorking = isProcessing || isFinalizing;
   const isCompleted = progress?.phase === "completed";
-  const currentStep = isCompleted ? 3 : isProcessing || requiresDecision ? 2 : isUploading ? 1 : 0;
+  const currentStep = isCompleted ? 3 : isWorking || requiresDecision ? 2 : isUploading ? 1 : 0;
   const canStartImport = Boolean(file && sourceName.trim()) && !busy;
   const importStages = ["Select file", "Upload", "Processing", "Complete"];
   const footerMessage = isCompleted
@@ -451,7 +466,7 @@ export default function CsvTransactionUploadModal({
               icon={<CloudUploadOutlined />}
               onClick={() => void confirmImportWithoutDuplicates()}
               loading={isResolvingDuplicates}
-              disabled={isDownloadingDuplicates}
+              disabled={isDownloadingDuplicates || allRowsAreDuplicates}
             >
               Continue without duplicates
             </Button>
@@ -633,7 +648,9 @@ export default function CsvTransactionUploadModal({
               showIcon
               type="warning"
               message={`${pendingDuplicates.duplicateRows.toLocaleString()} duplicate transaction${pendingDuplicates.duplicateRows === 1 ? "" : "s"} found`}
-              description="Download the Excel report to review the rows. Continuing imports the other transactions and skips these duplicates. Cancel stops the whole import."
+              description={allRowsAreDuplicates
+                ? "Every transaction in this file is a duplicate, so there are no new transactions to import. You can download the report or cancel this upload."
+                : "Download the Excel report to review the rows. Continuing imports the other transactions and skips these duplicates. Cancel stops the whole import."}
               action={(
                 <Button
                   size="small"
@@ -660,9 +677,11 @@ export default function CsvTransactionUploadModal({
                     <Typography.Text strong>
                       {isCompleted
                         ? "Import completed"
-                        : isProcessing
-                          ? "Processing transactions"
-                          : "Uploading file parts"}
+                        : isFinalizing
+                          ? "Finalizing import"
+                          : isProcessing
+                            ? "Processing transactions"
+                            : "Uploading file parts"}
                     </Typography.Text>
                   </Space>
                   <Typography.Text type="secondary">
@@ -670,14 +689,18 @@ export default function CsvTransactionUploadModal({
                   </Typography.Text>
                 </Flex>
                 <div
-                  className={`csv-upload-progress-track${isProcessing ? " is-indeterminate" : ""}`}
+                  className={`csv-upload-progress-track${isWorking ? " is-indeterminate" : ""}`}
                   role="progressbar"
-                  aria-label={isProcessing ? "Transaction processing is in progress" : "File upload progress"}
-                  aria-valuemin={isProcessing ? undefined : 0}
-                  aria-valuemax={isProcessing ? undefined : 100}
-                  aria-valuenow={isProcessing ? undefined : isCompleted ? 100 : uploadPercent}
+                  aria-label={isFinalizing
+                    ? "Import finalization is in progress"
+                    : isProcessing
+                      ? "Transaction processing is in progress"
+                      : "File upload progress"}
+                  aria-valuemin={isWorking ? undefined : 0}
+                  aria-valuemax={isWorking ? undefined : 100}
+                  aria-valuenow={isWorking ? undefined : isCompleted ? 100 : uploadPercent}
                 >
-                  {!isProcessing && (
+                  {!isWorking && (
                     <div
                       className="csv-upload-progress-fill"
                       style={{ width: `${isCompleted ? 100 : uploadPercent}%` }}
@@ -687,19 +710,26 @@ export default function CsvTransactionUploadModal({
                 <Flex justify="space-between" align="center" gap={12}>
                   <Typography.Text
                     type="secondary"
-                    aria-live={isProcessing ? "polite" : undefined}
+                    aria-live={isWorking ? "polite" : undefined}
                   >
-                    {isProcessing || isCompleted
-                      ? `${progress.processedRows.toLocaleString()} transactions processed`
-                      : `${progress.completedParts} / ${progress.totalParts} parts sent`}
+                    {isCompleted
+                      ? `${progress.processedRows.toLocaleString()} transactions saved`
+                      : isWorking
+                        ? `${progress.processedRows.toLocaleString()} rows read`
+                        : `${progress.completedParts} / ${progress.totalParts} parts sent`}
                   </Typography.Text>
                   <Typography.Text type="secondary">
-                    {isProcessing ? "Updates automatically" : null}
+                    {isWorking ? "Updates automatically" : null}
                   </Typography.Text>
                 </Flex>
                 {isProcessing && (
                   <Typography.Text type="secondary">
-                    Validating rows and checking for existing transactions.
+                    Rows are validated and staged in batches. The import appears in history after the final save completes.
+                  </Typography.Text>
+                )}
+                {isFinalizing && (
+                  <Typography.Text type="secondary">
+                    All rows are read. Saving transactions now; they will appear in history when this step completes.
                   </Typography.Text>
                 )}
               </Space>

@@ -228,6 +228,7 @@ public class UploadService {
 
         if (session.getStatus() == UploadStatus.QUEUED
                 || session.getStatus() == UploadStatus.PROCESSING
+                || session.getStatus() == UploadStatus.FINALIZING
                 || session.getStatus() == UploadStatus.COMPLETED) {
             return toCompleteResponse(session);
         }
@@ -478,6 +479,24 @@ public class UploadService {
         return true;
     }
 
+    @Transactional
+    public boolean markFinalizing(UUID uploadId) {
+        UploadSession session = sessionRepository.findByIdForUpdate(uploadId)
+                .orElseThrow(() -> new UploadException(
+                        HttpStatus.NOT_FOUND,
+                        "UPLOAD_NOT_FOUND",
+                        "Upload session not found."
+                ));
+
+        if (session.getStatus() != UploadStatus.PROCESSING) {
+            return false;
+        }
+
+        session.setStatus(UploadStatus.FINALIZING);
+        sessionRepository.save(session);
+        return true;
+    }
+
     @Transactional(readOnly = true)
     public boolean isCancellationRequested(UUID uploadId) {
         Boolean cancelled = jdbcTemplate.queryForObject(
@@ -513,7 +532,7 @@ public class UploadService {
                         "Upload session not found."
                 ));
 
-        if (session.getStatus() != UploadStatus.PROCESSING
+        if (session.getStatus() != UploadStatus.FINALIZING
                 && !(analystConfirmed && session.getStatus() == UploadStatus.DUPLICATES_FOUND)) {
             throw new UploadCancelledException();
         }
@@ -555,6 +574,15 @@ public class UploadService {
             );
             finishUploadAfterCommit(uploadId);
             return toStatusResponse(session);
+        }
+        if (analystConfirmed
+                && processedRows > 0
+                && duplicateSummary.count() >= processedRows) {
+            throw new UploadException(
+                    HttpStatus.CONFLICT,
+                    "NO_UNIQUE_TRANSACTIONS",
+                    "All transactions in this file are duplicates; there are no new transactions to import."
+            );
         }
         long mergeStartedAtNanos = System.nanoTime();
         long importedRows = reviewingPersistedRows

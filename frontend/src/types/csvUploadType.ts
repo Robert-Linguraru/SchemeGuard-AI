@@ -2,6 +2,7 @@ export type UploadStatus =
   | "UPLOADING"
   | "QUEUED"
   | "PROCESSING"
+  | "FINALIZING"
   | "DUPLICATES_FOUND"
   | "COMPLETED"
   | "DUPLICATE"
@@ -37,7 +38,7 @@ export type UploadStatusResponse = {
 };
 
 export type UploadProgress = {
-  phase: "uploading" | "processing" | "completed";
+  phase: "uploading" | "processing" | "finalizing" | "completed";
   completedParts: number;
   totalParts: number;
   processedRows: number;

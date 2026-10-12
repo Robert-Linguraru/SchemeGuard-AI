@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/currency")
@@ -23,5 +24,10 @@ public class CurrencyConversionController {
             @RequestParam BigDecimal sourceValue
     ) {
         return service.convert(sourceCurrency, targetCurrency, sourceValue);
+    }
+
+    @GetMapping("/available")
+    public List<String> getAvailableCurrencies() {
+        return service.getAvailableCurrencies();
     }
 }

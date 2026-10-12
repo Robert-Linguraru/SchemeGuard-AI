@@ -10,8 +10,20 @@ import org.springframework.data.repository.query.Param;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 public interface CurrencyRateRepository extends JpaRepository<CurrencyRate, CurrencyRateId> {
+    @Query(value = """
+            SELECT currency_code
+            FROM (
+                SELECT TRIM(source_currency) AS currency_code FROM currency_rates
+                UNION
+                SELECT TRIM(target_currency) AS currency_code FROM currency_rates
+            ) available_currencies
+            ORDER BY currency_code
+            """, nativeQuery = true)
+    List<String> findAvailableCurrencies();
+
     @Modifying
     @Query(value = """
             INSERT INTO currency_rates (source_currency, target_currency, rate, rate_date, updated_at)

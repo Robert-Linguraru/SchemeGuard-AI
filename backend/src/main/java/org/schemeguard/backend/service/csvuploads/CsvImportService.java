@@ -111,6 +111,9 @@ public class CsvImportService {
                         csvStageTimer
                 );
             }
+            if (!uploadService.markFinalizing(uploadId)) {
+                throw new UploadCancelledException();
+            }
             UploadStatusResponse importResult = uploadService.commitImportedTransactions(
                     uploadId,
                     uploadRecordId,

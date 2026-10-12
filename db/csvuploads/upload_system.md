@@ -67,7 +67,7 @@ zero sau mai multe înregistrări.
 ## Sesiuni și timpi
 
 Valorile actuale ale `upload_sessions.status` sunt `UPLOADING`, `QUEUED`, `PROCESSING`,
-`DUPLICATES_FOUND`, `COMPLETED`, `DUPLICATE`, `FAILED` și `CANCELLED`. Timpul total se
+`FINALIZING`, `DUPLICATES_FOUND`, `COMPLETED`, `DUPLICATE`, `FAILED` și `CANCELLED`. Timpul total se
 păstrează pe sesiune și, când există înregistrarea fișierului, și pe `uploads`. Timpii
 intermediari măsoară primirea bucăților, persistența documentului, parsarea și validarea
 CSV-ului, scrierea în staging și merge-ul final.

@@ -4,6 +4,7 @@ public enum UploadStatus {
     UPLOADING,
     QUEUED,
     PROCESSING,
+    FINALIZING,
     DUPLICATES_FOUND,
     COMPLETED,
     DUPLICATE,
