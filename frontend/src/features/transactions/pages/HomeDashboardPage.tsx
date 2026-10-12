@@ -43,7 +43,7 @@ export function HomeDashboardPage({
         const controller = new AbortController();
         const query = { page: 0, size: 1, search: "", sort: "uploadedAt,desc" } satisfies EntityListQuery;
         void Promise.all([
-            getAnalytics({ from: "", to: "", scheme: "", country: "", merchant: "", qualification: "" }, controller.signal),
+            getAnalytics({ from: "", to: "", scheme: "", country: "", merchant: "", qualification: "", targetCurrency: "EUR" }, controller.signal),
             getUploads(query, controller.signal)
         ]).then(([result, uploads]) => {
             setAnalytics(result);
